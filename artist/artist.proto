@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package artist;
+
+option go_package = "github.com/v0vc/go-music-grpc;artist";
+
+message Artist {
+  int64 id = 1;
+  uint32 siteId = 2;
+  string artistId = 3;
+  string title = 4;
+  uint32 counter = 5;
+  bytes thumbnail = 7;
+}
+
+message CreateArtistRequest {
+  uint32 siteId = 1;
+  string artistId = 3;
+}
+
+message CreateArtistResponse {
+  int64 id = 1;
+}
+
+message ReadArtistRequest {
+  int64 id = 1;
+}
+
+message ReadArtistResponse {
+  Artist artist = 1;
+}
+
+message UpdateArtistRequest {
+  Artist artist = 1;
+}
+
+message UpdateArtistResponse {
+  Artist artist = 1;
+}
+
+message DeleteArtistRequest {
+  int64 id = 1;
+}
+
+message DeleteArtistResponse {
+  int64 id = 1;
+}
+
+message ListArtistRequest {
+
+}
+
+message ListArtistResponse {
+  Artist artist = 1;
+}
+
+service ArtistService {
+  rpc CreateArtist (CreateArtistRequest) returns (CreateArtistResponse);
+  rpc ReadArtist (ReadArtistRequest) returns (ReadArtistResponse);
+  rpc UpdateArtist (UpdateArtistRequest) returns (UpdateArtistResponse);
+  rpc DeleteArtist (DeleteArtistRequest) returns (DeleteArtistResponse);
+  rpc ListArtist (ListArtistRequest) returns (stream ListArtistResponse);
+}
