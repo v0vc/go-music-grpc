@@ -18,6 +18,7 @@ import (
 )
 
 const defaultPort = "4041"
+const dbFile = "./db/db.sqlite"
 
 type server struct {
 	artist.ArtistServiceServer
@@ -25,17 +26,27 @@ type server struct {
 
 type artistItem struct {
 	ID        int64
-	SiteId    int8
+	SiteId    uint32
 	ArtistId  string
 	Title     string
 	Counter   int
 	Thumbnail []byte
+	Albums    []albumItem
+}
+
+type albumItem struct {
+	ID          int64
+	AlbumId     string
+	Title       string
+	ReleaseDate string
+	ReleaseType string
+	Thumbnail   []byte
 }
 
 func getArtistData(data *artistItem) *artist.Artist {
 	return &artist.Artist{
 		Id:        data.ID,
-		SiteId:    uint32(data.SiteId),
+		SiteId:    data.SiteId,
 		ArtistId:  data.ArtistId,
 		Title:     data.Title,
 		Counter:   uint32(data.Counter),
@@ -43,20 +54,17 @@ func getArtistData(data *artistItem) *artist.Artist {
 	}
 }
 
-func insertArtistDb(ctx context.Context, dbFile string, artist artistItem) (int64, error) {
+func insertArtistDb(ctx context.Context, dbFile string, artist *artistItem) (int64, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
-		log.Fatal(err)
 		return -1, err
 	}
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		log.Fatal(err)
 		return -1, err
 	}
 	stmt, err := tx.PrepareContext(ctx, "insert into artist (siteId, artistId, title) values (?, ?, ?)")
 	if err != nil {
-		log.Fatal(err)
 		return -1, err
 	}
 	defer stmt.Close()
@@ -64,12 +72,10 @@ func insertArtistDb(ctx context.Context, dbFile string, artist artistItem) (int6
 	result, err := stmt.ExecContext(ctx, artist.SiteId, artist.ArtistId, artist.Title)
 	if err != nil {
 		tx.Rollback()
-		log.Fatal(err)
 		return -1, err
 	}
 	err = tx.Commit()
 	if err != nil {
-		log.Fatal(err)
 		return -1, err
 	}
 	defer db.Close()
@@ -99,34 +105,60 @@ func getArtistFromDb(ctx context.Context, dbFile string, artistId int64) (*artis
 func deleteArtistDb(ctx context.Context, dbFile string, artistId int64) (int64, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
-		log.Fatal(err)
 		return -1, err
 	}
 
 	stmt, err := db.PrepareContext(ctx, "delete from artist where id=?")
-
 	defer stmt.Close()
 
 	res, err := stmt.ExecContext(ctx, artistId)
 	if err != nil {
-		log.Fatal(err)
 		return -1, err
 	}
 
 	affected, err := res.RowsAffected()
 	if err != nil {
-		log.Fatal(err)
 		return -1, err
 	}
 
 	return affected, nil
 }
 
+func getTokenSber(ctx context.Context, dbFile string, siteId uint32) (string, error) {
+	db, err := sql.Open("sqlite3", dbFile)
+	if err != nil {
+		return "", err
+	}
+	defer db.Close()
+
+	stmt, err := db.PrepareContext(ctx, "select token from site where id=? limit 1")
+	if err != nil {
+		return "", err
+	}
+	defer stmt.Close()
+
+	var token string
+	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func getArtistFromSber(ctx context.Context, item *artistItem) {
+	token, err := getTokenSber(ctx, dbFile, item.SiteId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// check empty token and expiration
+	GetArtist(ctx, item, token)
+}
+
 func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest) (*artist.CreateArtistResponse, error) {
 	fmt.Println("create artist")
 
-	siteId := int8(req.GetSiteId())
-	data := artistItem{
+	siteId := req.GetSiteId()
+	item := artistItem{
 		SiteId:   siteId,
 		ArtistId: req.GetArtistId(),
 	}
@@ -134,14 +166,14 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 	// идем в бекенд в зависимости от siteId (сбер/спотик etc) и получаем остальные поля объекта
 	switch siteId {
 	case 1:
-		data.Title = "артист со сбера"
+		getArtistFromSber(ctx, &item)
 	case 2:
-		data.Title = "артист со спотика"
+		// "артист со спотика"
 	case 3:
-		data.Title = "артист с дизера"
+		// "артист с дизера"
 	}
 
-	res, err := insertArtistDb(ctx, "./db/db.sqlite", data)
+	res, err := insertArtistDb(ctx, dbFile, &item)
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -158,7 +190,14 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 func (*server) ReadArtist(ctx context.Context, req *artist.ReadArtistRequest) (*artist.ReadArtistResponse, error) {
 	fmt.Println("read artist")
 
-	data, err := getArtistFromDb(ctx, "./db/db.sqlite", req.GetId())
+	data, err := getArtistFromDb(ctx, dbFile, req.GetId())
+
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	}
 
 	return &artist.ReadArtistResponse{
 		Artist: getArtistData(data),
@@ -211,7 +250,7 @@ func (*server) UpdateArtist(ctx context.Context, req *artist.UpdateArtistRequest
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
 	fmt.Println("deleting artist")
 
-	res, err := deleteArtistDb(ctx, "./db/db.sqlite", req.GetId())
+	res, err := deleteArtistDb(ctx, dbFile, req.GetId())
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -230,7 +269,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 func (*server) ListArtist(_ *artist.ListArtistRequest, stream artist.ArtistService_ListArtistServer) error {
 	fmt.Println("list artist's")
 
-	db, err := sql.Open("sqlite3", "./db/db.sqlite")
+	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		return status.Errorf(
 			codes.Internal,

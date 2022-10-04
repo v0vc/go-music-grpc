@@ -10,7 +10,9 @@ require (
 
 require (
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/machinebox/graphql v0.2.2 // indirect
 	github.com/mattn/go-sqlite3 v1.14.15 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/net v0.0.0-20220811182439-13a9a731de15 // indirect
 	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 	golang.org/x/text v0.3.7 // indirect

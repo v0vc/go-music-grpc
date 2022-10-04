@@ -20,7 +20,7 @@ CREATE TABLE "album" (
     "albumId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "releaseDate" TEXT NULL,
-    "type" TEXT NULL,
+    "releaseType" TEXT NULL,
     "thumbnail" BLOB NULL
 );
 CREATE TABLE "artistAlbum" (
