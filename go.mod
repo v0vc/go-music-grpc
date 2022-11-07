@@ -1,20 +1,21 @@
 module github.com/v0vc/go-music-grpc
 
-go 1.18
+go 1.19
 
 require (
 	github.com/joho/godotenv v1.4.0
-	google.golang.org/grpc v1.48.0
+	github.com/machinebox/graphql v0.2.2
+	github.com/mattn/go-sqlite3 v1.14.16
+	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 )
 
 require (
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/machinebox/graphql v0.2.2 // indirect
-	github.com/mattn/go-sqlite3 v1.14.15 // indirect
+	github.com/matryer/is v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/net v0.0.0-20220811182439-13a9a731de15 // indirect
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
-	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20220810155839-1856144b1d9c // indirect
+	golang.org/x/net v0.1.0 // indirect
+	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/text v0.4.0 // indirect
+	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c // indirect
 )

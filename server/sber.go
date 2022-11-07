@@ -10,7 +10,6 @@ import (
 const (
 	megabyte              = 1000000
 	apiBase               = "https://zvuk.com/"
-	qraphql               = "api/v1/graphql"
 	albumRegexString      = `^https://zvuk.com/release/(\d+)$`
 	playlistRegexString   = `^https://zvuk.com/playlist/(\d+)$`
 	artistRegexString     = `^https://zvuk.com/artist/(\d+)$`
@@ -49,7 +48,7 @@ func uniqueStrings(stringSlices ...[]string) []string {
 }
 
 func getArtistAlbumId(ctx context.Context, artistId string, limit int, offset int, token string) []string {
-	graphqlClient := graphql.NewClient(apiBase + qraphql)
+	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
 	graphqlRequest := graphql.NewRequest(`
 				query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { id }
 			`)
