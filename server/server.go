@@ -124,36 +124,6 @@ func deleteArtistDb(ctx context.Context, dbFile string, artistId int64) (int64, 
 	return affected, nil
 }
 
-func getTokenSber(ctx context.Context, dbFile string, siteId uint32) (string, error) {
-	db, err := sql.Open("sqlite3", dbFile)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	stmt, err := db.PrepareContext(ctx, "select token from site where id=? limit 1")
-	if err != nil {
-		return "", err
-	}
-	defer stmt.Close()
-
-	var token string
-	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
-	if err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
-func getArtistFromSber(ctx context.Context, item *artistItem) {
-	token, err := getTokenSber(ctx, dbFile, item.SiteId)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// check empty token and expiration
-	GetArtist(ctx, item, token)
-}
-
 func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest) (*artist.CreateArtistResponse, error) {
 	fmt.Println("create artist")
 
@@ -166,7 +136,7 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 	// идем в бекенд в зависимости от siteId (сбер/спотик etc) и получаем остальные поля объекта
 	switch siteId {
 	case 1:
-		getArtistFromSber(ctx, &item)
+		GetArtistFromSber(ctx, &item)
 	case 2:
 		// "артист со спотика"
 	case 3:

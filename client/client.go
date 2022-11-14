@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/v0vc/go-music-grpc/artist"
 	"google.golang.org/grpc/credentials/insecure"
-	"io"
 	"log"
 	"os"
 
@@ -42,8 +41,8 @@ func main() {
 	// create Artist
 	fmt.Println("creating the artist")
 	Artist := &artist.Artist{
-		SiteId:   2,
-		ArtistId: "1XrrGy6h4YccivIF8u2TAX",
+		SiteId:   1,
+		ArtistId: "209521227",
 	}
 	createArtistRes, err := c.CreateArtist(context.Background(), &artist.CreateArtistRequest{ArtistId: Artist.ArtistId, SiteId: Artist.SiteId})
 	if err != nil {
@@ -54,7 +53,7 @@ func main() {
 	fmt.Printf("artist id: %v \n", ArtistID)
 
 	// read Artist
-	fmt.Println("reading the artist")
+	/*fmt.Println("reading the artist")
 	readArtistReq := &artist.ReadArtistRequest{Id: ArtistID}
 	readArtistRes, readArtistErr := c.ReadArtist(context.Background(), readArtistReq)
 	if readArtistErr != nil {
@@ -94,5 +93,5 @@ func main() {
 	if deleteErr != nil {
 		fmt.Printf("error happened while deleting: %v \n", deleteErr)
 	}
-	fmt.Printf("artist was deleted: %v \n", deleteRes)
+	fmt.Printf("artist was deleted: %v \n", deleteRes)*/
 }

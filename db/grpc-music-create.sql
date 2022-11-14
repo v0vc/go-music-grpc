@@ -13,6 +13,7 @@ CREATE TABLE "artist" (
     "counter" INTEGER NULL,
     "thumbnail" BLOB NULL,
     "lastDate" TEXT NULL,
+    UNIQUE(siteId,artistId),
     CONSTRAINT "FK_artist_site_siteId" FOREIGN KEY ("siteId") REFERENCES "site" ("id") ON DELETE RESTRICT
 );
 CREATE TABLE "album" (
@@ -21,7 +22,8 @@ CREATE TABLE "album" (
     "title" TEXT NOT NULL,
     "releaseDate" TEXT NULL,
     "releaseType" TEXT NULL,
-    "thumbnail" BLOB NULL
+    "thumbnail" BLOB NULL,
+    UNIQUE(albumId,title)
 );
 CREATE TABLE "artistAlbum" (
     "artistId" INTEGER NOT NULL,
