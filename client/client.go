@@ -16,7 +16,7 @@ const defaultPort = "4041"
 
 func main() {
 
-	fmt.Println("Artist Client")
+	fmt.Println("grpc-music client started")
 
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -39,18 +39,17 @@ func main() {
 	c := artist.NewArtistServiceClient(cc)
 
 	// create Artist
-	fmt.Println("creating the artist")
 	Artist := &artist.Artist{
 		SiteId:   1,
 		ArtistId: "209521227",
 	}
+	fmt.Println("creating the artist:" + Artist.ArtistId)
+
 	createArtistRes, err := c.CreateArtist(context.Background(), &artist.CreateArtistRequest{ArtistId: Artist.ArtistId, SiteId: Artist.SiteId})
 	if err != nil {
 		log.Fatalf("unexpected error: %v", err)
 	}
-	fmt.Printf("artist has been created: %v \n", createArtistRes)
-	ArtistID := createArtistRes.GetId()
-	fmt.Printf("artist id: %v \n", ArtistID)
+	fmt.Printf("artist has been created: %v \n", createArtistRes.GetTitle())
 
 	// read Artist
 	/*fmt.Println("reading the artist")

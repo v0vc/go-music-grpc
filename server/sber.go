@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"github.com/machinebox/graphql"
+	"io"
 	"log"
+	"net/http"
 	"strings"
 )
 
@@ -19,7 +20,9 @@ const (
 	trackTemplateAlbum    = "{{.trackPad}}-{{.title}}"
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.albumArtist}} - {{.album}}"
+	releaseChunk          = 100
 	authHeader            = "x-auth-token"
+	thumbSize             = "40x40"
 )
 
 type artistReleases struct {
@@ -31,39 +34,19 @@ type artistReleases struct {
 				Typename string `json:"__typename"`
 				ID       string `json:"id"`
 				Title    string `json:"title"`
+				Image    struct {
+					Typename string `json:"__typename"`
+					Src      string `json:"src"`
+				} `json:"image"`
 			} `json:"artists"`
-			Availability int    `json:"availability"`
-			Date         string `json:"date"`
-			Explicit     bool   `json:"explicit"`
-			ID           string `json:"id"`
-			Image        struct {
-				Typename      string `json:"__typename"`
-				Src           string `json:"src"`
-				Palette       string `json:"palette"`
-				PaletteBottom string `json:"paletteBottom"`
+			Date  string `json:"date"`
+			ID    string `json:"id"`
+			Image struct {
+				Typename string `json:"__typename"`
+				Src      string `json:"src"`
 			} `json:"image"`
-			Label struct {
-				Typename string `json:"__typename"`
-				ID       string `json:"id"`
-			} `json:"label"`
-			SearchTitle    string `json:"searchTitle"`
-			ArtistTemplate string `json:"artistTemplate"`
-			Title          string `json:"title"`
-			Tracks         []struct {
-				Typename string `json:"__typename"`
-				ID       string `json:"id"`
-			} `json:"tracks"`
-			Type string `json:"type"`
-		} `json:"releases"`
-	} `json:"getArtists"`
-}
-
-type artistReleasesId struct {
-	GetArtists []struct {
-		Typename string `json:"__typename"`
-		Releases []struct {
-			Typename string `json:"__typename"`
-			ID       string `json:"id"`
+			Title string `json:"title"`
+			Type  string `json:"type"`
 		} `json:"releases"`
 	} `json:"getArtists"`
 }
@@ -89,25 +72,38 @@ func getTokenSber(ctx context.Context, dbFile string, siteId uint32) (string, er
 	return token, nil
 }
 
-func insertArtistReleases(ctx context.Context, item *artistReleases) error {
+func getThumb(url string) []byte {
+	response, err := http.Get(url)
+	if err != nil || response.StatusCode != http.StatusOK {
+		return []byte{}
+	}
+	defer response.Body.Close()
+	res, err := io.ReadAll(response.Body)
+	if err != nil {
+		return []byte{}
+	}
+	return res
+}
+
+func insertArtistReleases(ctx context.Context, artistId string, item *artistReleases) (string, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	stArtist, err := tx.PrepareContext(ctx, "INSERT INTO artist(siteId, artistId, title) VALUES(?, ?, ?) ON CONFLICT(siteId, artistId) DO NOTHING;")
+	stArtist, err := tx.PrepareContext(ctx, "INSERT INTO artist(siteId, artistId, title, thumbnail) VALUES(?, ?, ?, ?) ON CONFLICT(siteId, artistId) DO NOTHING;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stArtist.Close()
 
-	stRelease, err := tx.PrepareContext(ctx, "INSERT INTO album(albumId, title, releaseDate, releaseType) VALUES(?, ?, ?, ?) ON CONFLICT(albumId, title) DO NOTHING;")
+	stRelease, err := tx.PrepareContext(ctx, "INSERT INTO album(albumId, title, releaseDate, releaseType, thumbnail) VALUES(?, ?, ?, ?, ?) ON CONFLICT(albumId, title) DO NOTHING;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,121 +116,63 @@ func insertArtistReleases(ctx context.Context, item *artistReleases) error {
 	defer stArtistAlbum.Close()
 
 	mArtist := make(map[string]int64)
+	var artistName string
 
 	for _, data := range item.GetArtists {
 		for _, release := range data.Releases {
-			res, err := stRelease.ExecContext(ctx, release.ID, release.Title, release.Date, release.Type)
+			//url := strings.ReplaceAll(release.Image.Src, "{size}", thumbSize)
+			alb, err := stRelease.ExecContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil)
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			for _, artist := range release.Artists {
-				resArt, err := stArtist.ExecContext(ctx, 1, artist.ID, strings.TrimSpace(artist.Title))
-				art, _ := resArt.LastInsertId()
-				if err != nil {
-					log.Fatal(err)
-				} else {
-					mArtist[artist.ID] = art
+				var artId int64
+				artId, ok := mArtist[artist.ID]
+				if !ok {
+					/*thUrl := strings.ReplaceAll(artist.Image.Src, "{size}", thumbSize)*/
+					title := strings.TrimSpace(artist.Title)
+					art, _ := stArtist.ExecContext(ctx, 1, artist.ID, title, nil)
+					artId, _ = art.LastInsertId()
+					mArtist[artist.ID] = artId
+					if artist.ID == artistId {
+						artistName = title
+					}
 				}
 
-				alb, _ := res.LastInsertId()
-				_, err = stArtistAlbum.ExecContext(ctx, art, alb)
+				albId, _ := alb.LastInsertId()
+				_, err = stArtistAlbum.ExecContext(ctx, artId, albId)
 				if err != nil {
 					log.Fatal(err)
 				}
 			}
 		}
 	}
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	return err
+	return artistName, tx.Commit()
 }
 
-func uniqueStrings(stringSlices ...[]string) []string {
-	uniqueMap := map[string]bool{}
-
-	for _, intSlice := range stringSlices {
-		for _, number := range intSlice {
-			uniqueMap[number] = true
-		}
-	}
-
-	result := make([]string, 0, len(uniqueMap))
-
-	for key := range uniqueMap {
-		result = append(result, key)
-	}
-
-	return result
-}
-
-func getArtistReleases(ctx context.Context, artistId string, token string) error {
-	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
-	graphqlRequest := graphql.NewRequest(`query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { __typename artists { __typename id title } availability date explicit id image { __typename ...ImageInfoGqlFragment } label { __typename id } searchTitle artistTemplate title tracks { __typename id } type } fragment ImageInfoGqlFragment on ImageInfo { __typename src palette paletteBottom }`)
-	graphqlRequest.Var("id", artistId)
-	graphqlRequest.Var("limit", 100)
-	graphqlRequest.Var("offset", 0)
-	graphqlRequest.Header.Add(authHeader, token)
-	var graphqlResponse interface{}
-	if err := graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse); err != nil {
-		panic(err)
-	}
-	jsonString, _ := json.Marshal(graphqlResponse)
-	var obj artistReleases
-	json.Unmarshal(jsonString, &obj)
-	return insertArtistReleases(ctx, &obj)
-}
-
-func GetArtistFromSber(ctx context.Context, item *artistItem) {
+func GetArtistFromSber(ctx context.Context, item *artistItem) (string, error) {
 	token, err := getTokenSber(ctx, dbFile, item.SiteId)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// check empty token and expiration
 
-	getArtistReleases(ctx, item.ArtistId, token)
-}
-
-func getArtistAlbumId(ctx context.Context, artistId string, limit int, offset int, token string) []string {
 	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
-	graphqlRequest := graphql.NewRequest(`
-				query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { id }
-			`)
-	graphqlRequest.Var("id", artistId)
-	graphqlRequest.Var("limit", limit)
-	graphqlRequest.Var("offset", offset)
+	graphqlRequest := graphql.NewRequest(`query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { __typename artists { __typename id title image { __typename ...ImageInfoGqlFragment } } date id image { __typename ...ImageInfoGqlFragment } title type } fragment ImageInfoGqlFragment on ImageInfo { __typename src }`)
+	graphqlRequest.Var("id", item.ArtistId)
+	graphqlRequest.Var("limit", releaseChunk)
+	graphqlRequest.Var("offset", 0)
 	graphqlRequest.Header.Add(authHeader, token)
+
 	var graphqlResponse interface{}
 	if err := graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	jsonString, _ := json.Marshal(graphqlResponse)
-	var obj artistReleasesId
+	var obj artistReleases
 	json.Unmarshal(jsonString, &obj)
 
-	var albumsIds = make([]string, 0)
-	if len(obj.GetArtists) > 0 {
-		for _, element := range obj.GetArtists[0].Releases {
-			if element.ID != "" {
-				albumsIds = append(albumsIds, element.ID)
-			}
-		}
-	}
-	return albumsIds
-}
-
-func getArtistAllAlbumId(ctx context.Context, artistId string, token string) []string {
-	firstFifty := getArtistAlbumId(ctx, artistId, 50, 0, token)
-	lastFifty := getArtistAlbumId(ctx, artistId, 50, 49, token)
-	return uniqueStrings(firstFifty, lastFifty)
-}
-
-func GetArtist(ctx context.Context, item *artistItem, token string) {
-	releaseIds := getArtistAllAlbumId(ctx, item.ArtistId, token)
-	for _, id := range releaseIds {
-		fmt.Printf(id)
-	}
+	return insertArtistReleases(ctx, item.ArtistId, &obj)
 }

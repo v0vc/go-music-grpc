@@ -125,35 +125,37 @@ func deleteArtistDb(ctx context.Context, dbFile string, artistId int64) (int64, 
 }
 
 func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest) (*artist.CreateArtistResponse, error) {
-	fmt.Println("create artist")
 
-	siteId := req.GetSiteId()
 	item := artistItem{
-		SiteId:   siteId,
+		SiteId:   req.GetSiteId(),
 		ArtistId: req.GetArtistId(),
 	}
+	fmt.Println("create artist: " + item.ArtistId)
 
-	// идем в бекенд в зависимости от siteId (сбер/спотик etc) и получаем остальные поля объекта
-	switch siteId {
+	var err error
+	var artistName string
+	// идем в бекенд в зависимости от siteId (сбер/спотик etc) и получаем остальные поля объекта и вставляем в базу
+	switch item.SiteId {
 	case 1:
-		GetArtistFromSber(ctx, &item)
+		artistName, err = GetArtistFromSber(ctx, &item)
 	case 2:
 		// "артист со спотика"
 	case 3:
 		// "артист с дизера"
 	}
 
-	res, err := insertArtistDb(ctx, dbFile, &item)
-
 	if err != nil {
+		fmt.Println(err)
+	}
+	/*if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
 			fmt.Sprintf("Internal error: %v", err),
 		)
-	}
+	}*/
 
 	return &artist.CreateArtistResponse{
-		Id: res,
+		Title: artistName,
 	}, nil
 }
 
