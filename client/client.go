@@ -38,18 +38,18 @@ func main() {
 
 	c := artist.NewArtistServiceClient(cc)
 
-	// create Artist
+	// create Artist 209521227-тайпан | 211125212-yoxden | 210478992-Max Bitov
 	Artist := &artist.Artist{
 		SiteId:   1,
-		ArtistId: "209521227",
+		ArtistId: "210478991",
 	}
-	fmt.Println("creating the artist:" + Artist.ArtistId)
+	fmt.Println("creating artist: " + Artist.ArtistId)
 
 	createArtistRes, err := c.CreateArtist(context.Background(), &artist.CreateArtistRequest{ArtistId: Artist.ArtistId, SiteId: Artist.SiteId})
 	if err != nil {
 		log.Fatalf("unexpected error: %v", err)
 	}
-	fmt.Printf("artist has been created: %v \n", createArtistRes.GetTitle())
+	fmt.Println("artist has been created: " + createArtistRes.GetTitle())
 
 	// read Artist
 	/*fmt.Println("reading the artist")

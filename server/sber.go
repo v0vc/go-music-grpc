@@ -22,7 +22,7 @@ const (
 	albumTemplate         = "{{.albumArtist}} - {{.album}}"
 	releaseChunk          = 100
 	authHeader            = "x-auth-token"
-	thumbSize             = "40x40"
+	thumbSize             = "10x10"
 )
 
 type artistReleases struct {
@@ -58,7 +58,7 @@ func getTokenSber(ctx context.Context, dbFile string, siteId uint32) (string, er
 	}
 	defer db.Close()
 
-	stmt, err := db.PrepareContext(ctx, "select token from site where id=? limit 1")
+	stmt, err := db.PrepareContext(ctx, "SELECT token FROM site WHERE id=? LIMIT 1;")
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +85,7 @@ func getThumb(url string) []byte {
 	return res
 }
 
-func insertArtistReleases(ctx context.Context, artistId string, item *artistReleases) (string, error) {
+func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, item *artistReleases) (string, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		log.Fatal(err)
@@ -97,13 +97,13 @@ func insertArtistReleases(ctx context.Context, artistId string, item *artistRele
 		log.Fatal(err)
 	}
 
-	stArtist, err := tx.PrepareContext(ctx, "INSERT INTO artist(siteId, artistId, title, thumbnail) VALUES(?, ?, ?, ?) ON CONFLICT(siteId, artistId) DO NOTHING;")
+	stArtist, err := tx.PrepareContext(ctx, "INSERT INTO artist(siteId, artistId, title, thumbnail, userAdded) VALUES(?, ?, ?, ?, ?) ON CONFLICT(siteId, artistId) DO UPDATE SET userAdded=1 RETURNING id;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stArtist.Close()
 
-	stRelease, err := tx.PrepareContext(ctx, "INSERT INTO album(albumId, title, releaseDate, releaseType, thumbnail) VALUES(?, ?, ?, ?, ?) ON CONFLICT(albumId, title) DO NOTHING;")
+	stRelease, err := tx.PrepareContext(ctx, "INSERT INTO album(albumId, title, releaseDate, releaseType, thumbnail) VALUES(?, ?, ?, ?, ?) ON CONFLICT(albumId, title) DO NOTHING RETURNING id;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,35 +115,35 @@ func insertArtistReleases(ctx context.Context, artistId string, item *artistRele
 	}
 	defer stArtistAlbum.Close()
 
-	mArtist := make(map[string]int64)
+	mArtist := make(map[string]int)
 	var artistName string
 
 	for _, data := range item.GetArtists {
 		for _, release := range data.Releases {
-			//url := strings.ReplaceAll(release.Image.Src, "{size}", thumbSize)
-			alb, err := stRelease.ExecContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil)
-			if err != nil {
-				log.Fatal(err)
+			if release.ID == "" {
+				continue
 			}
 
+			url := strings.ReplaceAll(release.Image.Src, "{size}", thumbSize)
+			var albId int
+			_ = stRelease.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, getThumb(url)).Scan(&albId)
+
 			for _, artist := range release.Artists {
-				var artId int64
+				var artId int
 				artId, ok := mArtist[artist.ID]
 				if !ok {
-					/*thUrl := strings.ReplaceAll(artist.Image.Src, "{size}", thumbSize)*/
+					thUrl := strings.ReplaceAll(artist.Image.Src, "{size}", thumbSize)
 					title := strings.TrimSpace(artist.Title)
-					art, _ := stArtist.ExecContext(ctx, 1, artist.ID, title, nil)
-					artId, _ = art.LastInsertId()
-					mArtist[artist.ID] = artId
+					var userAdded = 0
 					if artist.ID == artistId {
 						artistName = title
+						userAdded = 1
 					}
+					_ = stArtist.QueryRowContext(ctx, siteUid, artist.ID, title, getThumb(thUrl), userAdded).Scan(&artId)
+					mArtist[artist.ID] = artId
 				}
-
-				albId, _ := alb.LastInsertId()
-				_, err = stArtistAlbum.ExecContext(ctx, artId, albId)
-				if err != nil {
-					log.Fatal(err)
+				if artId != 0 && albId != 0 {
+					_, _ = stArtistAlbum.ExecContext(ctx, artId, albId)
 				}
 			}
 		}
@@ -174,5 +174,5 @@ func GetArtistFromSber(ctx context.Context, item *artistItem) (string, error) {
 	var obj artistReleases
 	json.Unmarshal(jsonString, &obj)
 
-	return insertArtistReleases(ctx, item.ArtistId, &obj)
+	return insertArtistReleases(ctx, item.SiteId, item.ArtistId, &obj)
 }

@@ -18,6 +18,7 @@ import (
 )
 
 const defaultPort = "4041"
+const defaultInterface = "0.0.0.0"
 const dbFile = "./db/db.sqlite"
 
 type server struct {
@@ -52,35 +53,6 @@ func getArtistData(data *artistItem) *artist.Artist {
 		Counter:   uint32(data.Counter),
 		Thumbnail: data.Thumbnail,
 	}
-}
-
-func insertArtistDb(ctx context.Context, dbFile string, artist *artistItem) (int64, error) {
-	db, err := sql.Open("sqlite3", dbFile)
-	if err != nil {
-		return -1, err
-	}
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return -1, err
-	}
-	stmt, err := tx.PrepareContext(ctx, "insert into artist (siteId, artistId, title) values (?, ?, ?)")
-	if err != nil {
-		return -1, err
-	}
-	defer stmt.Close()
-
-	result, err := stmt.ExecContext(ctx, artist.SiteId, artist.ArtistId, artist.Title)
-	if err != nil {
-		tx.Rollback()
-		return -1, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		return -1, err
-	}
-	defer db.Close()
-	id, err := result.LastInsertId()
-	return id, err
 }
 
 func getArtistFromDb(ctx context.Context, dbFile string, artistId int64) (*artistItem, error) {
@@ -130,7 +102,7 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 		SiteId:   req.GetSiteId(),
 		ArtistId: req.GetArtistId(),
 	}
-	fmt.Println("create artist: " + item.ArtistId)
+	fmt.Println("creating artist: " + item.ArtistId)
 
 	var err error
 	var artistName string
@@ -153,7 +125,7 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}*/
-
+	fmt.Println("artist has been created: " + artistName)
 	return &artist.CreateArtistResponse{
 		Title: artistName,
 	}, nil
@@ -309,12 +281,18 @@ func main() {
 		port = defaultPort
 	}
 
+	listenInterface := os.Getenv("LISTEN")
+	if listenInterface == "" {
+		listenInterface = defaultInterface
+	}
+
 	// if we crash the go code, we get the file name and line number
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	fmt.Println("grpc-music service started")
+	resAddress := listenInterface + ":" + port
+	fmt.Println("grpc-music service started at " + resAddress)
 
-	lis, err := net.Listen("tcp", "0.0.0.0:4041")
+	lis, err := net.Listen("tcp", resAddress)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

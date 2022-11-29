@@ -10,9 +10,10 @@ CREATE TABLE "artist" (
     "siteId" INTEGER NOT NULL,
     "artistId" TEXT NOT NULL,
     "title" TEXT NULL,
-    "counter" INTEGER NULL,
+    "counter" INTEGER default 0,
     "thumbnail" BLOB NULL,
     "lastDate" TEXT NULL,
+    "userAdded" INTEGER default 0,
     UNIQUE(siteId,artistId),
     CONSTRAINT "FK_artist_site_siteId" FOREIGN KEY ("siteId") REFERENCES "site" ("id") ON DELETE RESTRICT
 );
