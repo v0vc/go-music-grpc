@@ -51,7 +51,7 @@ type artistReleases struct {
 	} `json:"getArtists"`
 }
 
-func getTokenSber(ctx context.Context, dbFile string, siteId uint32) (string, error) {
+func getTokenSber(ctx context.Context, siteId uint32) (string, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		return "", err
@@ -85,7 +85,7 @@ func getThumb(url string) []byte {
 	return res
 }
 
-func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, item *artistReleases) (string, error) {
+func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, item *artistReleases) (int64, string, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		log.Fatal(err)
@@ -117,6 +117,7 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 
 	mArtist := make(map[string]int)
 	var artistName string
+	var artRes int64
 
 	for _, data := range item.GetArtists {
 		for _, release := range data.Releases {
@@ -135,11 +136,12 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 					thUrl := strings.ReplaceAll(artist.Image.Src, "{size}", thumbSize)
 					title := strings.TrimSpace(artist.Title)
 					var userAdded = 0
+					_ = stArtist.QueryRowContext(ctx, siteUid, artist.ID, title, getThumb(thUrl), userAdded).Scan(&artId)
 					if artist.ID == artistId {
 						artistName = title
 						userAdded = 1
+						artRes = int64(artId)
 					}
-					_ = stArtist.QueryRowContext(ctx, siteUid, artist.ID, title, getThumb(thUrl), userAdded).Scan(&artId)
 					mArtist[artist.ID] = artId
 				}
 				if artId != 0 && albId != 0 {
@@ -149,11 +151,12 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 		}
 	}
 
-	return artistName, tx.Commit()
+	return artRes, artistName, tx.Commit()
 }
 
-func GetArtistFromSber(ctx context.Context, item *artistItem) (string, error) {
-	token, err := getTokenSber(ctx, dbFile, item.SiteId)
+func GetArtistFromSber(ctx context.Context, siteUid uint32, artistId string) (int64, string, error) {
+
+	token, err := getTokenSber(ctx, siteUid)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -161,7 +164,7 @@ func GetArtistFromSber(ctx context.Context, item *artistItem) (string, error) {
 
 	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
 	graphqlRequest := graphql.NewRequest(`query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { __typename artists { __typename id title image { __typename ...ImageInfoGqlFragment } } date id image { __typename ...ImageInfoGqlFragment } title type } fragment ImageInfoGqlFragment on ImageInfo { __typename src }`)
-	graphqlRequest.Var("id", item.ArtistId)
+	graphqlRequest.Var("id", artistId)
 	graphqlRequest.Var("limit", releaseChunk)
 	graphqlRequest.Var("offset", 0)
 	graphqlRequest.Header.Add(authHeader, token)
@@ -174,5 +177,5 @@ func GetArtistFromSber(ctx context.Context, item *artistItem) (string, error) {
 	var obj artistReleases
 	json.Unmarshal(jsonString, &obj)
 
-	return insertArtistReleases(ctx, item.SiteId, item.ArtistId, &obj)
+	return insertArtistReleases(ctx, siteUid, artistId, &obj)
 }

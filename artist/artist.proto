@@ -10,16 +10,26 @@ message Artist {
   string artistId = 3;
   string title = 4;
   uint32 counter = 5;
-  bytes thumbnail = 7;
+  bytes thumbnail = 6;
+}
+
+message Album {
+  int64 id = 1;
+  string albumId = 2;
+  string title = 3;
+  string releaseDate = 4;
+  string releaseType = 5;
+  bytes thumbnail = 6;
 }
 
 message CreateArtistRequest {
   uint32 siteId = 1;
-  string artistId = 3;
+  string artistId = 2;
 }
 
 message CreateArtistResponse {
-  string title = 1;
+  int64 id = 1;
+  string title = 2;
 }
 
 message ReadArtistRequest {
@@ -27,7 +37,7 @@ message ReadArtistRequest {
 }
 
 message ReadArtistResponse {
-  Artist artist = 1;
+  repeated Album releases = 1;
 }
 
 message UpdateArtistRequest {

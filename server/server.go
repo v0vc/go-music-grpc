@@ -25,60 +25,55 @@ type server struct {
 	artist.ArtistServiceServer
 }
 
-type artistItem struct {
+/*type artistItem struct {
 	ID        int64
 	SiteId    uint32
 	ArtistId  string
 	Title     string
 	Counter   int
 	Thumbnail []byte
-	Albums    []albumItem
-}
+}*/
 
-type albumItem struct {
+/*type albumItem struct {
 	ID          int64
 	AlbumId     string
 	Title       string
 	ReleaseDate string
 	ReleaseType string
 	Thumbnail   []byte
-}
+}*/
 
-func getArtistData(data *artistItem) *artist.Artist {
-	return &artist.Artist{
-		Id:        data.ID,
-		SiteId:    data.SiteId,
-		ArtistId:  data.ArtistId,
-		Title:     data.Title,
-		Counter:   uint32(data.Counter),
-		Thumbnail: data.Thumbnail,
-	}
-}
-
-func getArtistFromDb(ctx context.Context, dbFile string, artistId int64) (*artistItem, error) {
-	data := &artistItem{}
-
+func getArtistReleasesFromDb(ctx context.Context, artistId int64) ([]*artist.Album, error) {
+	var albs []*artist.Album
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
-		return data, err
+		return nil, err
 	}
 	defer db.Close()
 
-	rows, _ := db.QueryContext(ctx, "select * from artist where id=? limit 1", artistId)
+	rows, err := db.QueryContext(ctx, "select a.id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.id = aa.albumId  where aa.artistId = ?", artistId)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
 	for rows.Next() {
-		rows.Scan(&data.ID, &data.SiteId, &data.ArtistId, &data.Title, &data.Counter, &data.Thumbnail)
+		var alb artist.Album
+		if err := rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail); err != nil {
+			return nil, err
+		}
+		albs = append(albs, &alb)
 	}
 
-	return data, nil
+	return albs, nil
 }
 
-func deleteArtistDb(ctx context.Context, dbFile string, artistId int64) (int64, error) {
+func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		return -1, err
 	}
+	defer db.Close()
 
 	stmt, err := db.PrepareContext(ctx, "delete from artist where id=?")
 	defer stmt.Close()
@@ -87,7 +82,6 @@ func deleteArtistDb(ctx context.Context, dbFile string, artistId int64) (int64, 
 	if err != nil {
 		return -1, err
 	}
-
 	affected, err := res.RowsAffected()
 	if err != nil {
 		return -1, err
@@ -98,18 +92,17 @@ func deleteArtistDb(ctx context.Context, dbFile string, artistId int64) (int64, 
 
 func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest) (*artist.CreateArtistResponse, error) {
 
-	item := artistItem{
-		SiteId:   req.GetSiteId(),
-		ArtistId: req.GetArtistId(),
-	}
-	fmt.Println("creating artist: " + item.ArtistId)
+	siteId := req.GetSiteId()
+	artistId := req.GetArtistId()
+	fmt.Printf("creating artist: %v\n", artistId)
 
 	var err error
 	var artistName string
+	var artId int64
 	// идем в бекенд в зависимости от siteId (сбер/спотик etc) и получаем остальные поля объекта и вставляем в базу
-	switch item.SiteId {
+	switch siteId {
 	case 1:
-		artistName, err = GetArtistFromSber(ctx, &item)
+		artId, artistName, err = GetArtistFromSber(ctx, siteId, artistId)
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -125,16 +118,17 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}*/
-	fmt.Println("artist has been created: " + artistName)
+	fmt.Printf("artist has been created: %v\n", artistName)
 	return &artist.CreateArtistResponse{
 		Title: artistName,
+		Id:    artId,
 	}, nil
 }
 
 func (*server) ReadArtist(ctx context.Context, req *artist.ReadArtistRequest) (*artist.ReadArtistResponse, error) {
-	fmt.Println("read artist")
 
-	data, err := getArtistFromDb(ctx, dbFile, req.GetId())
+	fmt.Printf("read artist %v\n", req.GetId())
+	albums, err := getArtistReleasesFromDb(ctx, req.GetId())
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -144,7 +138,7 @@ func (*server) ReadArtist(ctx context.Context, req *artist.ReadArtistRequest) (*
 	}
 
 	return &artist.ReadArtistResponse{
-		Artist: getArtistData(data),
+		Releases: albums,
 	}, err
 }
 
@@ -160,7 +154,7 @@ func (*server) UpdateArtist(ctx context.Context, req *artist.UpdateArtistRequest
 	}*/
 
 	// create an empty struct
-	data := &artistItem{}
+	/*data := &artistItem{}*/
 	/*filter := bson.M{"_id": oid}
 
 	res := collection.FindOne(ctx, filter)
@@ -186,33 +180,29 @@ func (*server) UpdateArtist(ctx context.Context, req *artist.UpdateArtistRequest
 	}*/
 
 	return &artist.UpdateArtistResponse{
-		Artist: getArtistData(data),
+		Artist: nil,
 	}, nil
 
 }
 
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
-	fmt.Println("deleting artist")
 
-	res, err := deleteArtistDb(ctx, dbFile, req.GetId())
+	fmt.Printf("deleting artist: %v\n", req)
+	res, err := deleteArtistDb(ctx, req.GetId())
+
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
 			fmt.Sprintf("cannot delete artist in DB: %v", err),
 		)
 	}
-	if res == 0 {
-		return nil, status.Errorf(
-			codes.NotFound,
-			fmt.Sprintf("cannot find artist in DB: %v", err),
-		)
-	}
+
 	return &artist.DeleteArtistResponse{Id: res}, nil
 }
 
 func (*server) ListArtist(_ *artist.ListArtistRequest, stream artist.ArtistService_ListArtistServer) error {
-	fmt.Println("list artist's")
 
+	fmt.Println("list artist's")
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		return status.Errorf(
@@ -220,8 +210,9 @@ func (*server) ListArtist(_ *artist.ListArtistRequest, stream artist.ArtistServi
 			fmt.Sprintf("Unknown internal error: %v", err),
 		)
 	}
+	defer db.Close()
 
-	rows, err := db.Query("select * from artist")
+	rows, err := db.Query("select id, siteId, artistId, title, counter, thumbnail from artist where userAdded = 1")
 	if err != nil {
 		return status.Errorf(
 			codes.Internal,
@@ -231,9 +222,14 @@ func (*server) ListArtist(_ *artist.ListArtistRequest, stream artist.ArtistServi
 	defer rows.Close()
 
 	for rows.Next() {
-		data := &artistItem{}
-		rows.Scan(&data.ID, &data.SiteId, &data.ArtistId, &data.Title, &data.Counter, &data.Thumbnail)
-		err = stream.Send(&artist.ListArtistResponse{Artist: getArtistData(data)})
+		var art artist.Artist
+		if err := rows.Scan(&art.Id, &art.SiteId, &art.ArtistId, &art.Title, &art.Counter, &art.Thumbnail); err != nil {
+			return status.Errorf(
+				codes.Internal,
+				fmt.Sprintf("error while getting data from DB: %v", err),
+			)
+		}
+		err = stream.Send(&artist.ListArtistResponse{Artist: &art})
 		if err != nil {
 			return status.Errorf(
 				codes.Internal,
@@ -253,14 +249,6 @@ func (*server) ListArtist(_ *artist.ListArtistRequest, stream artist.ArtistServi
 
 	// Check for row scan error.
 	if err != nil {
-		return status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Unknown internal error: %v", err),
-		)
-	}
-
-	// Check for errors during row iteration.
-	if err = rows.Err(); err != nil {
 		return status.Errorf(
 			codes.Internal,
 			fmt.Sprintf("Unknown internal error: %v", err),
