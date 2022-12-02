@@ -1,43 +1,41 @@
-CREATE TABLE "site" (
-    "id" INTEGER NOT NULL CONSTRAINT "PK_site" PRIMARY KEY AUTOINCREMENT,
-    "title" TEXT NOT NULL,
-    "login" TEXT NULL,
-    "pass" TEXT NULL,
-    "token" TEXT NULL
+CREATE TABLE site (
+    site_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    login TEXT,
+    pass TEXT,
+    token TEXT
 );
-CREATE TABLE "artist" (
-    "id" INTEGER NOT NULL CONSTRAINT "PK_artist" PRIMARY KEY AUTOINCREMENT,
-    "siteId" INTEGER NOT NULL,
-    "artistId" TEXT NOT NULL,
-    "title" TEXT NULL,
-    "counter" INTEGER default 0,
-    "thumbnail" BLOB NULL,
-    "lastDate" TEXT NULL,
-    "userAdded" INTEGER default 0,
-    UNIQUE(siteId,artistId),
-    CONSTRAINT "FK_artist_site_siteId" FOREIGN KEY ("siteId") REFERENCES "site" ("id") ON DELETE RESTRICT
+CREATE TABLE artist (
+    art_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    siteId INTEGER REFERENCES site (site_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    artistId TEXT NOT NULL,
+    title TEXT,
+    counter INTEGER default 0,
+    thumbnail BLOB,
+    lastDate TEXT,
+    userAdded INTEGER default 0,
+    UNIQUE(siteId,artistId)
 );
-CREATE TABLE "album" (
-    "id" INTEGER NOT NULL CONSTRAINT "release" PRIMARY KEY AUTOINCREMENT,
-    "albumId" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "releaseDate" TEXT NULL,
-    "releaseType" TEXT NULL,
-    "thumbnail" BLOB NULL,
+CREATE TABLE album (
+    alb_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    raw_alb_Id INTEGER REFERENCES artistAlbum (albumId) ON UPDATE CASCADE ON DELETE CASCADE,
+    albumId TEXT,
+    title TEXT,
+    releaseDate TEXT,
+    releaseType TEXT,
+    thumbnail BLOB,
     UNIQUE(albumId,title)
 );
-CREATE TABLE "artistAlbum" (
-    "artistId" INTEGER NOT NULL,
-    "albumId" INTEGER NOT NULL,
-    CONSTRAINT "artistRelease" PRIMARY KEY ("artistId", "albumId"),
-    CONSTRAINT "FK_artistAlbum_artist_artistId" FOREIGN KEY ("artistId") REFERENCES "artist" ("id") ON DELETE CASCADE,
-    CONSTRAINT "FK_artistAlbum_album_albumId" FOREIGN KEY ("albumId") REFERENCES "album" ("id") ON DELETE CASCADE
+CREATE TABLE artistAlbum (
+    artistId INTEGER REFERENCES artist (art_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    albumId INTEGER REFERENCES album (alb_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    UNIQUE(artistId,albumId)
 );
-CREATE TABLE "track" (
-    "id" INTEGER NOT NULL CONSTRAINT "PK_track" PRIMARY KEY AUTOINCREMENT,
-    "releaseId" TEXT NOT NULL,
-    "title" TEXT NULL,
-    "trackId" TEXT NOT NULL,
-    "duration" INTEGER NOT NULL,
-    CONSTRAINT "FK_track_release_releaseId" FOREIGN KEY ("releaseId") REFERENCES "album" ("id") ON DELETE CASCADE
+CREATE TABLE track (
+    trk_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    albumId INTEGER REFERENCES album (alb_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    trackId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    duration INTEGER default 0,
+    UNIQUE(albumId,trackId)
 );

@@ -32,11 +32,11 @@ message CreateArtistResponse {
   string title = 2;
 }
 
-message ReadArtistRequest {
+message ReadArtistAlbumRequest {
   int64 id = 1;
 }
 
-message ReadArtistResponse {
+message ReadArtistAlbumResponse {
   repeated Album releases = 1;
 }
 
@@ -61,13 +61,22 @@ message ListArtistRequest {
 }
 
 message ListArtistResponse {
+  repeated Artist artists = 1;
+}
+
+message ListStreamArtistRequest {
+
+}
+
+message ListStreamArtistResponse {
   Artist artist = 1;
 }
 
 service ArtistService {
   rpc CreateArtist (CreateArtistRequest) returns (CreateArtistResponse);
-  rpc ReadArtist (ReadArtistRequest) returns (ReadArtistResponse);
+  rpc ReadArtistAlbum (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
   rpc UpdateArtist (UpdateArtistRequest) returns (UpdateArtistResponse);
   rpc DeleteArtist (DeleteArtistRequest) returns (DeleteArtistResponse);
-  rpc ListArtist (ListArtistRequest) returns (stream ListArtistResponse);
+  rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
+  rpc ListStreamArtist (ListStreamArtistRequest) returns (stream ListStreamArtistResponse);
 }
