@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/machinebox/graphql"
 	"io"
 	"log"
@@ -86,7 +87,7 @@ func getThumb(url string) []byte {
 }
 
 func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, item *artistReleases) (int64, string, error) {
-	db, err := sql.Open("sqlite3", dbFile)
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -127,10 +128,8 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 
 			//url := strings.ReplaceAll(release.Image.Src, "{size}", thumbSize)
 			var albId int
-			err = stRelease.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil).Scan(&albId)
-			if err != nil {
-				log.Fatal(err)
-			}
+			_ = stRelease.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil).Scan(&albId)
+
 			for _, artist := range release.Artists {
 				var artId int
 				artId, ok := mArtist[artist.ID]
@@ -143,17 +142,11 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 						userAdded = 1
 						artRes = int64(artId)
 					}
-					err = stArtist.QueryRowContext(ctx, siteUid, artist.ID, title, nil, userAdded).Scan(&artId)
-					if err != nil {
-						log.Fatal(err)
-					}
+					_ = stArtist.QueryRowContext(ctx, siteUid, artist.ID, title, nil, userAdded).Scan(&artId)
 					mArtist[artist.ID] = artId
 				}
 				if artId != 0 && albId != 0 {
-					_, err = stArtistAlbum.ExecContext(ctx, artId, albId)
-					if err != nil {
-						log.Fatal(err)
-					}
+					_, _ = stArtistAlbum.ExecContext(ctx, artId, albId)
 				}
 			}
 		}

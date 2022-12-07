@@ -38,17 +38,17 @@ func main() {
 
 	c := artist.NewArtistServiceClient(cc)
 
-	// create Artist 209521227-тайпан | 211125212-yoxden | 210478992-Max Bitov | 210478991 miss di
-	createArtistReq := &artist.CreateArtistRequest{
-		SiteId:   1,
-		ArtistId: "211125212",
-	}
-	fmt.Println("creating artist: " + createArtistReq.ArtistId)
-	createArtistRes, err := c.CreateArtist(context.Background(), createArtistReq)
-	if err != nil {
-		log.Fatalf("unexpected error: %v", err)
-	}
-	fmt.Println("artist has been created: " + createArtistRes.GetTitle())
+	// create Artist 209521227-тайпан | 211125212-yoxden | 210478992-Max Bitov | 210478991 miss di | 209493679 ap$ent | 211850488 Мюслі UA
+	/*	createArtistReq := &artist.CreateArtistRequest{
+			SiteId:   1,
+			ArtistId: "211850488",
+		}
+		fmt.Println("creating artist: " + createArtistReq.ArtistId)
+		createArtistRes, err := c.CreateArtist(context.Background(), createArtistReq)
+		if err != nil {
+			log.Fatalf("unexpected error: %v", err)
+		}
+		fmt.Println("artist has been created: " + createArtistRes.GetTitle())*/
 
 	// read artist releases
 	/*	readArtistReq := &artist.ReadArtistAlbumRequest{
@@ -99,9 +99,9 @@ func main() {
 	}*/
 
 	// delete Artist
-	/*	deleteRes, deleteErr := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: 35})
-		if deleteErr != nil {
-			fmt.Printf("error happened while deleting: %v \n", deleteErr)
-		}
-		fmt.Printf("artist was deleted, album count: %v \n", deleteRes.Id)*/
+	deleteRes, deleteErr := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: 3})
+	if deleteErr != nil {
+		fmt.Printf("error happened while deleting: %v \n", deleteErr)
+	}
+	fmt.Printf("artist was deleted, album count: %v \n", deleteRes.Id)
 }

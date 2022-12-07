@@ -51,7 +51,7 @@ func getArtistReleasesFromDb(ctx context.Context, artistId int64) ([]*artist.Alb
 }
 
 func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
-	db, err := sql.Open("sqlite3", dbFile)
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,50 +61,66 @@ func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//delete from artist where art_id in (select artistId from (select aa.artistId, count(aa.albumId) res, a.userAdded from artistAlbum aa left join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = 42) group by aa.artistId AND a.userAdded = 0));
 
-	stmt, err := db.PrepareContext(ctx, "select count(distinct aa.artistId) res from artistAlbum aa left join artist a on a.art_id = aa.artistId where a.userAdded = 1 and aa.albumId in (select albumId from artistAlbum where artistId = ?);")
-	defer stmt.Close()
-
-	var artCount int
-	err = stmt.QueryRowContext(ctx, artistId).Scan(&artCount)
-	if err != nil {
-		log.Fatal(err)
+	var aff int64
+	execs := []struct {
+		stmt string
+		res  int
+	}{
+		{stmt: fmt.Sprintf("create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.albumId) res from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) and a.userAdded = 1 group by aa.albumId having res = 1);", artistId), res: 0},
+		{stmt: fmt.Sprintf("create temporary table _temp_artist as select aa.artistId, a.userAdded from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) group by aa.artistId;", artistId), res: 1},
+		{stmt: "select count(1) from _temp_artist where userAdded = 1;", res: 2},
+		{stmt: "delete from artist where art_id in (select artistId from _temp_artist where userAdded = 0);", res: 3},
+		{stmt: "delete from album where alb_id in (select albumId from _temp_album);", res: 4},
+		{stmt: "drop table _temp_album;", res: 5},
+		{stmt: "drop table _temp_artist;", res: 6},
 	}
 
-	albumSt, err := db.PrepareContext(ctx, "delete from album where alb_id in (select albumId from (select albumId, count(albumId) res from artistAlbum where albumId in (select albumId from artistAlbum where artistId = ?) group by albumId having res = 1));")
-	defer albumSt.Close()
-
-	res, err := albumSt.ExecContext(ctx, artistId)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if artCount == 1 {
-		artSt, err := db.PrepareContext(ctx, "delete from artist where art_id = ?;")
-		defer artSt.Close()
+	for _, exec := range execs {
+		stmt, err := db.PrepareContext(ctx, exec.stmt)
 		if err != nil {
 			log.Fatal(err)
 		}
-		_, err = artSt.ExecContext(ctx, artistId)
-		if err != nil {
-			log.Fatal(err)
+
+		if exec.res == 2 {
+			var artCount int
+			err = stmt.QueryRowContext(ctx).Scan(&artCount)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if artCount == 1 {
+				artSt, err := db.PrepareContext(ctx, "delete from artist where art_id = ?;")
+				if err != nil {
+					log.Fatal(err)
+				}
+				_, err = artSt.ExecContext(ctx, artistId)
+				if err != nil {
+					log.Fatal(err)
+				}
+				artSt.Close()
+			} else {
+				artUpSt, err := db.PrepareContext(ctx, "update artist set userAdded = 0 where art_id = ?;")
+				if err != nil {
+					log.Fatal(err)
+				}
+				_, err = artUpSt.ExecContext(ctx, artistId)
+				if err != nil {
+					log.Fatal(err)
+				}
+				artUpSt.Close()
+			}
+		} else {
+			cc, err := stmt.ExecContext(ctx)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if exec.res == 4 {
+				aff, _ = cc.RowsAffected()
+			}
 		}
-	} else {
-		artUpSt, err := db.PrepareContext(ctx, "update artist set userAdded = 0 where art_id = ?;")
-		defer artUpSt.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-		_, err = artUpSt.ExecContext(ctx, artistId)
-		if err != nil {
-			log.Fatal(err)
-		}
+		stmt.Close()
 	}
-	aff, err := res.RowsAffected()
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	return aff, tx.Commit()
 }
 
@@ -204,7 +220,6 @@ func (*server) UpdateArtist(ctx context.Context, req *artist.UpdateArtistRequest
 }
 
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
-
 	fmt.Printf("deleting artist: %v \n", req)
 	res, err := deleteArtistDb(ctx, req.GetId())
 
@@ -219,7 +234,6 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 }
 
 func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*artist.ListArtistResponse, error) {
-
 	fmt.Println("list artist's")
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
@@ -257,7 +271,6 @@ func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*ar
 }
 
 func (*server) ListStreamArtist(_ *artist.ListStreamArtistRequest, stream artist.ArtistService_ListStreamArtistServer) error {
-
 	fmt.Println("list artist's")
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
