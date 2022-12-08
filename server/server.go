@@ -125,18 +125,18 @@ func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
 }
 
 func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest) (*artist.CreateArtistResponse, error) {
-
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
 	fmt.Printf("creating artist: %v \n", artistId)
 
-	var err error
 	var artistName string
 	var artId int64
+	var err error
+
 	// идем в бекенд в зависимости от siteId (сбер/спотик etc) и получаем остальные поля объекта и вставляем в базу
 	switch siteId {
 	case 1:
-		artId, artistName, err = GetArtistFromSber(ctx, siteId, artistId)
+		artId, artistName, err = GetArtistSb(ctx, siteId, artistId)
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -144,14 +144,11 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 	}
 
 	if err != nil {
-		fmt.Println(err)
-	}
-	/*if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
 			fmt.Sprintf("Internal error: %v", err),
 		)
-	}*/
+	}
 	fmt.Printf("artist has been created: %v \n", artistName)
 	return &artist.CreateArtistResponse{
 		Title: artistName,
@@ -160,7 +157,6 @@ func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest
 }
 
 func (*server) ReadArtistAlbum(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
-
 	fmt.Printf("read artist releases: %v \n", req.GetId())
 	albums, err := getArtistReleasesFromDb(ctx, req.GetId())
 
@@ -176,47 +172,37 @@ func (*server) ReadArtistAlbum(ctx context.Context, req *artist.ReadArtistAlbumR
 	}, err
 }
 
-func (*server) UpdateArtist(ctx context.Context, req *artist.UpdateArtistRequest) (*artist.UpdateArtistResponse, error) {
-	fmt.Println("updating artist")
-	/*Artist := req.GetArtist()
-	oid, err := primitive.ObjectIDFromHex(Artist.GetId())
+func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*artist.SyncArtistResponse, error) {
+	siteId := req.GetSiteId()
+	artistId := req.GetId()
+	fmt.Printf("sync artist: %v \n", artistId)
+
+	var newArtists []*artist.Artist
+	var newAlbums []*artist.Album
+	var deletedAlbums []string
+	var err error
+
+	switch siteId {
+	case 1:
+		newArtists, newAlbums, deletedAlbums, err = SyncArtistSb(ctx, siteId, artistId)
+	case 2:
+		// "артист со спотика"
+	case 3:
+		// "артист с дизера"
+	}
+
 	if err != nil {
 		return nil, status.Errorf(
-			codes.InvalidArgument,
-			fmt.Sprintf("Cannot parse ID"),
-		)
-	}*/
-
-	// create an empty struct
-	/*data := &artistItem{}*/
-	/*filter := bson.M{"_id": oid}
-
-	res := collection.FindOne(ctx, filter)
-	if err := res.Decode(data); err != nil {
-		return nil, status.Errorf(
-			codes.NotFound,
-			fmt.Sprintf("Cannot find Artist with specified ID: %v", err),
-		)
-	}*/
-
-	// we update our internal struct
-	/*data.Pid = Artist.GetPid()
-	data.Name = Artist.GetName()
-	data.Release = Artist.GetRelease()
-	data.Description = Artist.GetDescription()
-
-	_, updateErr := collection.ReplaceOne(context.Background(), filter, data)
-	if updateErr != nil {
-		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Cannot update object in MongoDB: %v", updateErr),
+			fmt.Sprintf("Internal error: %v", err),
 		)
-	}*/
+	}
 
-	return &artist.UpdateArtistResponse{
-		Artist: nil,
+	return &artist.SyncArtistResponse{
+		Artist:  newArtists,
+		Album:   newAlbums,
+		Deleted: deletedAlbums,
 	}, nil
-
 }
 
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {

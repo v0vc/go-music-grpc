@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/machinebox/graphql"
+	"github.com/v0vc/go-music-grpc/artist"
 	"io"
 	"log"
 	"net/http"
@@ -25,6 +26,16 @@ const (
 	authHeader            = "x-auth-token"
 	thumbSize             = "10x10"
 )
+
+type artistReleasesId struct {
+	GetArtists []struct {
+		Typename string `json:"__typename"`
+		Releases []struct {
+			Typename string `json:"__typename"`
+			ID       string `json:"id"`
+		} `json:"releases"`
+	} `json:"getArtists"`
+}
 
 type artistReleases struct {
 	GetArtists []struct {
@@ -52,7 +63,7 @@ type artistReleases struct {
 	} `json:"getArtists"`
 }
 
-func getTokenSber(ctx context.Context, siteId uint32) (string, error) {
+func getToken(ctx context.Context, siteId uint32) (string, error) {
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		return "", err
@@ -67,10 +78,74 @@ func getTokenSber(ctx context.Context, siteId uint32) (string, error) {
 
 	var token string
 	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		log.Fatalf("no token for sourceId: %d", siteId)
 		return "", err
+	case err != nil:
+		log.Fatal(err)
+		return "", err
+	default:
+		return token, nil
 	}
-	return token, nil
+}
+
+func getTokenWithArtisId(ctx context.Context, siteId uint32, id int64) (string, string, error) {
+	db, err := sql.Open("sqlite3", dbFile)
+	if err != nil {
+		return "", "", err
+	}
+	defer db.Close()
+
+	stmt, err := db.PrepareContext(ctx, "select token from site where site_id = ? limit 1;")
+	if err != nil {
+		return "", "", err
+	}
+	defer stmt.Close()
+
+	var token string
+	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmtArt, err := db.PrepareContext(ctx, "select artistId from artist where art_id = ? limit 1;")
+	if err != nil {
+		return "", "", err
+	}
+	defer stmtArt.Close()
+
+	var artId string
+	err = stmtArt.QueryRowContext(ctx, id).Scan(&artId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return token, artId, nil
+}
+
+func getArtistReleasesIds(ctx context.Context, id int64) ([]string, error) {
+	db, err := sql.Open("sqlite3", dbFile)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.QueryContext(ctx, "select a.albumId from artistAlbum aa join album a on a.alb_id = aa.albumId where artistId = ?;", id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var res []string
+	for rows.Next() {
+		var albId string
+		if err := rows.Scan(&albId); err != nil {
+			return nil, err
+		}
+		res = append(res, albId)
+	}
+
+	return res, nil
 }
 
 func getThumb(url string) []byte {
@@ -155,9 +230,9 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 	return artRes, artistName, tx.Commit()
 }
 
-func GetArtistFromSber(ctx context.Context, siteUid uint32, artistId string) (int64, string, error) {
+func GetArtistSb(ctx context.Context, siteUid uint32, artistId string) (int64, string, error) {
 
-	token, err := getTokenSber(ctx, siteUid)
+	token, err := getToken(ctx, siteUid)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -169,7 +244,6 @@ func GetArtistFromSber(ctx context.Context, siteUid uint32, artistId string) (in
 	graphqlRequest.Var("limit", releaseChunk)
 	graphqlRequest.Var("offset", 0)
 	graphqlRequest.Header.Add(authHeader, token)
-
 	var graphqlResponse interface{}
 	if err := graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse); err != nil {
 		log.Fatal(err)
@@ -179,4 +253,52 @@ func GetArtistFromSber(ctx context.Context, siteUid uint32, artistId string) (in
 	json.Unmarshal(jsonString, &obj)
 
 	return insertArtistReleases(ctx, siteUid, artistId, &obj)
+}
+
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId int64) ([]*artist.Artist, []*artist.Album, []string, error) {
+	token, artId, err := getTokenWithArtisId(ctx, siteId, artistId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
+	graphqlRequest := graphql.NewRequest(`query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { id }`)
+	graphqlRequest.Var("id", artId)
+	graphqlRequest.Var("limit", releaseChunk)
+	graphqlRequest.Var("offset", 0)
+	graphqlRequest.Header.Add(authHeader, token)
+	var graphqlResponse interface{}
+	if err := graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse); err != nil {
+		log.Fatal(err)
+	}
+	jsonString, _ := json.Marshal(graphqlResponse)
+	var item artistReleasesId
+	json.Unmarshal(jsonString, &item)
+
+	dbIds, err := getArtistReleasesIds(ctx, artistId)
+
+	var inetIds []string
+	for _, data := range item.GetArtists {
+		for _, release := range data.Releases {
+			if release.ID == "" {
+				continue
+			}
+			inetIds = append(inetIds, release.ID)
+		}
+	}
+
+	newIds := FindDifference(inetIds, dbIds)
+	for i := range newIds {
+		fmt.Println("new: " + newIds[i])
+	}
+
+	if len(newIds) > 0 {
+
+	}
+
+	deletedIds := FindDifference(dbIds, inetIds)
+	for i := range deletedIds {
+		fmt.Println("deleted: " + deletedIds[i])
+	}
+
+	return nil, nil, deletedIds, nil
 }

@@ -40,12 +40,15 @@ message ReadArtistAlbumResponse {
   repeated Album releases = 1;
 }
 
-message UpdateArtistRequest {
-  Artist artist = 1;
+message SyncArtistRequest {
+  uint32 siteId = 1;
+  int64 id = 2;
 }
 
-message UpdateArtistResponse {
-  Artist artist = 1;
+message SyncArtistResponse {
+  repeated Artist artist = 1;
+  repeated Album album = 2;
+  repeated string deleted = 3;
 }
 
 message DeleteArtistRequest {
@@ -75,7 +78,7 @@ message ListStreamArtistResponse {
 service ArtistService {
   rpc CreateArtist (CreateArtistRequest) returns (CreateArtistResponse);
   rpc ReadArtistAlbum (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
-  rpc UpdateArtist (UpdateArtistRequest) returns (UpdateArtistResponse);
+  rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
   rpc DeleteArtist (DeleteArtistRequest) returns (DeleteArtistResponse);
   rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
   rpc ListStreamArtist (ListStreamArtistRequest) returns (stream ListStreamArtistResponse);

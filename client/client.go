@@ -63,15 +63,15 @@ func main() {
 		fmt.Printf("artist releases was read: %v \n", readArtistRes)*/
 
 	// update Artist
-	/*		newArtist := &artist.Artist{
-				Id:    ArtistID,
-				Title: "NEW RANDOM TITLE",
-			}
-			updateRes, updateErr := c.UpdateArtist(context.Background(), &artist.UpdateArtistRequest{Artist: newArtist})
-			if updateErr != nil {
-				fmt.Printf("error happened while updating: %v \n", updateErr)
-			}
-			fmt.Printf("artist was updated: %v \n", updateRes)*/
+	req := &artist.SyncArtistRequest{
+		SiteId: 1,
+		Id:     6,
+	}
+	resp, err := c.SyncArtist(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error happened while updating: %v \n", err)
+	}
+	fmt.Printf("artist %v was updated: new artist - %d, new album - %d, deleted albums - %v\n", req.GetId(), len(resp.Artist), len(resp.Album), resp.Deleted)
 
 	// list artist
 	/*fmt.Println("list artist's")
@@ -99,9 +99,9 @@ func main() {
 	}*/
 
 	// delete Artist
-	deleteRes, deleteErr := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: 3})
-	if deleteErr != nil {
-		fmt.Printf("error happened while deleting: %v \n", deleteErr)
-	}
-	fmt.Printf("artist was deleted, album count: %v \n", deleteRes.Id)
+	/*	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: 3})
+		if err != nil {
+			fmt.Printf("error happened while deleting: %v \n", err)
+		}
+		fmt.Printf("artist was deleted, album count: %v \n", res.Id)*/
 }
