@@ -124,38 +124,6 @@ func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
 	return aff, tx.Commit()
 }
 
-func (*server) CreateArtist(ctx context.Context, req *artist.CreateArtistRequest) (*artist.CreateArtistResponse, error) {
-	siteId := req.GetSiteId()
-	artistId := req.GetArtistId()
-	fmt.Printf("creating artist: %v \n", artistId)
-
-	var artistName string
-	var artId int64
-	var err error
-
-	// идем в бекенд в зависимости от siteId (сбер/спотик etc) и получаем остальные поля объекта и вставляем в базу
-	switch siteId {
-	case 1:
-		artId, artistName, err = GetArtistSb(ctx, siteId, artistId)
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
-	}
-
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-	fmt.Printf("artist has been created: %v \n", artistName)
-	return &artist.CreateArtistResponse{
-		Title: artistName,
-		Id:    artId,
-	}, err
-}
-
 func (*server) ReadArtistAlbum(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
 	fmt.Printf("read artist releases: %v \n", req.GetId())
 	albums, err := getArtistReleasesFromDb(ctx, req.GetId())
@@ -174,17 +142,19 @@ func (*server) ReadArtistAlbum(ctx context.Context, req *artist.ReadArtistAlbumR
 
 func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*artist.SyncArtistResponse, error) {
 	siteId := req.GetSiteId()
-	artistId := req.GetId()
+	artistId := req.GetArtistId()
 	fmt.Printf("sync artist: %v \n", artistId)
 
 	var newArtists []*artist.Artist
 	var newAlbums []*artist.Album
-	var deletedAlbums []string
+	var deletedAlbumIds []string
+	var deletedArtistIds []string
+	var artistName string
 	var err error
 
 	switch siteId {
 	case 1:
-		newArtists, newAlbums, deletedAlbums, err = SyncArtistSb(ctx, siteId, artistId)
+		newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, artistName, err = SyncArtistSb(ctx, siteId, artistId)
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -199,9 +169,11 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	}
 
 	return &artist.SyncArtistResponse{
-		Artist:  newArtists,
-		Album:   newAlbums,
-		Deleted: deletedAlbums,
+		Artist:     newArtists,
+		Album:      newAlbums,
+		DeletedAlb: deletedAlbumIds,
+		DeletedArt: deletedArtistIds,
+		Title:      artistName,
 	}, nil
 }
 

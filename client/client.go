@@ -64,14 +64,14 @@ func main() {
 
 	// update Artist
 	req := &artist.SyncArtistRequest{
-		SiteId: 1,
-		Id:     6,
+		SiteId:   1,
+		ArtistId: "211850488",
 	}
 	resp, err := c.SyncArtist(context.Background(), req)
 	if err != nil {
 		fmt.Printf("error happened while updating: %v \n", err)
 	}
-	fmt.Printf("artist %v was updated: new artist - %d, new album - %d, deleted albums - %v\n", req.GetId(), len(resp.Artist), len(resp.Album), resp.Deleted)
+	fmt.Printf("artist %v was updated: new artist - %d, new album - %d, deleted albums - %v, deleted artist - %v\n", resp.GetTitle(), len(resp.Artist), len(resp.Album), resp.DeletedAlb, resp.DeletedArt)
 
 	// list artist
 	/*fmt.Println("list artist's")
