@@ -47,13 +47,11 @@ func main() {
 	if err != nil {
 		fmt.Printf("error happened while updating: %v \n", err)
 	}
-	fmt.Printf("artist %v was updated: new artist - %d, new album - %d, deleted albums - %v, deleted artist - %v\n", resp.GetTitle(), len(resp.Artist), len(resp.Album), resp.DeletedAlb, resp.DeletedArt)
-
-	artId := resp.GetId()
+	fmt.Printf("artist %v was synchronized: new artist - %d, new album - %d, deleted albums - %v, deleted artist - %v\n", resp.GetTitle(), len(resp.Artist), len(resp.Album), resp.DeletedAlb, resp.DeletedArt)
 
 	// read artist releases
-	readArtistReq := &artist.ReadArtistAlbumRequest{
-		Id: artId,
+	/*readArtistReq := &artist.ReadArtistAlbumRequest{
+		Id: resp.GetId(),
 	}
 	fmt.Printf("reading artist: %v \n", readArtistReq.GetId())
 	readArtistRes, readArtistErr := c.ReadArtistAlbum(context.Background(), readArtistReq)
@@ -61,7 +59,7 @@ func main() {
 		fmt.Printf("error while reading: %v \n", readArtistErr)
 	}
 
-	fmt.Printf("artist releases was read: %v \n", readArtistRes)
+	fmt.Printf("artist releases was read: %v \n", readArtistRes)*/
 
 	// list artist
 	/*fmt.Println("list artist's")
@@ -89,9 +87,9 @@ func main() {
 	}*/
 
 	// delete Artist
-	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: artId})
+	/*res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: resp.GetId()})
 	if err != nil {
 		fmt.Printf("error happened while deleting: %v \n", err)
 	}
-	fmt.Printf("artist was deleted, album count: %v \n", res.Id)
+	fmt.Printf("artist was deleted, album count: %v \n", res.Id)*/
 }
