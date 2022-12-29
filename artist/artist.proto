@@ -33,6 +33,7 @@ message SyncArtistResponse {
   repeated string deletedAlb = 3;
   repeated string deletedArt = 4;
   string title = 5;
+  int64 id = 6;
 }
 
 message ReadArtistAlbumRequest {

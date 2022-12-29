@@ -84,104 +84,20 @@ func getArtistReleases(ctx context.Context, artistId string, token string) artis
 	return obj
 }
 
-func getToken(ctx context.Context, siteId uint32) (string, error) {
-	db, err := sql.Open("sqlite3", dbFile)
-	if err != nil {
-		return "", err
-	}
-	defer db.Close()
-
-	stmt, err := db.PrepareContext(ctx, "select token from site where site_id = ?;")
-	if err != nil {
-		return "", err
-	}
-	defer stmt.Close()
-
-	var token string
-	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
-	switch {
-	case err == sql.ErrNoRows:
-		log.Fatalf("no token for sourceId: %d", siteId)
-		return "", err
-	case err != nil:
-		log.Fatal(err)
-		return "", err
-	default:
-		return token, nil
+func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
+	if ids != nil {
+		stDelete, err := tx.PrepareContext(ctx, command)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer stDelete.Close()
+		for _, id := range ids {
+			_, _ = stDelete.ExecContext(ctx, id)
+		}
 	}
 }
 
-/*func getTokenWithArtisId(ctx context.Context, siteId uint32, artistId string) (string, int, error) {
-	db, err := sql.Open("sqlite3", dbFile)
-	if err != nil {
-		return "", -1, err
-	}
-	defer db.Close()
-
-	stmt, err := db.PrepareContext(ctx, "select token from site where site_id = ? limit 1;")
-	if err != nil {
-		return "", -1, err
-	}
-	defer stmt.Close()
-
-	var token string
-	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	stmtArt, err := db.PrepareContext(ctx, "select art_id from artist where artistId = ? and siteId = ? limit 1;")
-	if err != nil {
-		return token, -1, err
-	}
-	defer stmtArt.Close()
-
-	var artId int
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artId)
-	switch {
-	case err == sql.ErrNoRows:
-		// новый артист
-		return token, artId, nil
-	case err != nil:
-		return token, artId, err
-	default:
-		return token, artId, nil
-	}
-}*/
-
-func getArtistReleasesDbIds(ctx context.Context, id int) ([]string, []string, error) {
-	db, err := sql.Open("sqlite3", dbFile)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer db.Close()
-
-	rows, err := db.QueryContext(ctx, "select al.albumId, a.artistId res from artistAlbum aa join artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from artistAlbum where artistId = ?);", id)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer rows.Close()
-
-	var albIds []string
-	var artIds []string
-	for rows.Next() {
-		var albId string
-		var artId string
-		if err := rows.Scan(&albId, &artId); err != nil {
-			return nil, nil, err
-		}
-		if !Contains(albIds, albId) {
-			albIds = append(albIds, albId)
-		}
-		if !Contains(artIds, artId) {
-			artIds = append(artIds, artId)
-		}
-	}
-
-	return albIds, artIds, nil
-}
-
-func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, item *artistReleases) ([]*artist.Artist, []*artist.Album, []string, []string, string, error) {
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, []*artist.Album, []string, []string, string, int, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -193,18 +109,77 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 		log.Fatal(err)
 	}
 
-	/*stArtist, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded=1 returning art_id;")*/
-	stArtist, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do nothing returning art_id;")
+	stmt, err := tx.PrepareContext(ctx, "select token from site where site_id = ?;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+
+	var token string
+	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
+	switch {
+	case err == sql.ErrNoRows:
+		log.Fatalf("no token for sourceId: %d", siteId)
+	case err != nil:
+		log.Fatal(err)
+	}
+
+	item := getArtistReleases(ctx, artistId, token)
+
+	var existAlbumIds []string
+	var existArtistIds []string
+
+	stmtArt, err := db.PrepareContext(ctx, "select art_id from artist where artistId = ? and siteId = ? limit 1;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmtArt.Close()
+
+	var artRawId int
+	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId)
+	switch {
+	case err == sql.ErrNoRows:
+		log.Printf("no artist with id %v, inserting..", artistId)
+	case err != nil:
+		log.Fatal(err)
+	default:
+		log.Printf("artist db id is %d\n", artRawId)
+	}
+
+	if artRawId != 0 {
+		rows, err := db.QueryContext(ctx, "select al.albumId, a.artistId res from artistAlbum aa join artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from artistAlbum where artistId = ?);", artRawId)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var albId string
+			var artisId string
+			if err := rows.Scan(&albId, &artisId); err != nil {
+				log.Fatal(err)
+			}
+			if albId != "" && !Contains(existAlbumIds, albId) {
+				existAlbumIds = append(existAlbumIds, albId)
+			}
+			if artisId != "" && !Contains(existArtistIds, artisId) {
+				existArtistIds = append(existArtistIds, artisId)
+			}
+		}
+	}
+
+	stArtist, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set lastDate=datetime(CURRENT_TIMESTAMP, 'localtime') returning art_id;")
+	/*stArtist, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do nothing returning art_id;")*/
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stArtist.Close()
 
-	stRelease, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail) values (?, ?, ?, ?, ?) on conflict (albumId, title) do nothing returning alb_id;")
+	stAlbum, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail) values (?, ?, ?, ?, ?) on conflict (albumId, title) do update set lastDate=datetime(CURRENT_TIMESTAMP, 'localtime') returning alb_id;")
+	/*stAlbum, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail) values (?, ?, ?, ?, ?) on conflict (albumId, title) do nothing returning alb_id;")*/
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer stRelease.Close()
+	defer stAlbum.Close()
 
 	stArtistAlbum, err := tx.PrepareContext(ctx, "insert into artistAlbum(artistId, albumId) values (?, ?) on conflict (artistId, albumId) do nothing;")
 	if err != nil {
@@ -213,10 +188,9 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 	defer stArtistAlbum.Close()
 
 	var artistName string
+	var artistRawId int
 	var newArtists []*artist.Artist
 	var newAlbums []*artist.Album
-	var existAlbumIds []string
-	var existArtistIds []string
 	var albumIds []string
 	var artistIds []string
 
@@ -232,11 +206,18 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 
 			//url := strings.ReplaceAll(release.Image.Src, "{size}", thumbSize)
 			var albId int
-			err = stRelease.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil).Scan(&albId)
-			switch {
-			case err == sql.ErrNoRows:
-				existAlbumIds = append(existAlbumIds, release.ID)
-			default:
+			_ = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil).Scan(&albId)
+
+			if artRawId == 0 {
+				newAlbums = append(newAlbums, &artist.Album{
+					Id:          int64(albId),
+					AlbumId:     release.ID,
+					Title:       release.Title,
+					ReleaseType: release.Type,
+					ReleaseDate: release.Date,
+					Thumbnail:   nil,
+				})
+			} else if !Contains(existAlbumIds, release.ID) {
 				newAlbums = append(newAlbums, &artist.Album{
 					Id:          int64(albId),
 					AlbumId:     release.ID,
@@ -251,26 +232,35 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 				if !Contains(artistIds, artistData.ID) {
 					artistIds = append(artistIds, artistData.ID)
 				}
-				var artId int
 				artId, ok := mArtist[artistData.ID]
 				if !ok {
 					//thUrl := strings.ReplaceAll(artist.Image.Src, "{size}", thumbSize)
-					title := strings.TrimSpace(artistData.Title)
+
 					var userAdded = 0
+					artistTitle := strings.TrimSpace(artistData.Title)
 					if artistData.ID == artistId {
-						artistName = title
+						artistName = artistTitle
 						userAdded = 1
 					}
-					err = stArtist.QueryRowContext(ctx, siteUid, artistData.ID, title, nil, userAdded).Scan(&artId)
-					switch {
-					case err == sql.ErrNoRows:
-						existArtistIds = append(existArtistIds, artistData.ID)
-					default:
+					_ = stArtist.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, nil, userAdded).Scan(&artId)
+					if userAdded == 1 {
+						artistRawId = artId
+					}
+					if artRawId == 0 {
 						newArtists = append(newArtists, &artist.Artist{
 							Id:        int64(artId),
-							SiteId:    siteUid,
+							SiteId:    siteId,
 							ArtistId:  artistData.ID,
-							Title:     artistData.Title,
+							Title:     artistTitle,
+							Counter:   0,
+							Thumbnail: nil,
+						})
+					} else if !Contains(existArtistIds, artistData.ID) {
+						newArtists = append(newArtists, &artist.Artist{
+							Id:        int64(artId),
+							SiteId:    siteId,
+							ArtistId:  artistData.ID,
+							Title:     artistTitle,
 							Counter:   0,
 							Thumbnail: nil,
 						})
@@ -284,19 +274,14 @@ func insertArtistReleases(ctx context.Context, siteUid uint32, artistId string, 
 			}
 		}
 	}
-	deletedAlbumIds := FindDifference(existAlbumIds, albumIds)
-	deletedArtistIds := FindDifference(existArtistIds, artistIds)
-	return newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, artistName, tx.Commit()
-}
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, []*artist.Album, []string, []string, string, error) {
-	/*token, artId, err := getTokenWithArtisId(ctx, siteId, artistId)*/
-	token, err := getToken(ctx, siteId)
-	if err != nil {
-		log.Fatal(err)
+	var deletedAlbumIds []string
+	var deletedArtistIds []string
+	if artRawId != 0 {
+		deletedAlbumIds = FindDifference(existAlbumIds, albumIds)
+		runExec(tx, ctx, deletedAlbumIds, "delete from album where albumId = ?;")
+		deletedArtistIds = FindDifference(existArtistIds, artistIds)
+		runExec(tx, ctx, deletedArtistIds, "delete from artist where artistId = ?;")
 	}
-
-	item := getArtistReleases(ctx, artistId, token)
-
-	return insertArtistReleases(ctx, siteId, artistId, &item)
+	return newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, artistName, artistRawId, tx.Commit()
 }

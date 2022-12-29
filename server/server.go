@@ -150,11 +150,12 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	var deletedAlbumIds []string
 	var deletedArtistIds []string
 	var artistName string
+	var artistRawId int
 	var err error
 
 	switch siteId {
 	case 1:
-		newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, artistName, err = SyncArtistSb(ctx, siteId, artistId)
+		newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, artistName, artistRawId, err = SyncArtistSb(ctx, siteId, artistId)
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -174,6 +175,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		DeletedAlb: deletedAlbumIds,
 		DeletedArt: deletedArtistIds,
 		Title:      artistName,
+		Id:         int64(artistRawId),
 	}, nil
 }
 

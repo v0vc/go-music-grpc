@@ -24,6 +24,7 @@ CREATE TABLE album (
     releaseDate TEXT,
     releaseType TEXT,
     thumbnail BLOB,
+    lastDate TEXT,
     UNIQUE(albumId,title)
 );
 CREATE TABLE artistAlbum (
