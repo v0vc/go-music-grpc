@@ -18,7 +18,6 @@ CREATE TABLE artist (
 );
 CREATE TABLE album (
     alb_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    raw_alb_Id INTEGER REFERENCES artistAlbum (albumId) ON UPDATE CASCADE ON DELETE CASCADE,
     albumId TEXT,
     title TEXT,
     releaseDate TEXT,
