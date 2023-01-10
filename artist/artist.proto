@@ -9,8 +9,8 @@ message Artist {
   uint32 siteId = 2;
   string artistId = 3;
   string title = 4;
-  uint32 counter = 5;
-  bytes thumbnail = 6;
+  bytes thumbnail = 5;
+  bool userAdded = 6;
 }
 
 message Album {

@@ -10,10 +10,9 @@ CREATE TABLE artist (
     siteId INTEGER REFERENCES site (site_id) ON UPDATE CASCADE ON DELETE RESTRICT,
     artistId TEXT NOT NULL,
     title TEXT,
-    counter INTEGER default 0,
-    thumbnail BLOB,
-    lastDate TEXT,
     userAdded INTEGER default 0,
+    syncState INTEGER default 1,
+    thumbnail BLOB,
     UNIQUE(siteId,artistId)
 );
 CREATE TABLE album (
@@ -22,8 +21,8 @@ CREATE TABLE album (
     title TEXT,
     releaseDate TEXT,
     releaseType TEXT,
+    syncState INTEGER default 0,
     thumbnail BLOB,
-    lastDate TEXT,
     UNIQUE(albumId,title)
 );
 CREATE TABLE artistAlbum (

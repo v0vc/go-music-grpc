@@ -26,8 +26,7 @@ type server struct {
 }
 
 func getArtistReleasesFromDb(ctx context.Context, artistId int64) ([]*artist.Album, error) {
-	var albs []*artist.Album
-	db, err := sql.Open("sqlite3", dbFile)
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +38,7 @@ func getArtistReleasesFromDb(ctx context.Context, artistId int64) ([]*artist.Alb
 	}
 	defer rows.Close()
 
+	var albs []*artist.Album
 	for rows.Next() {
 		var alb artist.Album
 		if err := rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail); err != nil {
@@ -51,7 +51,7 @@ func getArtistReleasesFromDb(ctx context.Context, artistId int64) ([]*artist.Alb
 }
 
 func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true", dbFile))
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -124,22 +124,6 @@ func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
 	return aff, tx.Commit()
 }
 
-func (*server) ReadArtistAlbum(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
-	fmt.Printf("read artist releases: %v \n", req.GetId())
-	albums, err := getArtistReleasesFromDb(ctx, req.GetId())
-
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-
-	return &artist.ReadArtistAlbumResponse{
-		Releases: albums,
-	}, err
-}
-
 func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*artist.SyncArtistResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
@@ -179,6 +163,22 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	}, nil
 }
 
+func (*server) ReadArtistAlbum(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
+	fmt.Printf("read artist releases: %v \n", req.GetId())
+	albums, err := getArtistReleasesFromDb(ctx, req.GetId())
+
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	}
+
+	return &artist.ReadArtistAlbumResponse{
+		Releases: albums,
+	}, err
+}
+
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
 	fmt.Printf("deleting artist: %v \n", req)
 	res, err := deleteArtistDb(ctx, req.GetId())
@@ -195,7 +195,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 
 func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*artist.ListArtistResponse, error) {
 	fmt.Println("list artist's")
-	db, err := sql.Open("sqlite3", dbFile)
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -216,7 +216,7 @@ func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*ar
 	var arts []*artist.Artist
 	for rows.Next() {
 		var art artist.Artist
-		if err := rows.Scan(&art.Id, &art.SiteId, &art.ArtistId, &art.Title, &art.Counter, &art.Thumbnail); err != nil {
+		if err := rows.Scan(&art.Id, &art.SiteId, &art.ArtistId, &art.Title, &art.UserAdded, &art.Thumbnail); err != nil {
 			return nil, status.Errorf(
 				codes.Internal,
 				fmt.Sprintf("Internal error: %v", err),
@@ -232,7 +232,7 @@ func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*ar
 
 func (*server) ListStreamArtist(_ *artist.ListStreamArtistRequest, stream artist.ArtistService_ListStreamArtistServer) error {
 	fmt.Println("list artist's")
-	db, err := sql.Open("sqlite3", dbFile)
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return status.Errorf(
 			codes.Internal,
@@ -252,7 +252,7 @@ func (*server) ListStreamArtist(_ *artist.ListStreamArtistRequest, stream artist
 
 	for rows.Next() {
 		var art artist.Artist
-		if err := rows.Scan(&art.Id, &art.SiteId, &art.ArtistId, &art.Title, &art.Counter, &art.Thumbnail); err != nil {
+		if err := rows.Scan(&art.Id, &art.SiteId, &art.ArtistId, &art.Title, &art.UserAdded, &art.Thumbnail); err != nil {
 			return status.Errorf(
 				codes.Internal,
 				fmt.Sprintf("error while getting data from DB: %v", err),
