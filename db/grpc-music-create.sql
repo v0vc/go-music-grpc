@@ -32,9 +32,18 @@ CREATE TABLE artistAlbum (
 );
 CREATE TABLE track (
     trk_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    albumId INTEGER REFERENCES album (alb_id) ON UPDATE CASCADE ON DELETE CASCADE,
     trackId TEXT NOT NULL,
     title TEXT NOT NULL,
-    duration INTEGER default 0,
+    hasFlac INTEGER,
+    hasLyric INTEGER,
+    quality TEXT NULL,
+    condition TEXT NULL,
+    trackNum INTEGER,
+    duration INTEGER,
+    UNIQUE(trackId,title)
+);
+CREATE TABLE albumTrack (
+    albumId INTEGER REFERENCES album (alb_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    trackId INTEGER REFERENCES track (trk_id) ON UPDATE CASCADE ON DELETE CASCADE,
     UNIQUE(albumId,trackId)
 );

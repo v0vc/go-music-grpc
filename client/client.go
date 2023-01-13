@@ -39,16 +39,16 @@ func main() {
 	c := artist.NewArtistServiceClient(cc)
 
 	// sync artist | 211850488 Мюслі UA | 212266807 Lely45
-	req := &artist.SyncArtistRequest{
-		SiteId:   1,
-		ArtistId: "212266807",
-	}
-	resp, err := c.SyncArtist(context.Background(), req)
-	if err != nil {
-		fmt.Printf("error happened while updating: %v \n", err)
-	}
-	fmt.Printf("artist %v was synchronized: new artist - %d, new album - %d, deleted albums - %v, deleted artist - %v \n",
-		resp.GetTitle(), len(resp.Artist), len(resp.Album), resp.DeletedAlb, resp.DeletedArt)
+	/*	req := &artist.SyncArtistRequest{
+			SiteId:   1,
+			ArtistId: "212266807",
+		}
+		resp, err := c.SyncArtist(context.Background(), req)
+		if err != nil {
+			fmt.Printf("error happened while updating: %v \n", err)
+		}
+		fmt.Printf("artist %v was synchronized: new artist - %d, new album - %d, deleted albums - %v, deleted artist - %v \n",
+			resp.GetTitle(), len(resp.Artists), len(resp.Albums), resp.DeletedAlb, resp.DeletedArt)*/
 
 	// read artist releases
 	/*	readArtistReq := &artist.ReadArtistAlbumRequest{
@@ -93,4 +93,27 @@ func main() {
 			fmt.Printf("error happened while deleting: %v \n", err)
 		}
 		fmt.Printf("artist was deleted, album count: %v \n", res.Id)*/
+
+	// sync album
+	/*req := &artist.SyncAlbumRequest{
+		SiteId: 1,
+		AlbId:  13,
+	}
+	resp, err := c.SyncAlbum(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error happened while updating: %v \n", err)
+	}
+	fmt.Printf("album %v was synchronized: tracks - %d \n", req.AlbId, len(resp.Tracks))*/
+
+	// read album tracks
+	req := &artist.ReadAlbumTrackRequest{
+		AlbId: 13,
+	}
+	fmt.Printf("reading album: %v \n", req.GetAlbId())
+	resp, err := c.ReadAlbumTrack(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error while reading: %v \n", err)
+	}
+
+	fmt.Printf("album tracks was read: %v \n", resp)
 }

@@ -22,14 +22,43 @@ message Album {
   bytes thumbnail = 6;
 }
 
+message Track {
+  int64 id = 1;
+  string trackId = 2;
+  string title = 3;
+  bool hasFlac = 4;
+  bool hasLyric = 5;
+  string quality = 6;
+  string condition = 7;
+  int32 trackNum = 8;
+  int32  duration = 9;
+}
+
+message SyncAlbumRequest {
+  uint32 siteId = 1;
+  int64 albId = 2;
+}
+
+message SyncAlbumResponse {
+  repeated Track tracks = 1;
+}
+
+message ReadAlbumTrackRequest {
+  int64 albId = 1;
+}
+
+message ReadAlbumTrackResponse {
+  repeated Track tracks = 1;
+}
+
 message SyncArtistRequest {
   uint32 siteId = 1;
   string artistId = 2;
 }
 
 message SyncArtistResponse {
-  repeated Artist artist = 1;
-  repeated Album album = 2;
+  repeated Artist artists = 1;
+  repeated Album albums = 2;
   repeated string deletedAlb = 3;
   repeated string deletedArt = 4;
   string title = 5;
@@ -71,6 +100,8 @@ message ListStreamArtistResponse {
 service ArtistService {
   rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
   rpc ReadArtistAlbum (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
+  rpc SyncAlbum (SyncAlbumRequest) returns (SyncAlbumResponse);
+  rpc ReadAlbumTrack (ReadAlbumTrackRequest) returns (ReadAlbumTrackResponse);
   rpc DeleteArtist (DeleteArtistRequest) returns (DeleteArtistResponse);
   rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
   rpc ListStreamArtist (ListStreamArtistRequest) returns (stream ListStreamArtistResponse);
