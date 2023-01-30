@@ -21,8 +21,10 @@ CREATE TABLE album (
     title TEXT,
     releaseDate TEXT,
     releaseType TEXT,
+    trackTotal INTEGER default 0,
     syncState INTEGER default 0,
     thumbnail BLOB,
+    thumbnailUrl TEXT,
     UNIQUE(albumId,title)
 );
 CREATE TABLE artistAlbum (
@@ -38,6 +40,7 @@ CREATE TABLE track (
     hasLyric INTEGER,
     quality TEXT NULL,
     condition TEXT NULL,
+    genre TEXT NULL,
     trackNum INTEGER,
     duration INTEGER,
     UNIQUE(trackId,title)
@@ -46,4 +49,9 @@ CREATE TABLE albumTrack (
     albumId INTEGER REFERENCES album (alb_id) ON UPDATE CASCADE ON DELETE CASCADE,
     trackId INTEGER REFERENCES track (trk_id) ON UPDATE CASCADE ON DELETE CASCADE,
     UNIQUE(albumId,trackId)
+);
+CREATE TABLE trackArtist (
+    trackId INTEGER REFERENCES track (trk_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    artistId INTEGER REFERENCES artist (art_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    UNIQUE(trackId, artistId)
 );

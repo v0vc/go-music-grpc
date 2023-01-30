@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+	"github.com/dustin/go-humanize"
+	"time"
+)
+
 type Auth struct {
 	Result struct {
 		Token string `json:"token,omitempty"`
@@ -98,4 +104,53 @@ type ReleaseInfo struct {
 		Playlists map[string]Playlist `json:"playlists,omitempty"`
 		Releases  map[string]Release  `json:"releases,omitempty"`
 	} `json:"result,omitempty"`
+}
+
+type TrackStreamInfo struct {
+	Result struct {
+		Expire      int64  `json:"expire,omitempty"`
+		ExpireDelta int    `json:"expire_delta,omitempty"`
+		Stream      string `json:"stream,omitempty"`
+	} `json:"result,omitempty"`
+}
+
+type TrackQuality struct {
+	Specs     string
+	Extension string
+	IsFlac    bool
+}
+
+type AlbumInfo struct {
+	ArtistTitle string
+	AlbumTitle  string
+	AlbumId     string
+	AlbumYear   string
+	AlbumCover  string
+	TrackNum    string
+	TrackTotal  string
+	TrackTitle  string
+	TrackGenre  string
+}
+
+type WriteCounter struct {
+	Total      int64
+	TotalStr   string
+	Downloaded int64
+	Percentage int
+	StartTime  int64
+}
+
+func (wc *WriteCounter) Write(p []byte) (int, error) {
+	var speed int64 = 0
+	n := len(p)
+	wc.Downloaded += int64(n)
+	percentage := float64(wc.Downloaded) / float64(wc.Total) * float64(100)
+	wc.Percentage = int(percentage)
+	toDivideBy := time.Now().UnixMilli() - wc.StartTime
+	if toDivideBy != 0 {
+		speed = wc.Downloaded / toDivideBy * 1000
+	}
+	fmt.Printf("\r%d%% @ %s/s, %s/%s ", wc.Percentage, humanize.Bytes(uint64(speed)),
+		humanize.Bytes(uint64(wc.Downloaded)), wc.TotalStr)
+	return n, nil
 }

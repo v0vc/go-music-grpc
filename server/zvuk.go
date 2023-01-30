@@ -1,30 +1,41 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"github.com/machinebox/graphql"
 	"github.com/v0vc/go-music-grpc/artist"
+	"html"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
+	"unicode"
 )
 
 const (
 	megabyte              = 1000000
 	apiBase               = "https://zvuk.com/"
 	apiRelease            = "api/tiny/releases"
+	apiStream             = "api/tiny/track/stream"
 	albumRegexString      = `^https://zvuk.com/release/(\d+)$`
 	playlistRegexString   = `^https://zvuk.com/playlist/(\d+)$`
 	artistRegexString     = `^https://zvuk.com/artist/(\d+)$`
 	trackTemplateAlbum    = "{{.trackPad}}-{{.title}}"
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
-	albumTemplate         = "{{.albumArtist}} - {{.album}}"
+	albumTemplate         = "{{.year}} - {{.album}}"
 	releaseChunk          = 100
 	authHeader            = "x-auth-token"
 	thumbSize             = "10x10"
@@ -61,6 +72,56 @@ func getThumb(url string) []byte {
 	return res
 }
 
+func downloadAlbumCover(url, path string) error {
+	url = strings.Replace(url, "&size={size}", "", 1)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	req, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer req.Body.Close()
+	if req.StatusCode != http.StatusOK {
+		return err
+	}
+	_, err = io.Copy(f, req.Body)
+	return err
+}
+
+func downloadTrack(trackPath, url string) (string, error) {
+	f, err := os.OpenFile(trackPath, os.O_CREATE|os.O_WRONLY, 0755)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add("Range", "bytes=0-")
+	do, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer do.Body.Close()
+	if do.StatusCode != http.StatusOK && do.StatusCode != http.StatusPartialContent {
+		fmt.Println(do.Status)
+		return "", err
+	}
+	totalBytes := do.ContentLength
+	counter := &WriteCounter{
+		Total:     totalBytes,
+		TotalStr:  humanize.Bytes(uint64(totalBytes)),
+		StartTime: time.Now().UnixMilli(),
+	}
+	res, err := io.Copy(f, io.TeeReader(do.Body, counter))
+	fmt.Println("")
+	return humanize.Bytes(uint64(res)), err
+}
+
 func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
 	if ids != nil {
 		stDelete, err := tx.PrepareContext(ctx, command)
@@ -89,7 +150,7 @@ func getAlbumIdDb(tx *sql.Tx, ctx context.Context, albId int64) string {
 	return albumId
 }
 
-func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId string) int {
+func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) int {
 	stmtArt, err := tx.PrepareContext(ctx, "select art_id from artist where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
 		log.Fatal(err)
@@ -100,7 +161,7 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId stri
 	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId)
 	switch {
 	case err == sql.ErrNoRows:
-		log.Printf("no artist with id %v", artistId)
+		fmt.Printf("no artist with id %v", artistId)
 	case err != nil:
 		log.Fatal(err)
 	default:
@@ -136,8 +197,65 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 	return existAlbumIds, existArtistIds
 }
 
+func getTokenWithTrackFromDb(ctx context.Context, siteId uint32, trackIds []string) (map[string]*AlbumInfo, string) {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	sqlStr := fmt.Sprintf("select group_concat(ar.title), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from albumTrack at join artistAlbum aa on at.albumId = aa.albumId join album a on a.alb_id = aa.albumId join artist ar on ar.art_id = aA.artistId join track t on t.trk_id = at.trackId where at.trackId in (select trk_id from track where trackId in (? %v)) and ar.siteId = ? group by at.trackId;", strings.Repeat(",?", len(trackIds)-1))
+	stRows, err := db.PrepareContext(ctx, sqlStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stRows.Close()
+
+	var args []interface{}
+	for _, trackId := range trackIds {
+		args = append(args, trackId)
+	}
+	args = append(args, siteId)
+	rows, err := stRows.QueryContext(ctx, args...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	mTracks := make(map[string]*AlbumInfo)
+	for rows.Next() {
+		var trackId string
+		var alb AlbumInfo
+		if err := rows.Scan(&alb.ArtistTitle, &alb.AlbumTitle, &alb.AlbumId, &alb.AlbumYear, &alb.AlbumCover, &trackId, &alb.TrackNum, &alb.TrackTotal, &alb.TrackTitle, &alb.TrackGenre); err != nil {
+			log.Fatal(err)
+		}
+		_, ok := mTracks[trackId]
+		if !ok {
+			mTracks[trackId] = &alb
+		}
+	}
+
+	stmt, err := db.PrepareContext(ctx, "select token from site where site_id = ? limit 1;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+
+	var token string
+
+	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
+	switch {
+	case err == sql.ErrNoRows:
+		log.Fatalf("no token for sourceId: %d", siteId)
+	case err != nil:
+		log.Fatal(err)
+	}
+
+	return mTracks, token
+}
+
 func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string, string) {
-	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from site where site_id = ?;")
+	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from site where site_id = ? limit 1;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -182,12 +300,82 @@ func getTokenFromSite(email, password string) (string, error) {
 	if do.StatusCode != http.StatusOK {
 		return "", err
 	}
-	var obj Auth
+	var obj *Auth
 	err = json.NewDecoder(do.Body).Decode(&obj)
 	if err != nil {
 		return "", err
 	}
 	return obj.Result.Token, nil
+}
+
+func getTrackStreamUrl(trackId, trackQuality, token string) (string, error) {
+	var do *http.Response
+	req, err := http.NewRequest(http.MethodGet, apiBase+apiStream, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add(authHeader, token)
+	query := url.Values{}
+	query.Set("id", trackId)
+	query.Set("quality", trackQuality)
+	req.URL.RawQuery = query.Encode()
+	for i := 0; i < 5; i++ {
+		do, err = client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		if do.StatusCode == http.StatusTeapot && i != 4 {
+			do.Body.Close()
+			fmt.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
+			continue
+		}
+		if do.StatusCode != http.StatusOK {
+			do.Body.Close()
+			return "", err
+		}
+		break
+	}
+	var obj *TrackStreamInfo
+	err = json.NewDecoder(do.Body).Decode(&obj)
+	do.Body.Close()
+	if err != nil {
+		return "", err
+	}
+	return obj.Result.Stream, nil
+}
+
+func getCurrentTrackQuality(streamUrl string, qualityMap *map[string]TrackQuality) *TrackQuality {
+	for k, v := range *qualityMap {
+		if strings.Contains(streamUrl, k) {
+			return &v
+		}
+	}
+	return nil
+}
+
+func sanitize(filename string, isFolder bool) string {
+	var regexStr string
+	if isFolder {
+		regexStr = `[:*?"><|]`
+	} else {
+		regexStr = `[\/:*?"><|]`
+	}
+	str := regexp.MustCompile(regexStr).ReplaceAllString(filename, "_")
+	return strings.TrimRightFunc(str, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
+}
+
+func parseTemplate(tags map[string]string, defTemplate string) string {
+	var buffer bytes.Buffer
+
+	for {
+		err := template.Must(template.New("").Parse(defTemplate)).Execute(&buffer, tags)
+		if err == nil {
+			break
+		}
+		buffer.Reset()
+	}
+	resPath := html.UnescapeString(buffer.String())
+	return sanitize(resPath, false)
 }
 
 func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, string, bool) {
@@ -231,7 +419,7 @@ func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, strin
 	return &obj, token, needTokenUpd
 }
 
-func getArtistReleases(ctx context.Context, artistId, token, email, password string) (ArtistReleases, string, bool) {
+func getArtistReleases(ctx context.Context, artistId, token, email, password string) (*ArtistReleases, string, bool) {
 	var obj ArtistReleases
 	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
 	graphqlRequest := graphql.NewRequest(`query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { __typename artists { __typename id title image { __typename ...ImageInfoGqlFragment } } date id image { __typename ...ImageInfoGqlFragment } title type } fragment ImageInfoGqlFragment on ImageInfo { __typename src }`)
@@ -261,7 +449,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	}
 	jsonString, _ := json.Marshal(graphqlResponse)
 	json.Unmarshal(jsonString, &obj)
-	return obj, token, needTokenUpd
+	return &obj, token, needTokenUpd
 }
 
 func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, []*artist.Album, []string, []string, string, int, error) {
@@ -296,7 +484,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	}
 	defer stArtistSlave.Close()
 
-	stAlbum, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail) values (?, ?, ?, ?, ?) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
+	stAlbum, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail, thumbnailUrl) values (?, ?, ?, ?, ?, ?) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -327,7 +515,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 
 			//url := strings.ReplaceAll(release.Image.Src, "{size}", thumbSize)
 			var albId int
-			err = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil).Scan(&albId)
+			err = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil, release.Image.Src).Scan(&albId)
 			if err != nil {
 				log.Fatal(err)
 			} else {
@@ -417,20 +605,22 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 		updateTokenDb(tx, ctx, token, siteId)
 	}
 
-	stTrack, err := tx.PrepareContext(ctx, "insert into track (trackId, trackNum, title, hasFlac, hasLyric, quality, condition, duration) values (?, ?, ?, ?, ?, ?, ?, ?) on conflict (trackId, title) do nothing returning trk_id;")
+	stTrack, err := tx.PrepareContext(ctx, "insert into track (trackId, trackNum, title, hasFlac, hasLyric, quality, condition, genre, duration) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict (trackId, title) do nothing returning trk_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stTrack.Close()
 
-	stAlbumTrack, err := tx.PrepareContext(ctx, "insert into albumTrack(albumId, trackId) values (?, ?) on conflict (albumId, trackId) do nothing;")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stAlbumTrack.Close()
-
 	var tracks []*artist.Track
-	if len(item.Result.Tracks) > 0 {
+	var trackTotal = len(item.Result.Tracks)
+	if trackTotal > 0 {
+		stAlbumUpd, err := tx.PrepareContext(ctx, "update album set trackTotal = ? where alb_id = ?;")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer stAlbumUpd.Close()
+		_, _ = stAlbumUpd.ExecContext(ctx, trackTotal, albId)
+
 		stAlbumTrackRem, err := tx.PrepareContext(ctx, "delete from track where trk_id in (select trackId from albumTrack where albumId = ?)")
 		if err != nil {
 			log.Fatal(err)
@@ -438,15 +628,43 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 		defer stAlbumTrackRem.Close()
 		_, _ = stAlbumTrackRem.ExecContext(ctx, albId)
 
+		stAlbumTrack, err := tx.PrepareContext(ctx, "insert into albumTrack(albumId, trackId) values (?, ?) on conflict (albumId, trackId) do nothing;")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer stAlbumTrack.Close()
+
+		stTrackArtist, err := tx.PrepareContext(ctx, "insert into trackArtist(trackId, artistId) values (?, ?) on conflict (trackId, artistId) do nothing;")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer stTrackArtist.Close()
+
+		mArtist := make(map[int]int)
 		for trId, track := range item.Result.Tracks {
 			if trId != "" {
 				var trackId int
-				err = stTrack.QueryRowContext(ctx, trId, track.Position, track.Title, track.HasFlac, track.Lyrics, track.HighestQuality, track.Condition, track.Duration).Scan(&trackId)
+				err = stTrack.QueryRowContext(ctx, trId, track.Position, track.Title, track.HasFlac, track.Lyrics, track.HighestQuality, track.Condition, track.Genres[0], track.Duration).Scan(&trackId)
 				if err != nil {
 					log.Fatal(err)
 				}
 				if trackId != 0 {
 					_, _ = stAlbumTrack.ExecContext(ctx, albId, trackId)
+
+					for _, artistId := range track.ArtistIds {
+						artId, ok := mArtist[artistId]
+						if !ok {
+							artRawId := getArtistIdDb(tx, ctx, siteId, artistId)
+							if artRawId > 0 {
+								mArtist[artistId] = artRawId
+								artId = artRawId
+							}
+						}
+						if artId != 0 {
+							_, _ = stTrackArtist.ExecContext(ctx, trackId, artId)
+						}
+					}
+
 					tracks = append(tracks, &artist.Track{
 						Id:        int64(trackId),
 						TrackId:   trId,
@@ -464,4 +682,111 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 	}
 
 	return tracks, tx.Commit()
+}
+
+func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
+	/*token := getOnlyTokenDb(ctx, siteId)*/
+	mTracks, token := getTokenWithTrackFromDb(ctx, siteId, trackIds)
+
+	qualityMap := map[string]TrackQuality{
+		//mid, high, flac
+		"/stream?":   {"128 Kbps MP3", ".mp3", false},
+		"/streamhq?": {"320 Kbps MP3", ".mp3", false},
+		"/streamfl?": {"900 Kbps FLAC", ".flac", true},
+	}
+
+	mDownloaded := make(map[string]string)
+	mAlbum := make(map[string]string)
+	for trackNum, trackId := range trackIds {
+		cdnUrl, err := getTrackStreamUrl(trackId, trackQuality, token)
+		if err != nil {
+			fmt.Errorf(err.Error())
+			continue
+		}
+		curQuality := getCurrentTrackQuality(cdnUrl, &qualityMap)
+		if curQuality == nil {
+			fmt.Println("The API returned an unsupported format.")
+			continue
+		}
+		albInfo, ok := mTracks[trackId]
+		if !ok {
+			// нет в базе, можно продумать как формировать пути скачивания без данных в базе
+		} else {
+			trTotal, _ := strconv.Atoi(albInfo.TrackTotal)
+			trNum, _ := strconv.Atoi(albInfo.TrackNum)
+			mTrack := make(map[string]string)
+			mTrack["artist"] = albInfo.ArtistTitle
+			mTrack["year"] = albInfo.AlbumYear[:4]
+			mTrack["album"] = albInfo.AlbumTitle
+			mTrack["genre"] = albInfo.TrackGenre
+			mTrack["title"] = albInfo.TrackTitle
+			mTrack["track"] = albInfo.TrackNum
+			mTrack["trackPad"] = fmt.Sprintf("%02d", trNum)
+			mTrack["trackTotal"] = albInfo.TrackTotal
+
+			albTemplate := albumTemplate
+			trackTemplate := trackTemplateAlbum
+			if trTotal == 1 {
+				trackTemplate = trackTemplatePlaylist
+				albTemplate = "{{.artist}}"
+			}
+			trackName := parseTemplate(mTrack, trackTemplate)
+			var coverPath string
+
+			absAlbName, exist := mAlbum[albInfo.AlbumId]
+			if !exist {
+				albName := parseTemplate(mTrack, albTemplate)
+				if len(albName) > 120 {
+					fmt.Println("Album folder was chopped as it exceeds 120 characters.")
+					albName = albName[:120]
+				}
+				if trTotal == 1 {
+					absAlbName = filepath.Join(DownloadDir, albName)
+				} else {
+					absAlbName = filepath.Join(DownloadDir, albInfo.ArtistTitle, albName)
+				}
+
+				err = os.MkdirAll(absAlbName, 0755)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				coverPath = filepath.Join(absAlbName, "cover.jpg")
+				err = downloadAlbumCover(albInfo.AlbumCover, coverPath)
+				if err != nil {
+					fmt.Println(err)
+					coverPath = ""
+				}
+				mAlbum[albInfo.AlbumId] = absAlbName
+			}
+
+			trackPath := filepath.Join(absAlbName, trackName+curQuality.Extension)
+			exists, err := FileExists(trackPath)
+			if err != nil {
+				fmt.Println("Failed to check if track already exists locally.")
+				continue
+			}
+			if exists {
+				fmt.Println("Track already exists locally.")
+				continue
+			}
+
+			fmt.Printf("Downloading track %d of %d: %s - %s\n", trackNum, len(trackIds), albInfo.TrackTitle, curQuality.Specs)
+			resDown, err := downloadTrack(trackPath, cdnUrl)
+			if err != nil {
+				fmt.Println("Failed to download track.")
+				continue
+			}
+			mDownloaded[trackId] = resDown
+			if trTotal == 1 && coverPath != "" {
+				err := os.Remove(coverPath)
+				if err != nil {
+					fmt.Println("Failed to delete cover.")
+				}
+			}
+		}
+
+	}
+	return mDownloaded, nil
 }

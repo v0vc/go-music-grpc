@@ -55,7 +55,7 @@ func main() {
 			Id: 5,
 		}
 		fmt.Printf("reading artist: %v \n", readArtistReq.GetId())
-		readArtistRes, readArtistErr := c.ReadArtistAlbum(context.Background(), readArtistReq)
+		readArtistRes, readArtistErr := c.ReadArtistAlbums(context.Background(), readArtistReq)
 		if readArtistErr != nil {
 			fmt.Printf("error while reading: %v \n", readArtistErr)
 		}
@@ -88,32 +88,47 @@ func main() {
 	}*/
 
 	// delete Artist
-	/*	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: 25})
+	/*	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{Id: 3})
 		if err != nil {
 			fmt.Printf("error happened while deleting: %v \n", err)
 		}
 		fmt.Printf("artist was deleted, album count: %v \n", res.Id)*/
 
 	// sync album
-	/*req := &artist.SyncAlbumRequest{
-		SiteId: 1,
-		AlbId:  13,
-	}
-	resp, err := c.SyncAlbum(context.Background(), req)
-	if err != nil {
-		fmt.Printf("error happened while updating: %v \n", err)
-	}
-	fmt.Printf("album %v was synchronized: tracks - %d \n", req.AlbId, len(resp.Tracks))*/
+	/*	req := &artist.SyncAlbumRequest{
+			SiteId: 1,
+			AlbId:  8,
+		}
+		resp, err := c.SyncAlbum(context.Background(), req)
+		if err != nil {
+			fmt.Printf("error happened while updating: %v \n", err)
+		}
+		fmt.Printf("album %v was synchronized: tracks - %d \n", req.AlbId, len(resp.Tracks))*/
 
 	// read album tracks
-	req := &artist.ReadAlbumTrackRequest{
-		AlbId: 13,
-	}
-	fmt.Printf("reading album: %v \n", req.GetAlbId())
-	resp, err := c.ReadAlbumTrack(context.Background(), req)
-	if err != nil {
-		fmt.Printf("error while reading: %v \n", err)
-	}
+	/*	req := &artist.ReadAlbumTrackRequest{
+			AlbId: 54,
+		}
+		fmt.Printf("reading album: %v \n", req.GetAlbId())
+		resp, err := c.ReadAlbumTracks(context.Background(), req)
+		if err != nil {
+			fmt.Printf("error while reading: %v \n", err)
+		}
 
-	fmt.Printf("album tracks was read: %v \n", resp)
+		fmt.Printf("album tracks was read: %v \n", resp)*/
+
+	// download album tracks (mid, high, flac)
+	req := &artist.DownloadTracksRequest{
+		SiteId:       1,
+		TrackIds:     []string{"89734686", "89734684", "126268642"},
+		TrackQuality: "flac",
+	}
+	fmt.Printf("download tracks: %v \n", req.GetTrackIds())
+	resp, err := c.DownloadTracks(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error while downloading: %v \n", err)
+	}
+	for trackId, dSize := range resp.Downloaded {
+		fmt.Printf("%v was downloaded: %v \n", trackId, dSize)
+	}
 }

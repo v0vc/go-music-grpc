@@ -21,6 +21,8 @@ const defaultPort = "4041"
 const defaultInterface = "0.0.0.0"
 const dbFile = "./db/db.sqlite"
 
+var DownloadDir string
+
 type server struct {
 	artist.ArtistServiceServer
 }
@@ -57,7 +59,13 @@ func getAlbumTrackFromDb(ctx context.Context, albId int64) ([]*artist.Track, err
 	}
 	defer db.Close()
 
-	rows, err := db.QueryContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.trackNum, t.duration from albumTrack at inner join track t on t.trk_id = at.trackId where at.albumId = ? order by t.trackNum", albId)
+	stRows, err := db.PrepareContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.genre, t.trackNum, t.duration from albumTrack at inner join track t on t.trk_id = at.trackId where at.albumId = ? order by t.trackNum;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stRows.Close()
+
+	rows, err := stRows.QueryContext(ctx, albId)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +74,7 @@ func getAlbumTrackFromDb(ctx context.Context, albId int64) ([]*artist.Track, err
 	var tracks []*artist.Track
 	for rows.Next() {
 		var track artist.Track
-		if err := rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.TrackNum, &track.Duration); err != nil {
+		if err := rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
 			return nil, err
 		}
 		tracks = append(tracks, &track)
@@ -96,9 +104,10 @@ func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
 		{stmt: fmt.Sprintf("create temporary table _temp_artist as select aa.artistId, a.userAdded from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) group by aa.artistId;", artistId), res: 1},
 		{stmt: "select count(1) from _temp_artist where userAdded = 1;", res: 2},
 		{stmt: "delete from artist where art_id in (select artistId from _temp_artist where userAdded = 0);", res: 3},
-		{stmt: "delete from album where alb_id in (select albumId from _temp_album);", res: 4},
-		{stmt: "drop table _temp_album;", res: 5},
-		{stmt: "drop table _temp_artist;", res: 6},
+		{stmt: "delete from track where trk_id in (select trackId from albumTrack where albumId in (select albumId from _temp_album));", res: 4},
+		{stmt: "delete from album where alb_id in (select albumId from _temp_album);", res: 5},
+		{stmt: "drop table _temp_album;", res: 6},
+		{stmt: "drop table _temp_artist;", res: 7},
 	}
 
 	for _, exec := range execs {
@@ -188,7 +197,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	}, nil
 }
 
-func (*server) ReadArtistAlbum(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
+func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
 	artId := req.GetId()
 	fmt.Printf("read artist releases: %v \n", artId)
 	albums, err := getArtistReleasesFromDb(ctx, artId)
@@ -234,7 +243,7 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 	}, nil
 }
 
-func (*server) ReadAlbumTrack(ctx context.Context, req *artist.ReadAlbumTrackRequest) (*artist.ReadAlbumTrackResponse, error) {
+func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRequest) (*artist.ReadAlbumTrackResponse, error) {
 	albId := req.GetAlbId()
 	fmt.Printf("read album tracks: %v \n", albId)
 	tracks, err := getAlbumTrackFromDb(ctx, albId)
@@ -263,6 +272,40 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 	}
 
 	return &artist.DeleteArtistResponse{Id: res}, err
+}
+
+func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsRequest) (*artist.DownloadAlbumsResponse, error) {
+	return nil, nil
+}
+
+func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksRequest) (*artist.DownloadTracksResponse, error) {
+	siteId := req.GetSiteId()
+	trackIds := req.GetTrackIds()
+	fmt.Printf("download tracks: %v \n", trackIds)
+
+	var err error
+	var resDown map[string]string
+
+	switch siteId {
+	case 1:
+		//mid, high, flac
+		resDown, err = DownloadTracksSb(ctx, siteId, trackIds, req.GetTrackQuality())
+	case 2:
+		// "артист со спотика"
+	case 3:
+		// "артист с дизера"
+	}
+
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	}
+
+	return &artist.DownloadTracksResponse{
+		Downloaded: resDown,
+	}, nil
 }
 
 func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*artist.ListArtistResponse, error) {
@@ -373,6 +416,10 @@ func main() {
 	listenInterface := os.Getenv("LISTEN")
 	if listenInterface == "" {
 		listenInterface = defaultInterface
+	}
+	DownloadDir = os.Getenv("BASEDIR")
+	if DownloadDir == "" {
+		DownloadDir, _ = os.UserHomeDir()
 	}
 
 	// if we crash the go code, we get the file name and line number

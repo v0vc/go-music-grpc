@@ -1,5 +1,7 @@
 package main
 
+import "os"
+
 func FindDifference(a, b []string) []string {
 	mb := make(map[string]struct{}, len(b))
 	for _, x := range b {
@@ -21,4 +23,14 @@ func Contains[T comparable](s []T, e T) bool {
 		}
 	}
 	return false
+}
+
+func FileExists(path string) (bool, error) {
+	f, err := os.Stat(path)
+	if err == nil {
+		return !f.IsDir(), nil
+	} else if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }

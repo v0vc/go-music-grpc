@@ -30,8 +30,9 @@ message Track {
   bool hasLyric = 5;
   string quality = 6;
   string condition = 7;
-  int32 trackNum = 8;
-  int32  duration = 9;
+  string genre = 8;
+  int32 trackNum = 9;
+  int32  duration = 10;
 }
 
 message SyncAlbumRequest {
@@ -81,6 +82,25 @@ message DeleteArtistResponse {
   int64 id = 1;
 }
 
+message DownloadAlbumsRequest {
+  uint32 siteId = 1;
+  repeated string albumIds = 2;
+}
+
+message DownloadAlbumsResponse {
+  bool downloaded = 1;
+}
+
+message DownloadTracksRequest {
+  uint32 siteId = 1;
+  repeated string trackIds = 2;
+  string trackQuality = 3;
+}
+
+message DownloadTracksResponse {
+  map<string, string> Downloaded = 1;
+}
+
 message ListArtistRequest {
 
 }
@@ -99,10 +119,12 @@ message ListStreamArtistResponse {
 
 service ArtistService {
   rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
-  rpc ReadArtistAlbum (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
+  rpc ReadArtistAlbums (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
   rpc SyncAlbum (SyncAlbumRequest) returns (SyncAlbumResponse);
-  rpc ReadAlbumTrack (ReadAlbumTrackRequest) returns (ReadAlbumTrackResponse);
+  rpc ReadAlbumTracks (ReadAlbumTrackRequest) returns (ReadAlbumTrackResponse);
   rpc DeleteArtist (DeleteArtistRequest) returns (DeleteArtistResponse);
+  rpc DownloadAlbums (DownloadAlbumsRequest) returns (DownloadAlbumsResponse);
+  rpc DownloadTracks(DownloadTracksRequest) returns (DownloadTracksResponse);
   rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
   rpc ListStreamArtist (ListStreamArtistRequest) returns (stream ListStreamArtistResponse);
 }
