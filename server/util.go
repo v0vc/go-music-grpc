@@ -1,6 +1,14 @@
 package main
 
-import "os"
+import (
+	"bytes"
+	"html"
+	"html/template"
+	"os"
+	"regexp"
+	"strings"
+	"unicode"
+)
 
 func FindDifference(a, b []string) []string {
 	mb := make(map[string]struct{}, len(b))
@@ -33,4 +41,29 @@ func FileExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func sanitize(filename string, isFolder bool) string {
+	var regexStr string
+	if isFolder {
+		regexStr = `[:*?"><|]`
+	} else {
+		regexStr = `[\/:*?"><|]`
+	}
+	str := regexp.MustCompile(regexStr).ReplaceAllString(filename, "_")
+	return strings.TrimRightFunc(str, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
+}
+
+func ParseTemplate(tags map[string]string, defTemplate string) string {
+	var buffer bytes.Buffer
+
+	for {
+		err := template.Must(template.New("").Parse(defTemplate)).Execute(&buffer, tags)
+		if err == nil {
+			break
+		}
+		buffer.Reset()
+	}
+	resPath := html.UnescapeString(buffer.String())
+	return sanitize(resPath, false)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/dustin/go-humanize"
+	"strconv"
 	"time"
 )
 
@@ -130,6 +131,21 @@ type AlbumInfo struct {
 	TrackTotal  string
 	TrackTitle  string
 	TrackGenre  string
+	TrackPad    string
+}
+
+func CreateTagsFromDb(albInfo *AlbumInfo) map[string]string {
+	trNum, _ := strconv.Atoi(albInfo.TrackNum)
+	mTrack := make(map[string]string)
+	mTrack["artist"] = albInfo.ArtistTitle
+	mTrack["year"] = albInfo.AlbumYear[:4]
+	mTrack["album"] = albInfo.AlbumTitle
+	mTrack["genre"] = albInfo.TrackGenre
+	mTrack["title"] = albInfo.TrackTitle
+	mTrack["track"] = albInfo.TrackNum
+	mTrack["trackPad"] = fmt.Sprintf("%02d", trNum)
+	mTrack["trackTotal"] = albInfo.TrackTotal
+	return mTrack
 }
 
 type WriteCounter struct {

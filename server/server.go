@@ -163,13 +163,15 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	artistId := req.GetArtistId()
 	fmt.Printf("sync artist: %v \n", artistId)
 
-	var newArtists []*artist.Artist
-	var newAlbums []*artist.Album
-	var deletedAlbumIds []string
-	var deletedArtistIds []string
-	var artistName string
-	var artistRawId int
-	var err error
+	var (
+		newArtists       []*artist.Artist
+		newAlbums        []*artist.Album
+		deletedAlbumIds  []string
+		deletedArtistIds []string
+		artistName       string
+		artistRawId      int
+		err              error
+	)
 
 	switch siteId {
 	case 1:
@@ -219,8 +221,10 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 	albId := req.GetAlbId()
 	fmt.Printf("sync album: %v \n", albId)
 
-	var tracks []*artist.Track
-	var err error
+	var (
+		tracks []*artist.Track
+		err    error
+	)
 
 	switch siteId {
 	case 1:
@@ -275,7 +279,35 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 }
 
 func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsRequest) (*artist.DownloadAlbumsResponse, error) {
-	return nil, nil
+	siteId := req.GetSiteId()
+	albIds := req.GetAlbumIds()
+	fmt.Printf("download albums: %v \n", albIds)
+
+	var (
+		err     error
+		resDown map[string]string
+	)
+
+	switch siteId {
+	case 1:
+		//mid, high, flac
+		resDown, err = DownloadAlbumSb(ctx, siteId, albIds, req.GetTrackQuality())
+	case 2:
+		// "артист со спотика"
+	case 3:
+		// "артист с дизера"
+	}
+
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	}
+
+	return &artist.DownloadAlbumsResponse{
+		Downloaded: resDown,
+	}, nil
 }
 
 func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksRequest) (*artist.DownloadTracksResponse, error) {
@@ -283,8 +315,10 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 	trackIds := req.GetTrackIds()
 	fmt.Printf("download tracks: %v \n", trackIds)
 
-	var err error
-	var resDown map[string]string
+	var (
+		err     error
+		resDown map[string]string
+	)
 
 	switch siteId {
 	case 1:

@@ -85,10 +85,11 @@ message DeleteArtistResponse {
 message DownloadAlbumsRequest {
   uint32 siteId = 1;
   repeated string albumIds = 2;
+  string trackQuality = 3;
 }
 
 message DownloadAlbumsResponse {
-  bool downloaded = 1;
+  map<string, string> Downloaded = 1;
 }
 
 message DownloadTracksRequest {

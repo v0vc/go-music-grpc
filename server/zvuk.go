@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -9,8 +8,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/machinebox/graphql"
 	"github.com/v0vc/go-music-grpc/artist"
-	"html"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -18,15 +15,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 const (
-	megabyte              = 1000000
 	apiBase               = "https://zvuk.com/"
 	apiRelease            = "api/tiny/releases"
 	apiStream             = "api/tiny/track/stream"
@@ -39,6 +33,7 @@ const (
 	releaseChunk          = 100
 	authHeader            = "x-auth-token"
 	thumbSize             = "10x10"
+	coverSize             = "600x600"
 )
 
 type Transport struct{}
@@ -50,6 +45,11 @@ var (
 		1: "mid",
 		2: "high",
 		3: "flac",
+	}
+	trackQualityMap = map[string]TrackQuality{
+		"/stream?":   {"128 Kbps MP3", ".mp3", false},
+		"/streamhq?": {"320 Kbps MP3", ".mp3", false},
+		"/streamfl?": {"900 Kbps FLAC", ".flac", true},
 	}
 )
 
@@ -73,7 +73,7 @@ func getThumb(url string) []byte {
 }
 
 func downloadAlbumCover(url, path string) error {
-	url = strings.Replace(url, "&size={size}", "", 1)
+	url = strings.Replace(url, "{size}", coverSize, 1)
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
 	if err != nil {
 		return err
@@ -171,8 +171,10 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 }
 
 func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string) {
-	var existAlbumIds []string
-	var existArtistIds []string
+	var (
+		existAlbumIds  []string
+		existArtistIds []string
+	)
 
 	if artId != 0 {
 		rows, err := tx.QueryContext(ctx, "select al.albumId, a.artistId res from artistAlbum aa join artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from artistAlbum where artistId = ?);", artId)
@@ -181,8 +183,11 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var albId string
-			var artisId string
+			var (
+				albId   string
+				artisId string
+			)
+
 			if err := rows.Scan(&albId, &artisId); err != nil {
 				log.Fatal(err)
 			}
@@ -224,8 +229,10 @@ func getTokenWithTrackFromDb(ctx context.Context, siteId uint32, trackIds []stri
 
 	mTracks := make(map[string]*AlbumInfo)
 	for rows.Next() {
-		var trackId string
-		var alb AlbumInfo
+		var (
+			trackId string
+			alb     AlbumInfo
+		)
 		if err := rows.Scan(&alb.ArtistTitle, &alb.AlbumTitle, &alb.AlbumId, &alb.AlbumYear, &alb.AlbumCover, &trackId, &alb.TrackNum, &alb.TrackTotal, &alb.TrackTitle, &alb.TrackGenre); err != nil {
 			log.Fatal(err)
 		}
@@ -261,9 +268,11 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 	}
 	defer stmt.Close()
 
-	var token string
-	var login string
-	var pass string
+	var (
+		token string
+		login string
+		pass  string
+	)
 	err = stmt.QueryRowContext(ctx, siteId).Scan(&login, &pass, &token)
 	switch {
 	case err == sql.ErrNoRows:
@@ -353,31 +362,6 @@ func getCurrentTrackQuality(streamUrl string, qualityMap *map[string]TrackQualit
 	return nil
 }
 
-func sanitize(filename string, isFolder bool) string {
-	var regexStr string
-	if isFolder {
-		regexStr = `[:*?"><|]`
-	} else {
-		regexStr = `[\/:*?"><|]`
-	}
-	str := regexp.MustCompile(regexStr).ReplaceAllString(filename, "_")
-	return strings.TrimRightFunc(str, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
-}
-
-func parseTemplate(tags map[string]string, defTemplate string) string {
-	var buffer bytes.Buffer
-
-	for {
-		err := template.Must(template.New("").Parse(defTemplate)).Execute(&buffer, tags)
-		if err == nil {
-			break
-		}
-		buffer.Reset()
-	}
-	resPath := html.UnescapeString(buffer.String())
-	return sanitize(resPath, false)
-}
-
 func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, string, bool) {
 	req, err := http.NewRequest(http.MethodGet, apiBase+apiRelease, nil)
 	if err != nil {
@@ -428,8 +412,10 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	graphqlRequest.Var("offset", 0)
 	graphqlRequest.Header.Add(authHeader, token)
 
-	var needTokenUpd = false
-	var graphqlResponse interface{}
+	var (
+		needTokenUpd    = false
+		graphqlResponse interface{}
+	)
 	err := graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
 	if err != nil {
 		log.Printf("try to renew access token...")
@@ -496,12 +482,14 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	}
 	defer stArtistAlbum.Close()
 
-	var artistName string
-	var artistRawId int
-	var newArtists []*artist.Artist
-	var newAlbums []*artist.Album
-	var albumIds []string
-	var artistIds []string
+	var (
+		artistName  string
+		artistRawId int
+		newArtists  []*artist.Artist
+		newAlbums   []*artist.Album
+		albumIds    []string
+		artistIds   []string
+	)
 
 	mArtist := make(map[string]int)
 	for _, data := range item.GetArtists {
@@ -512,10 +500,10 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 			if !Contains(albumIds, release.ID) {
 				albumIds = append(albumIds, release.ID)
 			}
-
-			//url := strings.ReplaceAll(release.Image.Src, "{size}", thumbSize)
+			thumbAlbUrl := strings.Replace(release.Image.Src, "{size}", thumbSize, 1)
+			thumbAlb := getThumb(thumbAlbUrl)
 			var albId int
-			err = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, nil, release.Image.Src).Scan(&albId)
+			err = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, thumbAlb, release.Image.Src).Scan(&albId)
 			if err != nil {
 				log.Fatal(err)
 			} else {
@@ -538,12 +526,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 				}
 				artId, ok := mArtist[artistData.ID]
 				if !ok {
-					//thUrl := strings.ReplaceAll(artist.Image.Src, "{size}", thumbSize)
-
+					thumbArtUrl := strings.Replace(artistData.Image.Src, "{size}", thumbSize, 1)
+					thumbArt := getThumb(thumbArtUrl)
 					artistTitle := strings.TrimSpace(artistData.Title)
 					var userAdded = false
 					if artistData.ID == artistId {
-						err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, nil, 1).Scan(&artId)
+						err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, thumbArt, 1).Scan(&artId)
 						artistName = artistTitle
 						artistRawId = artId
 						userAdded = true
@@ -575,8 +563,10 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 		}
 	}
 
-	var deletedAlbumIds []string
-	var deletedArtistIds []string
+	var (
+		deletedAlbumIds  []string
+		deletedArtistIds []string
+	)
 	if artRawId != 0 {
 		deletedAlbumIds = FindDifference(existAlbumIds, albumIds)
 		runExec(tx, ctx, deletedAlbumIds, "delete from album where albumId = ?;")
@@ -611,8 +601,10 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 	}
 	defer stTrack.Close()
 
-	var tracks []*artist.Track
-	var trackTotal = len(item.Result.Tracks)
+	var (
+		tracks     []*artist.Track
+		trackTotal = len(item.Result.Tracks)
+	)
 	if trackTotal > 0 {
 		stAlbumUpd, err := tx.PrepareContext(ctx, "update album set trackTotal = ? where alb_id = ?;")
 		if err != nil {
@@ -685,16 +677,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 }
 
 func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
-	/*token := getOnlyTokenDb(ctx, siteId)*/
 	mTracks, token := getTokenWithTrackFromDb(ctx, siteId, trackIds)
-
-	qualityMap := map[string]TrackQuality{
-		//mid, high, flac
-		"/stream?":   {"128 Kbps MP3", ".mp3", false},
-		"/streamhq?": {"320 Kbps MP3", ".mp3", false},
-		"/streamfl?": {"900 Kbps FLAC", ".flac", true},
-	}
-
 	mDownloaded := make(map[string]string)
 	mAlbum := make(map[string]string)
 	for trackNum, trackId := range trackIds {
@@ -703,26 +686,15 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 			fmt.Errorf(err.Error())
 			continue
 		}
-		curQuality := getCurrentTrackQuality(cdnUrl, &qualityMap)
+		curQuality := getCurrentTrackQuality(cdnUrl, &trackQualityMap)
 		if curQuality == nil {
 			fmt.Println("The API returned an unsupported format.")
 			continue
 		}
-		albInfo, ok := mTracks[trackId]
-		if !ok {
-			// нет в базе, можно продумать как формировать пути скачивания без данных в базе
-		} else {
+		albInfo, dbExist := mTracks[trackId]
+		if dbExist {
+			mTrack := CreateTagsFromDb(albInfo)
 			trTotal, _ := strconv.Atoi(albInfo.TrackTotal)
-			trNum, _ := strconv.Atoi(albInfo.TrackNum)
-			mTrack := make(map[string]string)
-			mTrack["artist"] = albInfo.ArtistTitle
-			mTrack["year"] = albInfo.AlbumYear[:4]
-			mTrack["album"] = albInfo.AlbumTitle
-			mTrack["genre"] = albInfo.TrackGenre
-			mTrack["title"] = albInfo.TrackTitle
-			mTrack["track"] = albInfo.TrackNum
-			mTrack["trackPad"] = fmt.Sprintf("%02d", trNum)
-			mTrack["trackTotal"] = albInfo.TrackTotal
 
 			albTemplate := albumTemplate
 			trackTemplate := trackTemplateAlbum
@@ -730,12 +702,13 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 				trackTemplate = trackTemplatePlaylist
 				albTemplate = "{{.artist}}"
 			}
-			trackName := parseTemplate(mTrack, trackTemplate)
+
+			trackName := ParseTemplate(mTrack, trackTemplate)
 			var coverPath string
 
 			absAlbName, exist := mAlbum[albInfo.AlbumId]
 			if !exist {
-				albName := parseTemplate(mTrack, albTemplate)
+				albName := ParseTemplate(mTrack, albTemplate)
 				if len(albName) > 120 {
 					fmt.Println("Album folder was chopped as it exceeds 120 characters.")
 					albName = albName[:120]
@@ -779,14 +752,28 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 				continue
 			}
 			mDownloaded[trackId] = resDown
+
+			err = WriteTags(trackPath, coverPath, curQuality.IsFlac, mTrack)
+			if err != nil {
+				fmt.Println("Failed to write tags.", err)
+				continue
+			}
+
 			if trTotal == 1 && coverPath != "" {
 				err := os.Remove(coverPath)
 				if err != nil {
 					fmt.Println("Failed to delete cover.")
 				}
 			}
+		} else {
+			// нет в базе, можно продумать как формировать пути скачивания без данных в базе, типа лить в базовую папку без прохода по темплейтам альбома, хз
 		}
-
 	}
+	return mDownloaded, nil
+}
+
+func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQuality string) (map[string]string, error) {
+	mDownloaded := make(map[string]string)
+
 	return mDownloaded, nil
 }
