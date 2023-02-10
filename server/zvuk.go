@@ -640,7 +640,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 		for trId, track := range item.Result.Tracks {
 			if trId != "" {
 				var trackId int
-				err = stTrack.QueryRowContext(ctx, trId, track.Position, track.Title, track.HasFlac, track.Lyrics, track.HighestQuality, track.Condition, track.Genres[0], track.Duration).Scan(&trackId)
+				err = stTrack.QueryRowContext(ctx, trId, track.Position, track.Title, track.HasFlac, track.Lyrics, track.HighestQuality, track.Condition, strings.Join(track.Genres, ", "), track.Duration).Scan(&trackId)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -824,15 +824,15 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 				_, ok := mTracks[trId]
 				if !ok {
 					var alb AlbumInfo
-					alb.ArtistTitle = track.Credits
-					alb.AlbumTitle = track.ReleaseTitle
 					alb.AlbumId = strconv.Itoa(track.ReleaseID)
+					alb.ArtistTitle = strings.Join(item.Result.Releases[alb.AlbumId].ArtistNames, ", ")
+					alb.AlbumTitle = item.Result.Releases[alb.AlbumId].Title
 					alb.AlbumYear = strconv.Itoa(item.Result.Releases[alb.AlbumId].Date)[:4]
 					alb.AlbumCover = item.Result.Releases[alb.AlbumId].Image.Src
 					alb.TrackNum = strconv.Itoa(track.Position)
 					alb.TrackTotal = strconv.Itoa(len(item.Result.Tracks))
 					alb.TrackTitle = track.Title
-					alb.TrackGenre = track.Genres[0]
+					alb.TrackGenre = strings.Join(track.Genres, ", ")
 					mTracks[trId] = &alb
 				}
 			}
