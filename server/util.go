@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"html"
 	"html/template"
+	"math/rand"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -66,4 +68,8 @@ func ParseTemplate(tags map[string]string, defTemplate string) string {
 	}
 	resPath := html.UnescapeString(buffer.String())
 	return sanitize(resPath, false)
+}
+
+func RandomPause(minPause, duration int) {
+	time.Sleep(time.Duration(minPause+rand.Intn(duration)) * time.Second)
 }
