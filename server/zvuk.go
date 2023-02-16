@@ -158,15 +158,19 @@ func getAlbumIdDb(tx *sql.Tx, ctx context.Context, albId int64) string {
 	return albumId
 }
 
-func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) int {
-	stmtArt, err := tx.PrepareContext(ctx, "select art_id from artist where artistId = ? and siteId = ? limit 1;")
+func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
+	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded from artist where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmtArt.Close()
 
-	var artRawId int
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId)
+	var (
+		artRawId  int
+		userAdded int
+	)
+
+	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded)
 	switch {
 	case err == sql.ErrNoRows:
 		fmt.Printf("no artist with id %v", artistId)
@@ -175,7 +179,7 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 	default:
 		fmt.Printf("artist db id is %d \n", artRawId)
 	}
-	return artRawId
+	return artRawId, userAdded
 }
 
 func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string) {
@@ -442,7 +446,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	return &obj, token, needTokenUpd
 }
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, []*artist.Album, []string, []string, string, int, error) {
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, []*artist.Album, []string, []string, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -459,7 +463,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
 	}
-	artRawId := getArtistIdDb(tx, ctx, siteId, artistId)
+	artRawId, userAddedDb := getArtistIdDb(tx, ctx, siteId, artistId)
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
 
 	stArtistMaster, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
@@ -487,12 +491,10 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	defer stArtistAlbum.Close()
 
 	var (
-		artistName  string
-		artistRawId int
-		newArtists  []*artist.Artist
-		newAlbums   []*artist.Album
-		albumIds    []string
-		artistIds   []string
+		artists   []*artist.Artist
+		albums    []*artist.Album
+		albumIds  []string
+		artistIds []string
 	)
 
 	mArtist := make(map[string]int)
@@ -506,6 +508,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 			}
 			thumbAlbUrl := strings.Replace(release.Image.Src, "{size}", thumbSize, 1)
 			thumbAlb := getThumb(thumbAlbUrl)
+
 			var albId int
 			err = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, thumbAlb, release.Image.Src).Scan(&albId)
 			if err != nil {
@@ -513,14 +516,14 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 			} else {
 				fmt.Sprintf("upsert: %v, id: %v)", release.Title, albId)
 			}
-			if artRawId == 0 || !Contains(existAlbumIds, release.ID) {
-				newAlbums = append(newAlbums, &artist.Album{
+			if artRawId == 0 || userAddedDb == 0 || !Contains(existAlbumIds, release.ID) {
+				albums = append(albums, &artist.Album{
 					Id:          int64(albId),
 					AlbumId:     release.ID,
 					Title:       release.Title,
 					ReleaseType: release.Type,
 					ReleaseDate: release.Date,
-					Thumbnail:   nil,
+					Thumbnail:   thumbAlb,
 				})
 			}
 
@@ -536,8 +539,6 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 					var userAdded = false
 					if artistData.ID == artistId {
 						err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, thumbArt, 1).Scan(&artId)
-						artistName = artistTitle
-						artistRawId = artId
 						userAdded = true
 					} else {
 						err = stArtistSlave.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, nil).Scan(&artId)
@@ -548,12 +549,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 						fmt.Sprintf("upsert: %v, id: %v)", artistData.Title, artId)
 					}
 					if artRawId == 0 || !Contains(existArtistIds, artistData.ID) || userAdded {
-						newArtists = append(newArtists, &artist.Artist{
+						artists = append(artists, &artist.Artist{
 							Id:        int64(artId),
 							SiteId:    siteId,
 							ArtistId:  artistId,
 							Title:     artistTitle,
-							Thumbnail: nil,
+							Thumbnail: thumbArt,
 							UserAdded: userAdded,
 						})
 					}
@@ -577,7 +578,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 		deletedArtistIds = FindDifference(existArtistIds, artistIds)
 		runExec(tx, ctx, deletedArtistIds, "delete from artist where artistId = ?;")
 	}
-	return newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, artistName, artistRawId, tx.Commit()
+	return artists, albums, deletedAlbumIds, deletedArtistIds, tx.Commit()
 }
 
 func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Track, error) {
@@ -650,7 +651,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 					for _, artistId := range track.ArtistIds {
 						artId, ok := mArtist[artistId]
 						if !ok {
-							artRawId := getArtistIdDb(tx, ctx, siteId, artistId)
+							artRawId, _ := getArtistIdDb(tx, ctx, siteId, artistId)
 							if artRawId > 0 {
 								mArtist[artistId] = artRawId
 								artId = artRawId
@@ -840,7 +841,6 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	}
 
 	for trackId, albInfo := range mTracks {
-		/*fmt.Println(token, trackId, albInfo)*/
 		downloadFiles(trackId, token, trackQuality, albInfo, mDownloaded)
 		RandomPause(3, 7)
 	}

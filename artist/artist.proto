@@ -62,8 +62,6 @@ message SyncArtistResponse {
   repeated Album albums = 2;
   repeated string deletedAlb = 3;
   repeated string deletedArt = 4;
-  string title = 5;
-  int64 id = 6;
 }
 
 message ReadArtistAlbumRequest {
@@ -75,11 +73,11 @@ message ReadArtistAlbumResponse {
 }
 
 message DeleteArtistRequest {
-  int64 id = 1;
+  int64 artId = 1;
 }
 
 message DeleteArtistResponse {
-  int64 id = 1;
+  int64 rowsAffected = 1;
 }
 
 message DownloadAlbumsRequest {
@@ -103,7 +101,7 @@ message DownloadTracksResponse {
 }
 
 message ListArtistRequest {
-
+  uint32 siteId = 1;
 }
 
 message ListArtistResponse {
@@ -111,7 +109,7 @@ message ListArtistResponse {
 }
 
 message ListStreamArtistRequest {
-
+  uint32 siteId = 1;
 }
 
 message ListStreamArtistResponse {

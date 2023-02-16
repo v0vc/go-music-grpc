@@ -168,14 +168,12 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		newAlbums        []*artist.Album
 		deletedAlbumIds  []string
 		deletedArtistIds []string
-		artistName       string
-		artistRawId      int
 		err              error
 	)
 
 	switch siteId {
 	case 1:
-		newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, artistName, artistRawId, err = SyncArtistSb(ctx, siteId, artistId)
+		newArtists, newAlbums, deletedAlbumIds, deletedArtistIds, err = SyncArtistSb(ctx, siteId, artistId)
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -196,8 +194,6 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		Albums:     newAlbums,
 		DeletedAlb: deletedAlbumIds,
 		DeletedArt: deletedArtistIds,
-		Title:      artistName,
-		Id:         int64(artistRawId),
 	}, nil
 }
 
@@ -274,7 +270,7 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
 	fmt.Printf("deleting artist started: %v \n", req)
-	res, err := deleteArtistDb(ctx, req.GetId())
+	res, err := deleteArtistDb(ctx, req.GetArtId())
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -285,7 +281,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 		fmt.Printf("deleting artist finished: %v \n", req)
 	}
 
-	return &artist.DeleteArtistResponse{Id: res}, err
+	return &artist.DeleteArtistResponse{RowsAffected: res}, err
 }
 
 func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsRequest) (*artist.DownloadAlbumsResponse, error) {
@@ -356,8 +352,9 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 	}, nil
 }
 
-func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*artist.ListArtistResponse, error) {
-	fmt.Println("list artist's")
+func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*artist.ListArtistResponse, error) {
+	siteId := req.GetSiteId()
+	fmt.Printf("list artist's: %v \n", siteId)
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return nil, status.Errorf(
@@ -367,7 +364,16 @@ func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*ar
 	}
 	defer db.Close()
 
-	rows, err := db.QueryContext(ctx, "select art_id, siteId, artistId, title, counter, thumbnail from artist where userAdded = 1")
+	stmtArt, err := db.PrepareContext(ctx, "select art_id, artistId, title, thumbnail from artist where userAdded = 1 and siteId = ?;")
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	}
+	defer stmtArt.Close()
+
+	rows, err := stmtArt.QueryContext(ctx, siteId)
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -379,12 +385,13 @@ func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*ar
 	var arts []*artist.Artist
 	for rows.Next() {
 		var art artist.Artist
-		if err := rows.Scan(&art.Id, &art.SiteId, &art.ArtistId, &art.Title, &art.UserAdded, &art.Thumbnail); err != nil {
+		if err := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail); err != nil {
 			return nil, status.Errorf(
 				codes.Internal,
 				fmt.Sprintf("Internal error: %v", err),
 			)
 		}
+		art.SiteId = siteId
 		arts = append(arts, &art)
 	}
 
@@ -393,8 +400,9 @@ func (*server) ListArtist(ctx context.Context, _ *artist.ListArtistRequest) (*ar
 	}, err
 }
 
-func (*server) ListStreamArtist(_ *artist.ListStreamArtistRequest, stream artist.ArtistService_ListStreamArtistServer) error {
-	fmt.Println("list artist's")
+func (*server) ListStreamArtist(req *artist.ListStreamArtistRequest, stream artist.ArtistService_ListStreamArtistServer) error {
+	siteId := req.GetSiteId()
+	fmt.Printf("list artist's: %v \n", siteId)
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return status.Errorf(
@@ -404,7 +412,16 @@ func (*server) ListStreamArtist(_ *artist.ListStreamArtistRequest, stream artist
 	}
 	defer db.Close()
 
-	rows, err := db.Query("select art_id, siteId, artistId, title, counter, thumbnail from artist where userAdded = 1")
+	stmtArt, err := db.Prepare("select art_id, artistId, title, thumbnail from artist where userAdded = 1 and siteId = ?;")
+	if err != nil {
+		return status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	}
+	defer stmtArt.Close()
+
+	rows, err := stmtArt.Query(siteId)
 	if err != nil {
 		return status.Errorf(
 			codes.Internal,
@@ -415,12 +432,13 @@ func (*server) ListStreamArtist(_ *artist.ListStreamArtistRequest, stream artist
 
 	for rows.Next() {
 		var art artist.Artist
-		if err := rows.Scan(&art.Id, &art.SiteId, &art.ArtistId, &art.Title, &art.UserAdded, &art.Thumbnail); err != nil {
+		if err := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail); err != nil {
 			return status.Errorf(
 				codes.Internal,
 				fmt.Sprintf("error while getting data from DB: %v", err),
 			)
 		}
+		art.SiteId = siteId
 		err = stream.Send(&artist.ListStreamArtistResponse{Artist: &art})
 		if err != nil {
 			return status.Errorf(
