@@ -39,37 +39,38 @@ func main() {
 	c := artist.NewArtistServiceClient(cc)
 
 	// sync artist | 211850488 Мюслі UA | 212266807 Lely45
-	/*	req := &artist.SyncArtistRequest{
-			SiteId:   1,
-			ArtistId: "211850488",
-		}
-		resp, err := c.SyncArtist(context.Background(), req)
-		if err != nil {
-			fmt.Printf("error happened while updating: %v \n", err)
-		}
-		fmt.Printf("artist was synchronized: new artist - %d, new album - %d, deleted albums - %v, deleted artist - %v \n",
-			len(resp.Artists), len(resp.Albums), resp.DeletedAlb, resp.DeletedArt)*/
+	/*req := &artist.SyncArtistRequest{
+		SiteId:   1,
+		ArtistId: "211850488",
+	}
+	resp, err := c.SyncArtist(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error happened while updating: %v \n", err)
+	}
+	fmt.Printf("artist was synchronized: new artist - %d, new album - %d, deleted albums - %v, deleted artist - %v \n",
+		len(resp.Artists), len(resp.Albums), resp.DeletedAlb, resp.DeletedArt)*/
 
 	// read artist releases
-	/*	readArtistReq := &artist.ReadArtistAlbumRequest{
-			Id: 5,
-		}
-		fmt.Printf("reading artist: %v \n", readArtistReq.GetId())
-		readArtistRes, readArtistErr := c.ReadArtistAlbums(context.Background(), readArtistReq)
-		if readArtistErr != nil {
-			fmt.Printf("error while reading: %v \n", readArtistErr)
-		}
+	/*readArtistReq := &artist.ReadArtistAlbumRequest{
+		SiteId:   1,
+		ArtistId: "212266807",
+	}
+	fmt.Printf("reading artist: %v \n", readArtistReq.GetArtistId())
+	readArtistRes, readArtistErr := c.ReadArtistAlbums(context.Background(), readArtistReq)
+	if readArtistErr != nil {
+		fmt.Printf("error while reading: %v \n", readArtistErr)
+	}
 
-		fmt.Printf("artist releases was read: %v \n", readArtistRes)*/
+	fmt.Printf("artist releases was read: %v \n", readArtistRes)*/
 
 	// list artist
-	/*	fmt.Println("list artist's")
-		listArtistRes, err := c.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: 1})
-		if err != nil {
-			fmt.Printf("error while reading: %v \n", err)
-		}
+	/*fmt.Println("list artist's")
+	listArtistRes, err := c.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: 1})
+	if err != nil {
+		fmt.Printf("error while reading: %v \n", err)
+	}
 
-		fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)*/
+	fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)*/
 
 	// list Artists Stream
 	/*stream, err := c.ListStreamArtist(context.Background(), &artist.ListStreamArtistRequest{})
@@ -88,49 +89,53 @@ func main() {
 	}*/
 
 	// delete Artist
-	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{ArtId: 8})
+	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{
+		SiteId:   1,
+		ArtistId: "212266807",
+	})
 	if err != nil {
 		fmt.Printf("error happened while deleting: %v \n", err)
 	}
 	fmt.Printf("artist was deleted, album count: %v \n", res.RowsAffected)
 
 	// sync album
-	/*	req := &artist.SyncAlbumRequest{
-			SiteId: 1,
-			AlbId:  8,
-		}
-		resp, err := c.SyncAlbum(context.Background(), req)
-		if err != nil {
-			fmt.Printf("error happened while updating: %v \n", err)
-		}
-		fmt.Printf("album %v was synchronized: tracks - %d \n", req.AlbId, len(resp.Tracks))*/
+	/*req := &artist.SyncAlbumRequest{
+		SiteId:  1,
+		AlbumId: "16026887",
+	}
+	resp, err := c.SyncAlbum(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error happened while updating: %v \n", err)
+	}
+	fmt.Printf("album %v was synchronized: tracks - %d \n", req.GetAlbumId(), len(resp.Tracks))*/
 
 	// read album tracks
-	/*	req := &artist.ReadAlbumTrackRequest{
-			AlbId: 54,
-		}
-		fmt.Printf("reading album: %v \n", req.GetAlbId())
-		resp, err := c.ReadAlbumTracks(context.Background(), req)
-		if err != nil {
-			fmt.Printf("error while reading: %v \n", err)
-		}
+	/*req := &artist.ReadAlbumTrackRequest{
+		SiteId:  1,
+		AlbumId: "16026887",
+	}
+	fmt.Printf("reading album: %v \n", req.GetAlbumId())
+	resp, err := c.ReadAlbumTracks(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error while reading: %v \n", err)
+	}
 
-		fmt.Printf("album tracks was read: %v \n", resp)*/
+	fmt.Printf("album tracks was read: %v \n", resp)*/
 
 	// download album tracks (mid, high, flac)
-	/*	req := &artist.DownloadTracksRequest{
-			SiteId:       1,
-			TrackIds:     []string{"89734686", "89734684", "126268642"},
-			TrackQuality: "flac",
-		}
-		fmt.Printf("download tracks: %v \n", req.GetTrackIds())
-		resp, err := c.DownloadTracks(context.Background(), req)
-		if err != nil {
-			fmt.Printf("error while downloading: %v \n", err)
-		}
-		for trackId, dSize := range resp.Downloaded {
-			fmt.Printf("track %v was downloaded: %v \n", trackId, dSize)
-		}*/
+	/*req := &artist.DownloadTracksRequest{
+		SiteId:       1,
+		TrackIds:     []string{"89734686", "89734684", "126268642"},
+		TrackQuality: "flac",
+	}
+	fmt.Printf("download tracks: %v \n", req.GetTrackIds())
+	resp, err := c.DownloadTracks(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error while downloading: %v \n", err)
+	}
+	for trackId, dSize := range resp.Downloaded {
+		fmt.Printf("track %v was downloaded: %v \n", trackId, dSize)
+	}*/
 
 	// download albums (mid, high, flac)
 	/*	req := &artist.DownloadAlbumsRequest{

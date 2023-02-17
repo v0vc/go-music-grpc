@@ -27,24 +27,54 @@ type server struct {
 	artist.ArtistServiceServer
 }
 
-func getArtistReleasesFromDb(ctx context.Context, artistId int64) ([]*artist.Album, error) {
+func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
+	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded from artist where artistId = ? and siteId = ? limit 1;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmtArt.Close()
+
+	var (
+		artRawId  int
+		userAdded int
+	)
+
+	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded)
+	switch {
+	case err == sql.ErrNoRows:
+		fmt.Printf("no artist with id %v \n", artistId)
+	case err != nil:
+		log.Fatal(err)
+	default:
+		fmt.Printf("artist db id is %d \n", artRawId)
+	}
+	return artRawId, userAdded
+}
+
+func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 	defer db.Close()
 
-	rows, err := db.QueryContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId where aa.artistId = ?", artistId)
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ?;")
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
+	}
+	defer stRows.Close()
+
+	rows, err := stRows.QueryContext(ctx, artistId, siteId)
+	if err != nil {
+		log.Fatal(err)
 	}
 	defer rows.Close()
 
 	var albs []*artist.Album
 	for rows.Next() {
 		var alb artist.Album
-		if err := rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail); err != nil {
-			return nil, err
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail); err != nil {
+			log.Fatal(err)
 		}
 		albs = append(albs, &alb)
 	}
@@ -52,30 +82,30 @@ func getArtistReleasesFromDb(ctx context.Context, artistId int64) ([]*artist.Alb
 	return albs, nil
 }
 
-func getAlbumTrackFromDb(ctx context.Context, albId int64) ([]*artist.Track, error) {
+func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 	defer db.Close()
 
-	stRows, err := db.PrepareContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.genre, t.trackNum, t.duration from albumTrack at inner join track t on t.trk_id = at.trackId where at.albumId = ? order by t.trackNum;")
+	stRows, err := db.PrepareContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.genre, t.trackNum, t.duration from albumTrack at inner join track t on t.trk_id = at.trackId inner join artistAlbum aa on at.albumId = aa.albumId inner join album a on a.alb_id = at.albumId inner join artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? order by t.trackNum;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stRows.Close()
 
-	rows, err := stRows.QueryContext(ctx, albId)
+	rows, err := stRows.QueryContext(ctx, albumId, siteId)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 	defer rows.Close()
 
 	var tracks []*artist.Track
 	for rows.Next() {
 		var track artist.Track
-		if err := rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
-			return nil, err
+		if err = rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
+			log.Fatal(err)
 		}
 		tracks = append(tracks, &track)
 	}
@@ -83,7 +113,7 @@ func getAlbumTrackFromDb(ctx context.Context, albId int64) ([]*artist.Track, err
 	return tracks, nil
 }
 
-func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
+func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -94,13 +124,13 @@ func deleteArtistDb(ctx context.Context, artistId int64) (int64, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	artId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
 	var aff int64
 	execs := []struct {
 		stmt string
 		res  int
 	}{
-		{stmt: fmt.Sprintf("create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.albumId) res from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) and a.userAdded = 1 group by aa.albumId having res = 1);", artistId), res: 0},
+		{stmt: fmt.Sprintf("create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.albumId) res from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) and a.userAdded = 1 group by aa.albumId having res = 1);", artId), res: 0},
 		{stmt: fmt.Sprintf("create temporary table _temp_artist as select aa.artistId, a.userAdded from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) group by aa.artistId;", artistId), res: 1},
 		{stmt: "select count(1) from _temp_artist where userAdded = 1;", res: 2},
 		{stmt: "delete from artist where art_id in (select artistId from _temp_artist where userAdded = 0);", res: 3},
@@ -198,9 +228,10 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 }
 
 func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
-	artId := req.GetId()
-	fmt.Printf("read artist releases: %v started \n", artId)
-	albums, err := getArtistReleasesFromDb(ctx, artId)
+	siteId := req.GetSiteId()
+	artistId := req.GetArtistId()
+	fmt.Printf("read artist releases: %v started \n", artistId)
+	albums, err := getArtistReleasesFromDb(ctx, siteId, artistId)
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -208,7 +239,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		fmt.Printf("read artist releases: %v finished \n", artId)
+		fmt.Printf("read artist releases: %v finished \n", artistId)
 	}
 
 	return &artist.ReadArtistAlbumResponse{
@@ -218,8 +249,8 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 
 func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*artist.SyncAlbumResponse, error) {
 	siteId := req.GetSiteId()
-	albId := req.GetAlbId()
-	fmt.Printf("sync album: %v started \n", albId)
+	albumId := req.GetAlbumId()
+	fmt.Printf("sync album: %v started \n", albumId)
 
 	var (
 		tracks []*artist.Track
@@ -228,7 +259,7 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 
 	switch siteId {
 	case 1:
-		tracks, err = SyncAlbumSb(ctx, siteId, albId)
+		tracks, err = SyncAlbumSb(ctx, siteId, albumId)
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -241,7 +272,7 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		fmt.Printf("sync album: %v finished \n", albId)
+		fmt.Printf("sync album: %v finished \n", albumId)
 	}
 
 	return &artist.SyncAlbumResponse{
@@ -250,9 +281,10 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 }
 
 func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRequest) (*artist.ReadAlbumTrackResponse, error) {
-	albId := req.GetAlbId()
-	fmt.Printf("read album tracks: %v started \n", albId)
-	tracks, err := getAlbumTrackFromDb(ctx, albId)
+	siteId := req.GetSiteId()
+	albumId := req.GetAlbumId()
+	fmt.Printf("read album tracks: %v started \n", albumId)
+	tracks, err := getAlbumTrackFromDb(ctx, siteId, albumId)
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -260,7 +292,7 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		fmt.Printf("read album tracks: %v finished \n", albId)
+		fmt.Printf("read album tracks: %v finished \n", albumId)
 	}
 
 	return &artist.ReadAlbumTrackResponse{
@@ -269,8 +301,10 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 }
 
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
+	siteId := req.GetSiteId()
+	artistId := req.GetArtistId()
 	fmt.Printf("deleting artist started: %v \n", req)
-	res, err := deleteArtistDb(ctx, req.GetArtId())
+	res, err := deleteArtistDb(ctx, siteId, artistId)
 
 	if err != nil {
 		return nil, status.Errorf(

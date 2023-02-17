@@ -37,7 +37,7 @@ message Track {
 
 message SyncAlbumRequest {
   uint32 siteId = 1;
-  int64 albId = 2;
+  string albumId = 2;
 }
 
 message SyncAlbumResponse {
@@ -45,7 +45,8 @@ message SyncAlbumResponse {
 }
 
 message ReadAlbumTrackRequest {
-  int64 albId = 1;
+  uint32 siteId = 1;
+  string albumId = 2;
 }
 
 message ReadAlbumTrackResponse {
@@ -65,7 +66,8 @@ message SyncArtistResponse {
 }
 
 message ReadArtistAlbumRequest {
-  int64 id = 1;
+  uint32 siteId = 1;
+  string artistId = 2;
 }
 
 message ReadArtistAlbumResponse {
@@ -73,7 +75,8 @@ message ReadArtistAlbumResponse {
 }
 
 message DeleteArtistRequest {
-  int64 artId = 1;
+  uint32 siteId = 1;
+  string artistId = 2;
 }
 
 message DeleteArtistResponse {

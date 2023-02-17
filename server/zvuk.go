@@ -143,43 +143,19 @@ func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
 	}
 }
 
-func getAlbumIdDb(tx *sql.Tx, ctx context.Context, albId int64) string {
-	stmtAlb, err := tx.PrepareContext(ctx, "select albumId from album where alb_id = ? limit 1;")
+func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string) int {
+	stmtAlb, err := tx.PrepareContext(ctx, "select aa.albumId from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? limit 1;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stmtAlb.Close()
 
-	var albumId string
-	err = stmtAlb.QueryRowContext(ctx, albId).Scan(&albumId)
+	var albId int
+	err = stmtAlb.QueryRowContext(ctx, albumId, siteId).Scan(&albId)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return albumId
-}
-
-func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
-	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded from artist where artistId = ? and siteId = ? limit 1;")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmtArt.Close()
-
-	var (
-		artRawId  int
-		userAdded int
-	)
-
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded)
-	switch {
-	case err == sql.ErrNoRows:
-		fmt.Printf("no artist with id %v", artistId)
-	case err != nil:
-		log.Fatal(err)
-	default:
-		fmt.Printf("artist db id is %d \n", artRawId)
-	}
-	return artRawId, userAdded
+	return albId
 }
 
 func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string) {
@@ -463,7 +439,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
 	}
-	artRawId, userAddedDb := getArtistIdDb(tx, ctx, siteId, artistId)
+	artRawId, userAddedDb := GetArtistIdDb(tx, ctx, siteId, artistId)
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
 
 	stArtistMaster, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
@@ -581,7 +557,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	return artists, albums, deletedAlbumIds, deletedArtistIds, tx.Commit()
 }
 
-func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Track, error) {
+func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -594,7 +570,6 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 	}
 
 	login, pass, token := getTokenDb(tx, ctx, siteId)
-	albumId := getAlbumIdDb(tx, ctx, albId)
 	item, token, needTokenUpd := getAlbumTracks(albumId, token, login, pass)
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
@@ -611,6 +586,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 		trackTotal = len(item.Result.Tracks)
 	)
 	if trackTotal > 0 {
+		albId := getAlbumIdDb(tx, ctx, siteId, albumId)
 		stAlbumUpd, err := tx.PrepareContext(ctx, "update album set trackTotal = ? where alb_id = ?;")
 		if err != nil {
 			log.Fatal(err)
@@ -651,7 +627,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albId int64) ([]*artist.Tra
 					for _, artistId := range track.ArtistIds {
 						artId, ok := mArtist[artistId]
 						if !ok {
-							artRawId, _ := getArtistIdDb(tx, ctx, siteId, artistId)
+							artRawId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
 							if artRawId > 0 {
 								mArtist[artistId] = artRawId
 								artId = artRawId
