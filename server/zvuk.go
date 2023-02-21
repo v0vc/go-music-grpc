@@ -490,7 +490,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 			if err != nil {
 				log.Fatal(err)
 			} else {
-				fmt.Sprintf("upsert: %v, id: %v)", release.Title, albId)
+				fmt.Printf("upsert: %v, id: %v)", release.Title, albId)
 			}
 			if artRawId == 0 || userAddedDb == 0 || !Contains(existAlbumIds, release.ID) {
 				albums = append(albums, &artist.Album{
@@ -522,7 +522,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 					if err != nil {
 						log.Fatal(err)
 					} else {
-						fmt.Sprintf("upsert: %v, id: %v)", artistData.Title, artId)
+						fmt.Printf("upsert: %v, id: %v)", artistData.Title, artId)
 					}
 					if artRawId == 0 || !Contains(existArtistIds, artistData.ID) || userAdded {
 						artists = append(artists, &artist.Artist{

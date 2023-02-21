@@ -131,7 +131,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		res  int
 	}{
 		{stmt: fmt.Sprintf("create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.albumId) res from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) and a.userAdded = 1 group by aa.albumId having res = 1);", artId), res: 0},
-		{stmt: fmt.Sprintf("create temporary table _temp_artist as select aa.artistId, a.userAdded from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %d) group by aa.artistId;", artistId), res: 1},
+		{stmt: fmt.Sprintf("create temporary table _temp_artist as select aa.artistId, a.userAdded from artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from artistAlbum where artistId = %v) group by aa.artistId;", artistId), res: 1},
 		{stmt: "select count(1) from _temp_artist where userAdded = 1;", res: 2},
 		{stmt: "delete from artist where art_id in (select artistId from _temp_artist where userAdded = 0);", res: 3},
 		{stmt: "delete from track where trk_id in (select trackId from albumTrack where albumId in (select albumId from _temp_album));", res: 4},
@@ -157,7 +157,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 				if err != nil {
 					log.Fatal(err)
 				}
-				_, err = artSt.ExecContext(ctx, artistId)
+				_, err = artSt.ExecContext(ctx, artId)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -167,7 +167,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 				if err != nil {
 					log.Fatal(err)
 				}
-				_, err = artUpSt.ExecContext(ctx, artistId)
+				_, err = artUpSt.ExecContext(ctx, artId)
 				if err != nil {
 					log.Fatal(err)
 				}
