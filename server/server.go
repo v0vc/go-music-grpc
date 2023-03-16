@@ -9,12 +9,12 @@ import (
 	"github.com/v0vc/go-music-grpc/artist"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 )
 
 const defaultPort = "4041"
@@ -534,28 +534,29 @@ func main() {
 	}
 
 	var opts []grpc.ServerOption
-	s := grpc.NewServer(opts...)
-	artist.RegisterArtistServiceServer(s, &server{})
+	grpc := grpc.NewServer(opts...)
+	artist.RegisterArtistServiceServer(grpc, &server{})
 	// Register reflection service on gRPC server.
-	reflection.Register(s)
+	// reflection.Register(grpc)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		s := <-sigCh
+		fmt.Printf("got signal %v, attempting graceful shutdown \n", s)
+		grpc.GracefulStop()
+		wg.Done()
+	}()
 
 	go func() {
 		fmt.Println("starting server...")
-		if err := s.Serve(lis); err != nil {
+		if err := grpc.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
-
-	// wait for Control C to exit
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
-
-	// block until a signal is received
-	<-ch
-	// close the connection maybe
-
-	// finally, we stop the server
-	fmt.Println("stopping the server")
-	s.Stop()
+	wg.Wait()
+	fmt.Println("clean shutdown")
 	fmt.Println("end of program")
 }
