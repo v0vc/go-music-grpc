@@ -13,6 +13,7 @@ import (
 	"github.com/v0vc/go-music-grpc/ui/pages/discloser"
 	"github.com/v0vc/go-music-grpc/ui/pages/menu"
 	"github.com/v0vc/go-music-grpc/ui/pages/navdrawer"
+	"github.com/v0vc/go-music-grpc/ui/pages/sber"
 	"github.com/v0vc/go-music-grpc/ui/pages/textfield"
 	"log"
 	"os"
@@ -41,6 +42,7 @@ func loop(w *app.Window) error {
 	router.Register(3, menu.New(&router))
 	router.Register(4, discloser.New(&router))
 	router.Register(5, about.New(&router))
+	router.Register(6, sber.New(&router))
 
 	for {
 		select {

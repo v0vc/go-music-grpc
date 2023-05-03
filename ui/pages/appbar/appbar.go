@@ -34,8 +34,6 @@ func New(router *page.Router) *Page {
 	}
 }
 
-/*var _ page.Page = &Page{}*/
-
 func (p *Page) Actions() []component.AppBarAction {
 	return []component.AppBarAction{
 		{

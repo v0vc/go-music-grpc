@@ -24,9 +24,9 @@ type TreeNode struct {
 // the AppBar component.
 type Page struct {
 	TreeNode
+	customDiscloserState component.DiscloserState
 	widget.List
 	*page.Router
-	CustomDiscloserState component.DiscloserState
 }
 
 // New constructs a Page with the provided router.
@@ -59,8 +59,6 @@ func New(router *page.Router) *Page {
 		},
 	}
 }
-
-var _ page.Page = &Page{}
 
 func (p *Page) Actions() []component.AppBarAction {
 	return []component.AppBarAction{}
@@ -102,11 +100,11 @@ func (p *Page) LayoutTreeNode(gtx layout.Context, th *material.Theme, tn *TreeNo
 // LayoutCustomDiscloser demonstrates how to create a custom control for
 // a discloser.
 func (p *Page) LayoutCustomDiscloser(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	return component.Discloser(th, &p.CustomDiscloserState).Layout(gtx,
+	return component.Discloser(th, &p.customDiscloserState).Layout(gtx,
 		func(gtx layout.Context) layout.Dimensions {
 			var l material.LabelStyle
 			l = material.Body1(th, "+")
-			if p.CustomDiscloserState.Visible() {
+			if p.customDiscloserState.Visible() {
 				l.Text = "-"
 			}
 			l.Font.Variant = "Mono"

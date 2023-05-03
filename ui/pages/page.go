@@ -1,14 +1,48 @@
 package page
 
 import (
+	"fmt"
 	"gioui.org/layout"
 	"gioui.org/op/paint"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	"github.com/v0vc/go-music-grpc/artist"
 	"github.com/v0vc/go-music-grpc/ui/icon"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
+	"sync"
 	"time"
 )
+
+var lock = &sync.Mutex{}
+
+var singleInstance artist.ArtistServiceClient
+
+func GetClientInstance() artist.ArtistServiceClient {
+	if singleInstance == nil {
+		lock.Lock()
+		defer lock.Unlock()
+		if singleInstance == nil {
+			fmt.Println("Creating single instance now.")
+			opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+
+			cc, err := grpc.Dial("localhost:4041", opts)
+			if err != nil {
+				log.Fatalf("could not connect: %v", err)
+			}
+			//defer cc.Close()
+
+			singleInstance = artist.NewArtistServiceClient(cc)
+		} else {
+			fmt.Println("Single instance already created.")
+		}
+	} else {
+		fmt.Println("Single instance already created.")
+	}
+
+	return singleInstance
+}
 
 type Page interface {
 	Actions() []component.AppBarAction
@@ -30,14 +64,14 @@ type Router struct {
 func NewRouter() Router {
 	modal := component.NewModal()
 
-	nav := component.NewNav("Navigation Drawer", "This is an example.")
+	nav := component.NewNav("grpc-music", "v0.0.1")
 	modalNav := component.ModalNavFrom(&nav, modal)
 
 	bar := component.NewAppBar(modal)
 	bar.NavigationIcon = icon.MenuIcon
 
 	na := component.VisibilityAnimation{
-		State:    component.Invisible,
+		State:    component.Visible,
 		Duration: time.Millisecond * 250,
 	}
 	return Router{
@@ -46,6 +80,7 @@ func NewRouter() Router {
 		ModalNavDrawer: modalNav,
 		AppBar:         bar,
 		NavAnim:        na,
+		NonModalDrawer: true,
 	}
 }
 
