@@ -4,12 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/v0vc/go-music-grpc/artist"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
-	"os"
-
-	"github.com/joho/godotenv"
-	"google.golang.org/grpc"
 )
 
 const defaultPort = "4041"
@@ -18,15 +15,15 @@ func main() {
 
 	fmt.Println("grpc-music client started")
 
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	/*	err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal("Error loading .env file")
+		}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
-	}
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = defaultPort
+		}*/
 
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 
@@ -37,6 +34,7 @@ func main() {
 	defer cc.Close() // Maybe this should be in a separate function and the error handled?
 
 	c := artist.NewArtistServiceClient(cc)
+	//c := getClientInstance()
 
 	// sync artist | 211850488 Мюслі UA | 212266807 Lely45
 	/*req := &artist.SyncArtistRequest{
@@ -64,13 +62,13 @@ func main() {
 	fmt.Printf("artist releases was read: %v \n", readArtistRes)*/
 
 	// list artist
-	/*fmt.Println("list artist's")
+	fmt.Println("list artist's")
 	listArtistRes, err := c.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: 1})
 	if err != nil {
 		fmt.Printf("error while reading: %v \n", err)
 	}
 
-	fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)*/
+	fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)
 
 	// list Artists Stream
 	/*stream, err := c.ListStreamArtist(context.Background(), &artist.ListStreamArtistRequest{})
@@ -89,14 +87,14 @@ func main() {
 	}*/
 
 	// delete Artist
-	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{
-		SiteId:   1,
-		ArtistId: "212266807",
-	})
-	if err != nil {
-		fmt.Printf("error happened while deleting: %v \n", err)
-	}
-	fmt.Printf("artist was deleted, album count: %v \n", res.RowsAffected)
+	/*	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{
+			SiteId:   1,
+			ArtistId: "212266807",
+		})
+		if err != nil {
+			fmt.Printf("error happened while deleting: %v \n", err)
+		}
+		fmt.Printf("artist was deleted, album count: %v \n", res.RowsAffected)*/
 
 	// sync album
 	/*req := &artist.SyncAlbumRequest{
