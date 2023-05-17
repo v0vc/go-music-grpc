@@ -19,29 +19,32 @@ var lock = &sync.Mutex{}
 
 var singleInstance artist.ArtistServiceClient
 
-func GetClientInstance() artist.ArtistServiceClient {
+var cc *grpc.ClientConn
+
+var err error
+
+func GetClientInstance() (artist.ArtistServiceClient, error) {
 	if singleInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
 		if singleInstance == nil {
 			fmt.Println("Creating single instance now.")
-			opts := grpc.WithTransportCredentials(insecure.NewCredentials())
-
-			cc, err := grpc.Dial("localhost:4041", opts)
+			cc, err = grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
 			if err != nil {
-				log.Fatalf("could not connect: %v", err)
+				fmt.Printf("could not connect: %v\n", err)
+				cc.Close()
+				return nil, err
 			}
-			//defer cc.Close()
-
 			singleInstance = artist.NewArtistServiceClient(cc)
 		} else {
 			fmt.Println("Single instance already created.")
 		}
 	} else {
 		fmt.Println("Single instance already created.")
+		//defer cc.Close()
 	}
 
-	return singleInstance
+	return singleInstance, nil
 }
 
 type Page interface {

@@ -8,6 +8,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -20,18 +21,12 @@ import (
 )
 
 type Page struct {
-	/*redButton, greenButton, blueButton       widget.Clickable
-	balanceButton, accountButton, cartButton widget.Clickable
-	leftFillColor                            color.NRGBA
-	leftContextArea                          component.ContextArea
-	leftMenu, rightMenu                      component.MenuState
-	menuInit                                 bool*/
-
-	usersList layout.List
-	users     []*user
-	//updateUsers chan []*user
-	/*menuDemoList layout.List*/
-	//menuDemoListStates []component.ContextArea
+	usersList      layout.List
+	users          []*user
+	updateUsers    chan []*user
+	listChanErr    chan error
+	numberInput    component.TextField
+	inputAlignment text.Alignment
 	widget.List
 	*page.Router
 }
@@ -64,12 +59,88 @@ func (p *Page) NavItem() component.NavItem {
 	}
 }
 
-func fetchArtists(p *Page) {
-	res, err := page.GetClientInstance().ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: 1})
-	if err != nil {
-		fmt.Printf("error while reading: %v \n", err)
+func (p *Page) Layout(gtx layout.Context, theme *material.Theme) layout.Dimensions {
+	p.List.Axis = layout.Vertical
+	p.updateUsers = make(chan []*user)
+	p.listChanErr = make(chan error, 0)
+
+	if p.users == nil {
+		go fetchArtists(p)
+		select {
+		case err := <-p.listChanErr:
+			fmt.Println(err.Error())
+		case p.users = <-p.updateUsers:
+			defer close(p.updateUsers)
+		}
 	}
 
+	return material.List(theme, &p.List).Layout(gtx, len(p.users), func(gtx layout.Context, i int) layout.Dimensions {
+		u := p.users[i]
+
+		/*		return layout.Flex{
+					Axis: layout.Vertical,
+				}.Layout(
+					gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if err := func() string {
+							for _, r := range p.numberInput.Text() {
+								if !unicode.IsDigit(r) {
+									return "Must contain only digits"
+								}
+							}
+							return ""
+						}(); err != "" {
+							p.numberInput.SetError(err)
+						} else {
+							p.numberInput.ClearError()
+						}
+						p.numberInput.SingleLine = true
+						p.numberInput.Alignment = p.inputAlignment
+						return p.numberInput.Layout(gtx, theme, "Number")
+					}),
+				)*/
+
+		return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					in := layout.Inset{Right: unit.Dp(8)}
+					return in.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layoutRect(gtx, func(gtx layout.Context) layout.Dimensions {
+							dim := gtx.Dp(unit.Dp(48))
+							sz := image.Point{X: dim, Y: dim}
+							gtx.Constraints = layout.Exact(gtx.Constraints.Constrain(sz))
+							return layoutAvatar(gtx, u)
+						})
+					})
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+								layout.Rigid(material.Body1(theme, u.name).Layout),
+							)
+						}),
+					)
+				}),
+			)
+		})
+	})
+}
+
+func fetchArtists(p *Page) {
+	client, err := page.GetClientInstance()
+	if err != nil {
+		p.listChanErr <- err
+		return
+	}
+
+	res, err := client.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: 1})
+	if err != nil {
+		p.listChanErr <- err
+		return
+	}
+
+	var users []*user
 	for _, artist := range res.Artists {
 		im, _, _ := image.Decode(bytes.NewReader(artist.GetThumbnail()))
 		u := &user{
@@ -77,25 +148,10 @@ func fetchArtists(p *Page) {
 			avatar:   im,
 			avatarOp: paint.ImageOp{},
 		}
-		p.users = append(p.users, u)
+		//p.users = append(p.users, u)
+		users = append(users, u)
 	}
-}
-
-func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	p.List.Axis = layout.Vertical
-
-	//p.updateUsers = make(chan []*user, 1)
-
-	if p.users == nil {
-		fetchArtists(p)
-	}
-
-	//p.users = <-p.updateUsers
-
-	return material.List(th, &p.List).Layout(gtx, len(p.users), func(gtx layout.Context, i int) layout.Dimensions {
-		return p.layoutArtist(gtx, i, th)
-	})
-
+	p.updateUsers <- users
 }
 
 func layoutRect(gtx layout.Context, w layout.Widget) layout.Dimensions {
@@ -125,34 +181,4 @@ func layoutAvatar(gtx layout.Context, u *user) layout.Dimensions {
 	img := widget.Image{Src: u.avatarOp}
 	img.Scale = float32(sz) / float32(gtx.Dp(unit.Dp(float32(sz))))
 	return img.Layout(gtx)
-}
-
-func (p *Page) layoutArtist(gtx layout.Context, index int, theme *material.Theme) layout.Dimensions {
-	user := p.users[index]
-	in := layout.UniformInset(unit.Dp(8))
-	dims := in.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				in := layout.Inset{Right: unit.Dp(8)}
-				return in.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return layoutRect(gtx, func(gtx layout.Context) layout.Dimensions {
-						dim := gtx.Dp(unit.Dp(48))
-						sz := image.Point{X: dim, Y: dim}
-						gtx.Constraints = layout.Exact(gtx.Constraints.Constrain(sz))
-						return layoutAvatar(gtx, user)
-					})
-				})
-			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
-							layout.Rigid(material.Body1(theme, user.name).Layout),
-						)
-					}),
-				)
-			}),
-		)
-	})
-	return dims
 }
