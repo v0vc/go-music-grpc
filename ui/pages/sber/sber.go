@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"gioui.org/io/clipboard"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -14,19 +15,24 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/v0vc/go-music-grpc/artist"
+	alo "github.com/v0vc/go-music-grpc/ui/applayout"
 	"github.com/v0vc/go-music-grpc/ui/icon"
 	page "github.com/v0vc/go-music-grpc/ui/pages"
 	"golang.org/x/image/draw"
 	"image"
+	"image/color"
 )
 
 type Page struct {
-	usersList      layout.List
-	users          []*user
-	updateUsers    chan []*user
-	listChanErr    chan error
-	numberInput    component.TextField
-	inputAlignment text.Alignment
+	usersList         layout.List
+	numberInput       component.TextField
+	inputAlignment    text.Alignment
+	addBtn, addButton widget.Clickable
+
+	users       []*user
+	updateUsers chan []*user
+	listChanErr chan error
+
 	widget.List
 	*page.Router
 }
@@ -37,7 +43,6 @@ type user struct {
 	avatarOp paint.ImageOp
 }
 
-// New constructs a Page with the provided router.
 func New(router *page.Router) *Page {
 	return &Page{
 		Router: router,
@@ -45,11 +50,41 @@ func New(router *page.Router) *Page {
 }
 
 func (p *Page) Actions() []component.AppBarAction {
-	return []component.AppBarAction{}
+	//return []component.AppBarAction{}
+	return []component.AppBarAction{
+		{
+			OverflowAction: component.OverflowAction{
+				Name: "Add",
+				Tag:  &p.addBtn,
+			},
+			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
+				if p.addBtn.Clicked() {
+					p.Router.AppBar.SetContextualActions(
+						[]component.AppBarAction{},
+						[]component.OverflowAction{},
+					)
+					p.Router.AppBar.ToggleContextual(gtx.Now, "Add artist")
+				}
+				//btn := component.SimpleIconButton(bg, fg, &p.addBtn, icon.PlusIcon)
+				//btn.Background = bg
+				return component.SimpleIconButton(bg, fg, &p.addBtn, icon.PlusIcon).Layout(gtx)
+			},
+		},
+	}
 }
 
 func (p *Page) Overflow() []component.OverflowAction {
 	return []component.OverflowAction{}
+	/*	return []component.OverflowAction{
+		{
+			Name: "Add",
+			Tag:  &p.addState,
+		},
+		{
+			Name: "Delete",
+			Tag:  &p.removeState,
+		},
+	}*/
 }
 
 func (p *Page) NavItem() component.NavItem {
@@ -73,43 +108,83 @@ func (p *Page) Layout(gtx layout.Context, theme *material.Theme) layout.Dimensio
 			defer close(p.updateUsers)
 		}
 	}
+	return layout.Flex{
+		// Vertical alignment, from top to bottom
+		Axis: layout.Vertical,
+		// Empty space is left at the start, i.e. at the top
+		Spacing: layout.SpaceStart,
+	}.Layout(gtx,
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			//gtx.Constraints.Max.Y = 700
+			return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				p.usersList.Axis = layout.Vertical
+				return p.usersList.Layout(gtx, len(p.users), func(gtx layout.Context, index int) layout.Dimensions {
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return layout.Inset{Right: unit.Dp(8), Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+								return layoutRect(gtx, func(gtx layout.Context) layout.Dimensions {
+									dim := gtx.Dp(unit.Dp(48))
+									sz := image.Point{X: dim, Y: dim}
+									gtx.Constraints = layout.Exact(gtx.Constraints.Constrain(sz))
+									return layoutAvatar(gtx, p.users[index])
+								})
+							})
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+										layout.Rigid(material.Body1(theme, p.users[index].name).Layout),
+									)
+								}),
+							)
+						}),
+					)
+				})
+			})
+		}),
+		layout.Rigid(
+			func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{
+					Left:  unit.Dp(10),
+					Right: unit.Dp(10),
+				}.Layout(gtx, material.ProgressBar(theme, 50).Layout)
+				//return material.ProgressBar(theme, 50).Layout(gtx)
+			},
+		),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return alo.DetailRow{
+				PrimaryWidth: .8,
+			}.Layout(gtx,
+				func(gtx layout.Context) layout.Dimensions {
+					p.numberInput.SingleLine = true
+					p.numberInput.MaxLen = 128
+					return p.numberInput.Layout(gtx, theme, "zvuk.com artist link")
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					if p.addButton.Clicked() {
+						clipboard.WriteOp{
+							Text: "SS",
+						}.Add(gtx.Ops)
+					}
+					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return material.Button(theme, &p.addButton, "Add").Layout(gtx)
+					})
+					//return material.Button(theme, &p.addButton, "Add").Layout(gtx)
+				})
+		}),
+	)
 
-	return material.List(theme, &p.List).Layout(gtx, len(p.users), func(gtx layout.Context, i int) layout.Dimensions {
-		u := p.users[i]
-
-		/*		return layout.Flex{
-					Axis: layout.Vertical,
-				}.Layout(
-					gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						if err := func() string {
-							for _, r := range p.numberInput.Text() {
-								if !unicode.IsDigit(r) {
-									return "Must contain only digits"
-								}
-							}
-							return ""
-						}(); err != "" {
-							p.numberInput.SetError(err)
-						} else {
-							p.numberInput.ClearError()
-						}
-						p.numberInput.SingleLine = true
-						p.numberInput.Alignment = p.inputAlignment
-						return p.numberInput.Layout(gtx, theme, "Number")
-					}),
-				)*/
-
+	/*	return material.List(theme, &p.List).Layout(gtx, len(p.users), func(gtx layout.Context, i int) layout.Dimensions {
 		return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					in := layout.Inset{Right: unit.Dp(8)}
-					return in.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return layout.Inset{Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return layoutRect(gtx, func(gtx layout.Context) layout.Dimensions {
 							dim := gtx.Dp(unit.Dp(48))
 							sz := image.Point{X: dim, Y: dim}
 							gtx.Constraints = layout.Exact(gtx.Constraints.Constrain(sz))
-							return layoutAvatar(gtx, u)
+							return layoutAvatar(gtx, p.users[i])
 						})
 					})
 				}),
@@ -117,14 +192,14 @@ func (p *Page) Layout(gtx layout.Context, theme *material.Theme) layout.Dimensio
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
-								layout.Rigid(material.Body1(theme, u.name).Layout),
+								layout.Rigid(material.Body1(theme, p.users[i].name).Layout),
 							)
 						}),
 					)
 				}),
 			)
 		})
-	})
+	})*/
 }
 
 func fetchArtists(p *Page) {
