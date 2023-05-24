@@ -1,1 +1,1 @@
-go run .\server\server.go
+go run .\server .

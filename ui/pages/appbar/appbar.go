@@ -92,9 +92,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 			Axis:      layout.Vertical,
 		}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return alo.DefaultInset.Layout(gtx, material.Body1(th, `The app bar widget provides a consistent interface element for triggering navigation and page-specific actions.
-
-The controls below allow you to see the various features available in our App Bar implementation.`).Layout)
+				return alo.DefaultInset.Layout(gtx, material.Body1(th, `The app bar widget provides a consistent interface element for triggering navigation`).Layout)
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return alo.DetailRow{}.Layout(gtx, material.Body1(th, "Contextual App Bar").Layout, func(gtx layout.Context) layout.Dimensions {

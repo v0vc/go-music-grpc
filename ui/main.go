@@ -36,13 +36,15 @@ func loop(w *app.Window) error {
 	var ops op.Ops
 
 	router := page.NewRouter()
+	sb := sber.New(&router)
+
 	router.Register(0, appbar.New(&router))
 	router.Register(1, navdrawer.New(&router))
 	router.Register(2, textfield.New(&router))
 	router.Register(3, menu.New(&router))
 	router.Register(4, discloser.New(&router))
 	router.Register(5, about.New(&router))
-	router.Register(6, sber.New(&router))
+	router.Register(6, sb)
 
 	for {
 		select {
@@ -54,6 +56,11 @@ func loop(w *app.Window) error {
 				gtx := layout.NewContext(&ops, e)
 				router.Layout(gtx, th)
 				e.Frame(gtx.Ops)
+			}
+		case pr := <-sb.ProgressIncrementer:
+			if sb.Progress < 1 {
+				sb.Progress += pr
+				w.Invalidate()
 			}
 		}
 	}

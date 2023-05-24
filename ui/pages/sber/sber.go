@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"gioui.org/io/clipboard"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -21,6 +20,7 @@ import (
 	"golang.org/x/image/draw"
 	"image"
 	"image/color"
+	"time"
 )
 
 type Page struct {
@@ -29,9 +29,11 @@ type Page struct {
 	inputAlignment    text.Alignment
 	addBtn, addButton widget.Clickable
 
-	users       []*user
-	updateUsers chan []*user
-	listChanErr chan error
+	users               []*user
+	updateUsers         chan []*user
+	listChanErr         chan error
+	Progress            float32
+	ProgressIncrementer chan float32
 
 	widget.List
 	*page.Router
@@ -96,8 +98,10 @@ func (p *Page) NavItem() component.NavItem {
 
 func (p *Page) Layout(gtx layout.Context, theme *material.Theme) layout.Dimensions {
 	p.List.Axis = layout.Vertical
+
 	p.updateUsers = make(chan []*user)
 	p.listChanErr = make(chan error, 0)
+	p.ProgressIncrementer = make(chan float32)
 
 	if p.users == nil {
 		go fetchArtists(p)
@@ -108,6 +112,7 @@ func (p *Page) Layout(gtx layout.Context, theme *material.Theme) layout.Dimensio
 			defer close(p.updateUsers)
 		}
 	}
+
 	return layout.Flex{
 		// Vertical alignment, from top to bottom
 		Axis: layout.Vertical,
@@ -148,7 +153,7 @@ func (p *Page) Layout(gtx layout.Context, theme *material.Theme) layout.Dimensio
 				return layout.Inset{
 					Left:  unit.Dp(10),
 					Right: unit.Dp(10),
-				}.Layout(gtx, material.ProgressBar(theme, 50).Layout)
+				}.Layout(gtx, material.ProgressBar(theme, p.Progress).Layout)
 				//return material.ProgressBar(theme, 50).Layout(gtx)
 			},
 		),
@@ -163,43 +168,25 @@ func (p *Page) Layout(gtx layout.Context, theme *material.Theme) layout.Dimensio
 				},
 				func(gtx layout.Context) layout.Dimensions {
 					if p.addButton.Clicked() {
-						clipboard.WriteOp{
+						/*clipboard.WriteOp{
 							Text: "SS",
-						}.Add(gtx.Ops)
+						}.Add(gtx.Ops)*/
+						go incProgress(p)
+
 					}
 					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return material.Button(theme, &p.addButton, "Add").Layout(gtx)
 					})
-					//return material.Button(theme, &p.addButton, "Add").Layout(gtx)
 				})
 		}),
 	)
+}
 
-	/*	return material.List(theme, &p.List).Layout(gtx, len(p.users), func(gtx layout.Context, i int) layout.Dimensions {
-		return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return layout.Inset{Right: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layoutRect(gtx, func(gtx layout.Context) layout.Dimensions {
-							dim := gtx.Dp(unit.Dp(48))
-							sz := image.Point{X: dim, Y: dim}
-							gtx.Constraints = layout.Exact(gtx.Constraints.Constrain(sz))
-							return layoutAvatar(gtx, p.users[i])
-						})
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
-								layout.Rigid(material.Body1(theme, p.users[i].name).Layout),
-							)
-						}),
-					)
-				}),
-			)
-		})
-	})*/
+func incProgress(p *Page) {
+	for {
+		time.Sleep(time.Second / 25)
+		p.ProgressIncrementer <- 0.005
+	}
 }
 
 func fetchArtists(p *Page) {
