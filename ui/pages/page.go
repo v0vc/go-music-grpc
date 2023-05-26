@@ -27,23 +27,18 @@ func GetClientInstance() (artist.ArtistServiceClient, error) {
 	if singleInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
-		if singleInstance == nil {
-			fmt.Println("Creating single instance now.")
-			cc, err = grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
-			if err != nil {
-				fmt.Printf("could not connect: %v\n", err)
-				cc.Close()
-				return nil, err
-			}
-			singleInstance = artist.NewArtistServiceClient(cc)
-		} else {
-			fmt.Println("Single instance already created.")
+		fmt.Println("Creating single instance now.")
+		cc, err = grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			fmt.Printf("could not connect: %v\n", err)
+			cc.Close()
+			return nil, err
 		}
+		singleInstance = artist.NewArtistServiceClient(cc)
 	} else {
 		fmt.Println("Single instance already created.")
 		//defer cc.Close()
 	}
-
 	return singleInstance, nil
 }
 

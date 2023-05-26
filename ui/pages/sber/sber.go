@@ -47,6 +47,12 @@ type Page struct {
 	*page.Router
 }
 
+type user struct {
+	name     string
+	avatar   image.Image
+	avatarOp paint.ImageOp
+}
+
 var singleInstanceNoAvatar []byte
 
 var lock = &sync.Mutex{}
@@ -63,12 +69,6 @@ func GetNoAvatarInstance() []byte {
 		singleInstanceNoAvatar = buff.Bytes()
 	}
 	return singleInstanceNoAvatar
-}
-
-type user struct {
-	name     string
-	avatar   image.Image
-	avatarOp paint.ImageOp
 }
 
 func New(router *page.Router) *Page {
@@ -222,6 +222,28 @@ func findArtistId(url string) string {
 	return matchArtist[1]
 }
 
+func addToList(p *Page, artists []*artist.Artist) {
+	var users []*user
+	for _, artist := range artists {
+		/*		if artist.UserAdded == false {
+				continue
+			}*/
+		thumb := artist.GetThumbnail()
+		if thumb == nil {
+			thumb = GetNoAvatarInstance()
+		}
+		im, _, _ := image.Decode(bytes.NewReader(thumb))
+		u := &user{
+			name:     artist.GetTitle(),
+			avatar:   im,
+			avatarOp: paint.ImageOp{},
+		}
+		//p.users = append(p.users, u)
+		users = append(users, u)
+	}
+	p.updateUsers <- users
+}
+
 func incProgress(p *Page) {
 	for {
 		time.Sleep(time.Second / 25)
@@ -249,25 +271,6 @@ func addArtist(p *Page, artistId string) {
 	p.Progress = 1
 	p.artistInput.SetText("")
 	addToList(p, res.Artists)
-}
-
-func addToList(p *Page, artists []*artist.Artist) {
-	var users []*user
-	for _, artist := range artists {
-		thumb := artist.GetThumbnail()
-		if thumb == nil {
-			thumb = GetNoAvatarInstance()
-		}
-		im, _, _ := image.Decode(bytes.NewReader(thumb))
-		u := &user{
-			name:     artist.GetTitle(),
-			avatar:   im,
-			avatarOp: paint.ImageOp{},
-		}
-		//p.users = append(p.users, u)
-		users = append(users, u)
-	}
-	p.updateUsers <- users
 }
 
 func fetchArtists(p *Page) {
