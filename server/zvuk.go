@@ -5,9 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/dustin/go-humanize"
-	"github.com/machinebox/graphql"
-	"github.com/v0vc/go-music-grpc/artist"
 	"io"
 	"log"
 	"math/rand"
@@ -19,6 +16,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dustin/go-humanize"
+	"github.com/machinebox/graphql"
+	"github.com/v0vc/go-music-grpc/artist"
 )
 
 const (
@@ -82,7 +83,7 @@ func getThumb(url string) []byte {
 
 func downloadAlbumCover(url, path string) error {
 	url = strings.Replace(url, "{size}", coverSize, 1)
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0755)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
 	if err != nil {
 		return err
 	}
@@ -100,7 +101,7 @@ func downloadAlbumCover(url, path string) error {
 }
 
 func downloadTrack(trackPath, url string) (string, error) {
-	f, err := os.OpenFile(trackPath, os.O_CREATE|os.O_WRONLY, 0755)
+	f, err := os.OpenFile(trackPath, os.O_CREATE|os.O_WRONLY, 0o755)
 	if err != nil {
 		return "", err
 	}
@@ -361,7 +362,7 @@ func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, strin
 		log.Fatal(err)
 	}
 	defer do.Body.Close()
-	var needTokenUpd = false
+	needTokenUpd := false
 	if do.StatusCode != http.StatusOK {
 		log.Printf("Try to renew access token...")
 		token, err = getTokenFromSite(email, password)
@@ -512,7 +513,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 					thumbArtUrl := strings.Replace(artistData.Image.Src, "{size}", thumbSize, 1)
 					thumbArt := getThumb(thumbArtUrl)
 					artistTitle := strings.TrimSpace(artistData.Title)
-					var userAdded = false
+					userAdded := false
 					if artistData.ID == artistId {
 						err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, thumbArt, 1).Scan(&artId)
 						userAdded = true
@@ -694,7 +695,7 @@ func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDow
 			absAlbName = filepath.Join(DownloadDir, albInfo.ArtistTitle, albName)
 		}
 
-		err = os.MkdirAll(absAlbName, 0755)
+		err = os.MkdirAll(absAlbName, 0o755)
 		if err != nil {
 			fmt.Println("Failed to create folder.", err)
 			return

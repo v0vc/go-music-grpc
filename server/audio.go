@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/bogem/id3v2/v2"
 	"github.com/go-flac/flacpicture"
 	"github.com/go-flac/flacvorbis"
 	"github.com/go-flac/go-flac"
-	"os"
-	"strings"
 )
 
 func WriteTags(decTrackPath, coverPath string, isFlac bool, tags map[string]string) error {

@@ -3,16 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+
 	"github.com/v0vc/go-music-grpc/artist"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
 )
 
-const defaultPort = "4041"
-
 func main() {
-
 	fmt.Println("grpc-music client started")
 
 	/*	err := godotenv.Load(".env")
@@ -22,7 +20,7 @@ func main() {
 
 		port := os.Getenv("PORT")
 		if port == "" {
-			port = defaultPort
+			port = "4041"
 		}*/
 
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
@@ -34,7 +32,7 @@ func main() {
 	defer cc.Close() // Maybe this should be in a separate function and the error handled?
 
 	c := artist.NewArtistServiceClient(cc)
-	//c := getClientInstance()
+	// c := getClientInstance()
 
 	// sync artist | 211850488 Мюслі UA | 212266807 Lely45
 	/*req := &artist.SyncArtistRequest{

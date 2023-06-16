@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/dustin/go-humanize"
 	"strconv"
 	"time"
+
+	"github.com/dustin/go-humanize"
 )
 
 type Auth struct {
