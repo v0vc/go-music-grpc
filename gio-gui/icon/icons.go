@@ -84,3 +84,8 @@ var Send = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ContentSend)
 	return icon
 }()
+
+var Search = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ActionSearch)
+	return icon
+}()

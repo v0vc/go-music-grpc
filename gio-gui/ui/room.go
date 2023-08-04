@@ -3,6 +3,7 @@ package ui
 import (
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 
 	"gioui.org/layout"
@@ -18,6 +19,11 @@ type Rooms struct {
 	changed bool
 	List    []*Room
 	sync.Mutex
+}
+
+type searchResponse struct {
+	indices []int
+	seq     int
 }
 
 // Room is a unique conversation context.
@@ -45,6 +51,8 @@ type Room struct {
 	// Editor contains the edit buffer for composing messages.
 	Editor widget.Editor
 	sync.Mutex
+	searchCurSeq    int
+	searchResponses chan searchResponse
 }
 
 // SetComposing sets the composing status for a user in this room.
@@ -73,6 +81,30 @@ func (r *Room) SendLocal(msg string) {
 		r.Room.Latest = &row
 		r.Unlock()
 		r.ListState.Modify([]list.Element{row}, nil, nil)
+	}()
+}
+
+func (r *Room) RunSearch(searchText string) {
+	r.searchCurSeq++
+	resp := searchResponse{
+		indices: nil,
+		seq:     r.searchCurSeq,
+	}
+	go func() {
+		defer func() {
+			r.searchResponses <- resp
+		}()
+		input := strings.ToLower(searchText)
+		if input == "" {
+			return
+		}
+		resp.indices = make([]int, 0, len(r.RowTracker.Rows)/3)
+		for i := range r.RowTracker.Rows {
+			e := r.RowTracker.Rows[i].(model.Message)
+			if strings.Contains(e.Sender, input) || strings.Contains(strings.ToLower(e.Sender), input) {
+				resp.indices = append(resp.indices, i)
+			}
+		}
 	}()
 }
 

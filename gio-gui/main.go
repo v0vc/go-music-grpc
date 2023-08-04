@@ -4,8 +4,10 @@ import (
 	"log"
 	"os"
 
-	"gioui.org/app"
 	"gioui.org/font/gofont"
+	"gioui.org/text"
+
+	"gioui.org/app"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -21,7 +23,7 @@ import (
 func main() {
 	/*flag.Parse()*/
 	go func() {
-		w := app.NewWindow()
+		w := app.NewWindow( /*app.Title("Gio content client")*/ )
 		if err := loop(w); err != nil {
 			log.Fatal(err)
 		}
@@ -31,7 +33,8 @@ func main() {
 }
 
 func loop(w *app.Window) error {
-	th := material.NewTheme(gofont.Collection())
+	th := material.NewTheme()
+	th.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 	var ops op.Ops
 
 	router := page.NewRouter(w)

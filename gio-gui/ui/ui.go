@@ -8,7 +8,6 @@ import (
 	"gioui.org/op/paint"
 	"github.com/v0vc/go-music-grpc/gio-gui/icon"
 
-	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -40,7 +39,7 @@ var (
 	// Breakpoint at which to switch from desktop to mobile layout.
 	Breakpoint = unit.Dp(600)
 	// th is the active theme object.
-	th = NewTheme(gofont.Collection())
+	th = NewTheme()
 )
 
 // UI manages the state for the entire application's UI.
@@ -163,7 +162,7 @@ func NewUI(invalidator func(), conf Config) *UI {
 		//ui.Rooms.List[ii].List.Position.First = 0
 		//ui.Rooms.List[ii].List.Position.Offset = 0
 	}*/
-	// ui.Rooms.SelectAndFill(0, invalidator, ui.presentChatRow)
+	ui.Rooms.SelectAndFill(0, invalidator, ui.presentChatRow)
 
 	return &ui
 }
@@ -246,7 +245,8 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 			return lay.Background(th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				if ui.AddBtn.Clicked() {
 					active := ui.Rooms.Active()
-					active.SendLocal(active.Editor.Text())
+					// active.SendLocal(active.Editor.Text())
+					active.RunSearch(active.Editor.Text())
 					active.Editor.SetText("")
 				}
 				if ui.DeleteBtn.Clicked() {
@@ -264,7 +264,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 						func(gtx layout.Context) layout.Dimensions {
 							return ui.layoutEditor(gtx)
 						},
-						material.IconButton(th.Theme, &ui.AddBtn, icon.Send, "Send").Layout,
+						material.IconButton(th.Theme, &ui.AddBtn, icon.Search, "Search").Layout,
 					)
 				})
 			})
@@ -360,7 +360,8 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 				for _, e := range editor.Events() {
 					switch e.(type) {
 					case widget.SubmitEvent:
-						active.SendLocal(editor.Text())
+						// active.SendLocal(editor.Text())
+						active.RunSearch(editor.Text())
 						editor.SetText("")
 					}
 				}

@@ -3,7 +3,9 @@ package ui
 import (
 	"image/color"
 
+	"gioui.org/font/gofont"
 	"gioui.org/text"
+
 	"gioui.org/unit"
 	"gioui.org/widget/material"
 	//"github.com/lucasb-eyer/go-colorful"
@@ -79,15 +81,16 @@ type UserColorData struct {
 }
 
 // NewTheme instantiates a theme using the provided fonts.
-func NewTheme(fonts []text.FontFace) *Theme {
-	base := material.NewTheme(fonts)
-	th := Theme{
+func NewTheme() *Theme {
+	base := material.NewTheme()
+	theme := Theme{
 		Theme:      base,
 		UserColors: make(map[string]UserColorData),
 		AvatarSize: DefaultAvatarSize,
 	}
-	th.UsePalette(Light)
-	return &th
+	theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+	theme.UsePalette(Light)
+	return &theme
 }
 
 // UsePalette changes to the specified palette.
