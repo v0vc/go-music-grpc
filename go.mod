@@ -1,6 +1,6 @@
 module github.com/v0vc/go-music-grpc
 
-go 1.20
+go 1.21
 
 require (
 	gioui.org v0.2.0
