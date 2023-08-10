@@ -6,12 +6,8 @@ import (
 	"gioui.org/font/gofont"
 	"gioui.org/text"
 
-	"gioui.org/unit"
 	"gioui.org/widget/material"
-	//"github.com/lucasb-eyer/go-colorful"
 )
-
-var DefaultAvatarSize = unit.Dp(24)
 
 var (
 	Light = Palette{
@@ -36,21 +32,10 @@ var (
 	}
 )
 
-// ToNRGBA converts a colorful.Color to the nearest representable color.NRGBA.
-/*func ToNRGBA(c colorful.Color) color.NRGBA {
-	r, g, b, a := c.RGBA()
-	return color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: uint8(a)}
-}*/
-
 // Theme wraps the material.Theme with useful application-specific
 // theme information.
 type Theme struct {
 	*material.Theme
-	// UserColors tracks a mapping from chat username to the color
-	// chosen to represent that user.
-	UserColors map[string]UserColorData
-	// AvatarSize specifies how large the avatar image should be.
-	AvatarSize unit.Dp
 	// Palette specifies semantic colors.
 	Palette Palette
 }
@@ -84,9 +69,7 @@ type UserColorData struct {
 func NewTheme() *Theme {
 	base := material.NewTheme()
 	theme := Theme{
-		Theme:      base,
-		UserColors: make(map[string]UserColorData),
-		AvatarSize: DefaultAvatarSize,
+		Theme: base,
 	}
 	theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 	theme.UsePalette(Light)
@@ -107,50 +90,6 @@ func (t *Theme) Toggle() {
 	} else {
 		t.UsePalette(Light)
 	}
-}
-
-// UserColor returns a color for the provided username. It will choose a
-// new color if the username is new.
-/*func (t *Theme) UserColor(username string) UserColorData {
-	if c, ok := t.UserColors[username]; ok {
-		return c
-	}
-	c := colorful.FastHappyColor().Clamped()
-
-	uc := UserColorData{
-		NRGBA: ToNRGBA(c),
-	}
-	uc.Luminance = (0.299*float64(uc.NRGBA.R) + 0.587*float64(uc.NRGBA.G) + 0.114*float64(uc.NRGBA.B)) / 255
-	t.UserColors[username] = uc
-	return uc
-}*/
-
-// LocalUserColor returns a color for the "local" user.
-// Local user color is defined as the theme's surface color and it's luminance.
-func (t *Theme) LocalUserColor() UserColorData {
-	c := t.Palette.Surface
-	return UserColorData{
-		NRGBA:     c,
-		Luminance: (0.299*float64(c.R) + 0.587*float64(c.G) + 0.114*float64(c.B)) / 255,
-	}
-}
-
-// Contrast against a given luminance.
-//
-// Defaults to a color that contrasts the background color, if the threshold
-// is met, the background color itself is returned.
-//
-// Note this will depend on the specific palette in question, and may not be a
-// good generalization particularly for low-contrast palettes.
-func (t *Theme) Contrast(luminance float64) color.NRGBA {
-	contrast := luminance < 0.5
-	if t.Palette == Dark {
-		contrast = luminance > 0.5
-	}
-	if contrast {
-		return t.Palette.Bg
-	}
-	return t.Palette.OnBg
 }
 
 func rgb(c uint32) color.NRGBA {
