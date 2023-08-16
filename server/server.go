@@ -518,7 +518,7 @@ func (*server) ListStreamArtist(req *artist.ListStreamArtistRequest, stream arti
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("error loading .env file")
+		log.Println("error loading .env file, use default values")
 	}
 
 	port := os.Getenv("PORT")
@@ -567,6 +567,8 @@ func main() {
 		fmt.Println("starting server...")
 		if err := grpc.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
+		} else {
+			fmt.Println("server started, ready to accept connections")
 		}
 	}()
 	wg.Wait()

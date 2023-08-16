@@ -29,8 +29,6 @@ var (
 	SidebarMaxWidth = unit.Dp(250)
 	// Breakpoint at which to switch from desktop to mobile layout.
 	Breakpoint = unit.Dp(600)
-	// LoadSize specifies maximum number of items to load at a time.
-	LoadSize = 30
 )
 
 // UI manages the state for the entire application's UI.
@@ -73,11 +71,9 @@ type UI struct {
 }
 
 // NewUI constructs a UI and populates it with data.
-func NewUI(invalidator func(), theme *page.Theme) *UI {
+func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
 	var ui UI
-
 	ui.th = theme
-
 	ui.Invalidator = invalidator
 	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
 
@@ -107,7 +103,7 @@ func NewUI(invalidator func(), theme *page.Theme) *UI {
 			SerialToIndex: make(map[list.Serial]int),
 			Generator:     g,
 			Messages:      &mess,
-			MaxLoads:      LoadSize,
+			MaxLoads:      loadSize,
 			ScrollToEnd:   false,
 		}
 		room := &Room{

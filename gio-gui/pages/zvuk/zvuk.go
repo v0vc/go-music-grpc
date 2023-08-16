@@ -41,16 +41,16 @@ var singleInstance *ui.UI
 
 var lock = &sync.Mutex{}
 
-func getInstance(invalidator func(), th *page.Theme) *ui.UI {
+func getInstance(invalidator func(), th *page.Theme, loadSize int) *ui.UI {
 	if singleInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
-		singleInstance = ui.NewUI(invalidator, th)
+		singleInstance = ui.NewUI(invalidator, th, loadSize)
 	}
 	return singleInstance
 }
 
-func (p *Page) Layout(gtx layout.Context, th *page.Theme) layout.Dimensions {
-	ui := getInstance(p.Router.Invalidate, th)
+func (p *Page) Layout(gtx layout.Context, th *page.Theme, loadSize int) layout.Dimensions {
+	ui := getInstance(p.Router.Invalidate, th, loadSize)
 	return ui.Layout(gtx)
 }

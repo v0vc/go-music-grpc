@@ -14,8 +14,15 @@ import (
 type Page interface {
 	Actions() []component.AppBarAction
 	Overflow() []component.OverflowAction
-	Layout(gtx layout.Context, th *Theme) layout.Dimensions
+	Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dimensions
 	NavItem() component.NavItem
+}
+
+type Config struct {
+	// theme to use {light,dark}.
+	Theme string
+	// loadSize specifies maximum number of items to load at a time.
+	LoadSize int
 }
 
 type Router struct {
@@ -78,7 +85,7 @@ func (r *Router) SwitchTo(tag interface{}) {
 	r.AppBar.SetActions(p.Actions(), p.Overflow())
 }
 
-func (r *Router) Layout(gtx layout.Context, th *Theme) layout.Dimensions {
+func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dimensions {
 	for _, event := range r.AppBar.Events(gtx) {
 		switch event := event.(type) {
 		case component.AppBarNavigationClicked:
@@ -102,28 +109,17 @@ func (r *Router) Layout(gtx layout.Context, th *Theme) layout.Dimensions {
 		origBg := th.Theme.Bg
 		return layout.Flex{}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				// gtx.Constraints.Max.X /= 3
 				gtx.Constraints.Max.X = 375
 				th.Theme.Bg = th.Palette.Surface
 				return r.NavDrawer.Layout(gtx, th.Theme, &r.NavAnim)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				th.Theme.Bg = origBg
-				return r.pages[r.current].Layout(gtx, th)
+				return r.pages[r.current].Layout(gtx, th, loadSize)
 			}),
 		)
 	})
-	/*	content := layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				// gtx.Constraints.Max.X /= 3
-				gtx.Constraints.Max.X = 400
-				return r.NavDrawer.Layout(gtx, th, &r.NavAnim)
-			}),
-			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				return r.pages[r.current].Layout(gtx, th)
-			}),
-		)
-	})*/
 	bar := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return r.AppBar.Layout(gtx, th.Theme, "Menu", "Actions")
 	})
