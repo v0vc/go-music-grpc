@@ -6,6 +6,9 @@ import (
 
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+
+	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
+
 	"github.com/v0vc/go-music-grpc/gio-gui/icon"
 
 	"gioui.org/layout"
@@ -20,26 +23,14 @@ import (
 	"github.com/v0vc/go-music-grpc/gio-gui/model"
 )
 
-type Config struct {
-	// theme to use {light,dark}.
-	Theme string
-	// latency specifies maximum latency (in millis) to simulate
-	// Latency int
-	// loadSize specifies maximum number of items to load at a time.
-	LoadSize int
-	// bufferSize specifies how many elements to hold in memory before
-	// compacting the list.
-	// BufferSize int
-}
-
 var (
 	// SidebarMaxWidth specifies how large the sidebar should be on
 	// desktop layouts.
 	SidebarMaxWidth = unit.Dp(250)
 	// Breakpoint at which to switch from desktop to mobile layout.
 	Breakpoint = unit.Dp(600)
-	// th is the active theme object.
-	th = NewTheme()
+	// LoadSize specifies maximum number of items to load at a time.
+	LoadSize = 30
 )
 
 // UI manages the state for the entire application's UI.
@@ -78,18 +69,14 @@ type UI struct {
 	ContextMenuTarget *model.Message
 
 	Invalidator func()
+	th          *page.Theme
 }
 
 // NewUI constructs a UI and populates it with data.
-func NewUI(invalidator func(), conf Config) *UI {
+func NewUI(invalidator func(), theme *page.Theme) *UI {
 	var ui UI
 
-	switch conf.Theme {
-	case "light":
-		th.UsePalette(Light)
-	case "dark":
-		th.UsePalette(Dark)
-	}
+	ui.th = theme
 
 	ui.Invalidator = invalidator
 	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
@@ -97,13 +84,13 @@ func NewUI(invalidator func(), conf Config) *UI {
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(th.Theme, &ui.DeleteBtn, "Delete")
+				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
 				item.Icon = icon.DeleteIcon
-				item.Hint = component.MenuHintText(th.Theme, "Test")
+				item.Hint = component.MenuHintText(ui.th.Theme, "Test")
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(th.Theme, &ui.DownloadBtn, "Download")
+				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
 				item.Icon = icon.DownloadIcon
 				return item.Layout(gtx)
 			},
@@ -120,7 +107,7 @@ func NewUI(invalidator func(), conf Config) *UI {
 			SerialToIndex: make(map[list.Serial]int),
 			Generator:     g,
 			Messages:      &mess,
-			MaxLoads:      conf.LoadSize,
+			MaxLoads:      LoadSize,
 			ScrollToEnd:   false,
 		}
 		room := &Room{
@@ -186,7 +173,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 	if ui.Back.Clicked() {
 		ui.InsideRoom = false
 	}
-	paint.FillShape(gtx.Ops, th.Palette.BgSecondary, clip.Rect(image.Rectangle{Max: gtx.Constraints.Max}).Op())
+	paint.FillShape(gtx.Ops, ui.th.Palette.BgSecondary, clip.Rect(image.Rectangle{Max: gtx.Constraints.Max}).Op())
 	if small {
 		if !ui.InsideRoom {
 			return ui.layoutRoomList(gtx)
@@ -231,7 +218,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 // layoutChat lays out the chat interface with associated controls.
 func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 	room := ui.Rooms.Active()
-	listStyle := material.List(th.Theme, &room.List)
+	listStyle := material.List(ui.th.Theme, &room.List)
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
@@ -242,7 +229,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 			)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return lay.Background(th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return lay.Background(ui.th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				if ui.AddBtn.Clicked() {
 					active := ui.Rooms.Active()
 					// active.SendLocal(active.Editor.Text())
@@ -264,7 +251,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 						func(gtx layout.Context) layout.Dimensions {
 							return ui.layoutEditor(gtx)
 						},
-						material.IconButton(th.Theme, &ui.AddBtn, icon.Search, "Search").Layout,
+						material.IconButton(ui.th.Theme, &ui.AddBtn, icon.Search, "Search").Layout,
 					)
 				})
 			})
@@ -284,7 +271,7 @@ func (ui *UI) layoutTopbar(gtx layout.Context) layout.Dimensions {
 					X: gtx.Constraints.Max.X,
 					Y: gtx.Constraints.Min.Y,
 				},
-				Color: th.Palette.Surface,
+				Color: ui.th.Palette.Surface,
 			}.Layout(gtx)
 		}),
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
@@ -294,9 +281,9 @@ func (ui *UI) layoutTopbar(gtx layout.Context) layout.Dimensions {
 			}.Layout(
 				gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					btn := material.IconButton(th.Theme, &ui.Back, icon.NavBack, "Back")
-					btn.Color = th.Fg
-					btn.Background = th.Palette.Surface
+					btn := material.IconButton(ui.th.Theme, &ui.Back, icon.NavBack, "Back")
+					btn.Color = ui.th.Fg
+					btn.Background = ui.th.Palette.Surface
 					return btn.Layout(gtx)
 				}),
 				/*layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
@@ -312,7 +299,7 @@ func (ui *UI) layoutTopbar(gtx layout.Context) layout.Dimensions {
 				}),*/
 				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return material.Label(th.Theme, unit.Sp(14), room.Name).Layout(gtx)
+					return material.Label(ui.th.Theme, unit.Sp(14), room.Name).Layout(gtx)
 				}),
 			)
 		}),
@@ -330,16 +317,16 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					X: gtx.Constraints.Min.X,
 					Y: gtx.Constraints.Max.Y,
 				},
-				Color: th.Palette.Surface,
+				Color: ui.th.Palette.Surface,
 			}.Layout(gtx)
 		}),
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 			ui.RoomList.Axis = layout.Vertical
 			gtx.Constraints.Min = gtx.Constraints.Max
-			return material.List(th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
+			return material.List(ui.th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
 				r := ui.Rooms.Index(ii)
 				latest := r.Latest()
-				return CreateChannel(th.Theme, &r.Interact, &ChannelConfig{
+				return CreateChannel(ui.th.Theme, &r.Interact, &ChannelConfig{
 					Name:    r.Room.Name,
 					Image:   r.Room.Image,
 					Content: latest.Content,
@@ -353,7 +340,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 // layoutEditor lays out the message editor.
 func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 	return lay.Rounded(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return lay.Background(th.Palette.Surface).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return lay.Background(ui.th.Palette.Surface).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				active := ui.Rooms.Active()
 				editor := &active.Editor
@@ -367,7 +354,7 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 				}
 				editor.Submit = true
 				editor.SingleLine = true
-				return material.Editor(th.Theme, editor, "Search").Layout(gtx)
+				return material.Editor(ui.th.Theme, editor, "Search").Layout(gtx)
 			})
 		})
 	})
@@ -407,7 +394,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 		// return DateSeparator(th.Theme, data.Date).Layout
 		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	case model.UnreadBoundary:
-		return UnreadSeparator(th.Theme).Layout
+		return UnreadSeparator(ui.th.Theme).Layout
 	default:
 		return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	}
@@ -415,7 +402,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 
 // row returns RowStyle
 func (ui *UI) row(data model.Message, state *Row) layout.Widget {
-	msg := NewRow(th.Theme, state, &ui.MessageMenu, &RowConfig{
+	msg := NewRow(ui.th.Theme, state, &ui.MessageMenu, &RowConfig{
 		Sender:  data.Sender,
 		Content: data.Content,
 		SentAt:  data.SentAt,

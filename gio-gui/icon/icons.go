@@ -89,3 +89,8 @@ var Search = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ActionSearch)
 	return icon
 }()
+
+var MusicIcon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ImageMusicNote)
+	return icon
+}()

@@ -4,6 +4,8 @@ import (
 	"image"
 	"testing"
 
+	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
+
 	"gioui.org/gpu/headless"
 	"gioui.org/io/router"
 	"gioui.org/layout"
@@ -18,10 +20,7 @@ func BenchmarkKitchen(b *testing.B) {
 	if err != nil {
 		b.Error(err)
 	}
-	ui := NewUI(func() {}, Config{
-		Theme:    "light",
-		LoadSize: 10,
-	})
+	ui := NewUI(func() {}, page.NewTheme())
 	gtx := layout.Context{
 		Ops: new(op.Ops),
 		Metric: unit.Metric{

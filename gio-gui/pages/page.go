@@ -7,7 +7,6 @@ import (
 	"gioui.org/app"
 
 	"gioui.org/layout"
-	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/v0vc/go-music-grpc/gio-gui/icon"
 )
@@ -15,7 +14,7 @@ import (
 type Page interface {
 	Actions() []component.AppBarAction
 	Overflow() []component.OverflowAction
-	Layout(gtx layout.Context, th *material.Theme) layout.Dimensions
+	Layout(gtx layout.Context, th *Theme) layout.Dimensions
 	NavItem() component.NavItem
 }
 
@@ -40,7 +39,7 @@ func NewRouter(w *app.Window) Router {
 	bar.NavigationIcon = icon.MenuIcon
 
 	na := component.VisibilityAnimation{
-		State:    component.Visible,
+		State:    component.Invisible,
 		Duration: time.Millisecond * 250,
 	}
 	return Router{
@@ -79,7 +78,7 @@ func (r *Router) SwitchTo(tag interface{}) {
 	r.AppBar.SetActions(p.Actions(), p.Overflow())
 }
 
-func (r *Router) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (r *Router) Layout(gtx layout.Context, th *Theme) layout.Dimensions {
 	for _, event := range r.AppBar.Events(gtx) {
 		switch event := event.(type) {
 		case component.AppBarNavigationClicked:
@@ -98,14 +97,17 @@ func (r *Router) Layout(gtx layout.Context, th *material.Theme) layout.Dimension
 	if r.ModalNavDrawer.NavDestinationChanged() {
 		r.SwitchTo(r.ModalNavDrawer.CurrentNavDestination())
 	}
-	// paint.Fill(gtx.Ops, th.Palette.Bg)
+	// paint.Fill(gtx.Ops, th.Palette.Surface)
 	content := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		origBg := th.Theme.Bg
 		return layout.Flex{}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Max.X = 375
-				return r.NavDrawer.Layout(gtx, th, &r.NavAnim)
+				th.Theme.Bg = th.Palette.Surface
+				return r.NavDrawer.Layout(gtx, th.Theme, &r.NavAnim)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				th.Theme.Bg = origBg
 				return r.pages[r.current].Layout(gtx, th)
 			}),
 		)
@@ -123,7 +125,7 @@ func (r *Router) Layout(gtx layout.Context, th *material.Theme) layout.Dimension
 		)
 	})*/
 	bar := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return r.AppBar.Layout(gtx, th, "Menu", "Actions")
+		return r.AppBar.Layout(gtx, th.Theme, "Menu", "Actions")
 	})
 	flex := layout.Flex{Axis: layout.Vertical}
 	if r.BottomBar {
@@ -131,6 +133,6 @@ func (r *Router) Layout(gtx layout.Context, th *material.Theme) layout.Dimension
 	} else {
 		flex.Layout(gtx, bar, content)
 	}
-	r.ModalLayer.Layout(gtx, th)
+	r.ModalLayer.Layout(gtx, th.Theme)
 	return layout.Dimensions{Size: gtx.Constraints.Max}
 }

@@ -1,4 +1,4 @@
-package ui
+package page
 
 import (
 	"image/color"
@@ -73,6 +73,7 @@ func NewTheme() *Theme {
 	}
 	theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 	theme.UsePalette(Light)
+	// theme.UsePalette(Dark)
 	return &theme
 }
 
@@ -84,13 +85,13 @@ func (t *Theme) UsePalette(p Palette) {
 }
 
 // Toggle the active theme between pre-configured Light and Dark palettes.
-func (t *Theme) Toggle() {
+/*func (t *Theme) Toggle() {
 	if t.Palette == Light {
 		t.UsePalette(Dark)
 	} else {
 		t.UsePalette(Light)
 	}
-}
+}*/
 
 func rgb(c uint32) color.NRGBA {
 	return argb(0xff000000 | c)
