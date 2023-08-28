@@ -564,11 +564,9 @@ func main() {
 	}()
 
 	go func() {
-		fmt.Println("starting server...")
+		// fmt.Println("waiting for connections...")
 		if err := grpc.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
-		} else {
-			fmt.Println("server started, ready to accept connections")
 		}
 	}()
 	wg.Wait()

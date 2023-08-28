@@ -233,7 +233,7 @@ func (m *Manager) InPlace(updateOnly []Element) {
 // Remove atomically modifies the Manager to remove elements based on a Serial.
 //
 // Elements in the Manager that are specified in the remove list will be deleted.
-// Serials that map to non-existant elements will be ignored.
+// Serials that map to non-existent elements will be ignored.
 func (m *Manager) Remove(remove []Serial) {
 	m.requests <- modificationRequest{
 		NewOrUpdate: nil,

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -19,11 +20,6 @@ type Rooms struct {
 	changed bool
 	List    []*Room
 	sync.Mutex
-}
-
-type searchResponse struct {
-	indices []int
-	seq     int
 }
 
 // Room is a unique conversation context.
@@ -51,8 +47,8 @@ type Room struct {
 	// Editor contains the edit buffer for composing messages.
 	Editor widget.Editor
 	sync.Mutex
-	searchCurSeq    int
-	searchResponses chan searchResponse
+	// searchCurSeq    int
+	SearchResponses chan []list.Serial
 }
 
 // SetComposing sets the composing status for a user in this room.
@@ -85,27 +81,36 @@ func (r *Room) SendLocal(msg string) {
 }
 
 func (r *Room) RunSearch(searchText string) {
-	r.searchCurSeq++
-	resp := searchResponse{
-		indices: nil,
-		seq:     r.searchCurSeq,
-	}
+	var resp []list.Serial
 	go func() {
 		defer func() {
-			r.searchResponses <- resp
+			r.SearchResponses <- resp
 		}()
 		input := strings.ToLower(searchText)
 		if input == "" {
 			return
 		}
-		resp.indices = make([]int, 0, len(r.RowTracker.Rows)/3)
+		resp = make([]list.Serial, 0, len(r.RowTracker.Rows)/3)
 		for i := range r.RowTracker.Rows {
 			e := r.RowTracker.Rows[i].(model.Message)
 			if strings.Contains(e.Sender, input) || strings.Contains(strings.ToLower(e.Sender), input) {
-				resp.indices = append(resp.indices, i)
-			}
+				// log.Println(e.SerialID)
+				resp = append(resp, e.Serial())
+			} // else {
+			//resp.indices = append(resp.indices, e.Serial())
+			// r.RowTracker.Delete(e.Serial())
+			// r.ListState.Modify(nil, nil, []list.Serial{e.Serial()})
+			//}
+
 		}
 	}()
+
+	pending := <-r.SearchResponses
+	for _, ind := range pending {
+		// r.RowTracker.Delete(ind)
+		fmt.Println(ind)
+	}
+	// go r.ListState.Modify(nil, nil, pending)
 }
 
 // NewRow generates a new row in the Room's RowTracker and inserts it

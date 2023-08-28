@@ -54,7 +54,7 @@ type UI struct {
 	InsideRoom bool
 	// AddBtn holds click state for a button that adds a new message to
 	// the current room.
-	AddBtn widget.Clickable
+	// AddBtn widget.Clickable
 	// DeleteBtn holds click state for a button that removes a message
 	// from the current room.
 	DeleteBtn widget.Clickable
@@ -107,8 +107,9 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
 			ScrollToEnd:   false,
 		}
 		room := &Room{
-			Room:       r,
-			RowTracker: rt,
+			Room:            r,
+			RowTracker:      rt,
+			SearchResponses: make(chan []list.Serial),
 		}
 		room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
 		room.List.Axis = layout.Vertical
@@ -226,12 +227,12 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return lay.Background(ui.th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				if ui.AddBtn.Clicked() {
-					active := ui.Rooms.Active()
-					// active.SendLocal(active.Editor.Text())
-					active.RunSearch(active.Editor.Text())
-					active.Editor.SetText("")
-				}
+				/*				if ui.AddBtn.Clicked() {
+								active := ui.Rooms.Active()
+								// active.SendLocal(active.Editor.Text())
+								active.RunSearch(active.Editor.Text())
+								active.Editor.SetText("")
+							}*/
 				if ui.DeleteBtn.Clicked() {
 					serial := ui.ContextMenuTarget.Serial()
 					ui.Rooms.Active().DeleteRow(serial)
@@ -239,16 +240,23 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 				return layout.Inset{
 					Bottom: unit.Dp(8),
 					Top:    unit.Dp(8),
+					Left:   unit.Dp(8),
+					Right:  unit.Dp(8),
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					gutter := lay.Gutter()
-					gutter.RightWidth = gutter.RightWidth + listStyle.ScrollbarStyle.Width()
-					return gutter.Layout(gtx,
+					/*					gutter := lay.Gutter()
+										gutter.RightWidth = gutter.RightWidth + listStyle.ScrollbarStyle.Width()*/
+					/*return layout.Inset{
+						Left:  unit.Dp(8),
+						Right: unit.Dp(8),
+					}.Layout(gtx, ui.layoutEditor)*/
+					return ui.layoutEditor(gtx)
+					/*return gutter.Layout(gtx,
 						nil,
 						func(gtx layout.Context) layout.Dimensions {
 							return ui.layoutEditor(gtx)
 						},
 						material.IconButton(ui.th.Theme, &ui.AddBtn, icon.Search, "Search").Layout,
-					)
+					)*/
 				})
 			})
 		}),
@@ -341,13 +349,17 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 				active := ui.Rooms.Active()
 				editor := &active.Editor
 				for _, e := range editor.Events() {
-					switch e.(type) {
-					case widget.SubmitEvent:
-						// active.SendLocal(editor.Text())
+					if _, ok := e.(widget.ChangeEvent); ok {
 						active.RunSearch(editor.Text())
-						editor.SetText("")
+						break
 					}
 				}
+				/*for _, e := range editor.Events() {
+				switch e.(type) {
+				case widget.SubmitEvent:
+				active.SendLocal(editor.Text())
+				active.RunSearch(editor.Text())
+				editor.SetText("")*/
 				editor.Submit = true
 				editor.SingleLine = true
 				return material.Editor(ui.th.Theme, editor, "Search").Layout(gtx)

@@ -115,7 +115,7 @@ func (p *Page) NavItem() component.NavItem {
 	}
 }
 
-func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (p *Page) Layout(gtx layout.Context, th *page.Theme, loadSize int) layout.Dimensions {
 	p.List.Axis = layout.Vertical
 	p.usersList = &widget.List{
 		List: layout.List{
@@ -146,8 +146,8 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 	}.Layout(gtx,
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			// gtx.Constraints.Max.Y = 700
-			return material.List(th, p.usersList).Layout(gtx, len(p.users), func(gtx layout.Context, i int) layout.Dimensions {
-				return userLayout(gtx, i, p, th)
+			return material.List(th.Theme, p.usersList).Layout(gtx, len(p.users), func(gtx layout.Context, i int) layout.Dimensions {
+				return userLayout(gtx, i, p, th.Theme)
 			})
 		}),
 		layout.Rigid(
@@ -155,7 +155,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 				return layout.Inset{
 					Left:  unit.Dp(10),
 					Right: unit.Dp(10),
-				}.Layout(gtx, material.ProgressBar(th, p.Progress).Layout)
+				}.Layout(gtx, material.ProgressBar(th.Theme, p.Progress).Layout)
 				// return material.ProgressBar(theme, 50).Layout(gtx)
 			},
 		),
@@ -166,7 +166,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 				func(gtx layout.Context) layout.Dimensions {
 					p.artistInput.SingleLine = true
 					p.artistInput.MaxLen = 128
-					return p.artistInput.Layout(gtx, th, "zvuk.com artist link")
+					return p.artistInput.Layout(gtx, th.Theme, "zvuk.com artist link")
 				},
 				func(gtx layout.Context) layout.Dimensions {
 					if p.addButton.Clicked() {
@@ -183,7 +183,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 						}
 					}
 					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return material.Button(th, &p.addButton, "Add").Layout(gtx)
+						return material.Button(th.Theme, &p.addButton, "Add").Layout(gtx)
 					})
 				})
 		}),

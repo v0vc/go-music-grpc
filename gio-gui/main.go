@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/v0vc/go-music-grpc/gio-gui/pages/sber"
+
 	"github.com/joho/godotenv"
 
 	"gioui.org/app"
@@ -12,7 +14,6 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
-	"github.com/v0vc/go-music-grpc/gio-gui/pages/sber"
 	"github.com/v0vc/go-music-grpc/gio-gui/pages/zvuk"
 )
 
@@ -66,13 +67,13 @@ func loop(w *app.Window) error {
 	var ops op.Ops
 
 	router := page.NewRouter(w)
+	zv := zvuk.New(&router)
 	sb := sber.New(&router)
-
-	router.Register(0, zvuk.New(&router))
-	/*router.Register(1, sb)
-	router.Register(2, spotify.New(&router))
-	router.Register(3, deezer.New(&router))
-	router.Register(4, rutracker.New(&router))*/
+	router.Register(0, zv)
+	router.Register(1, sb)
+	// router.Register(2, spotify.New(&router))
+	// router.Register(3, deezer.New(&router))
+	// router.Register(4, rutracker.New(&router))*/
 	// router.Register(5, textfield.New(&router))
 	// router.Register(6, appbar.New(&router))
 
@@ -92,6 +93,11 @@ func loop(w *app.Window) error {
 				sb.Progress += pr
 				w.Invalidate()
 			}
+			/*		case pr := <-zv.SingleInstance:
+					if sb.Progress < 1 {
+						sb.Progress += pr
+						w.Invalidate()
+					}*/
 		}
 	}
 }
