@@ -15,6 +15,8 @@ import (
 
 // Channel selector state.
 type Channel struct {
+	// ContextArea holds the clicks state for the right-click context menu.
+	component.ContextArea
 	widget.Clickable
 	Image  CachedImage
 	Active bool
@@ -28,6 +30,8 @@ type ChannelStyle struct {
 	TimeStamp material.LabelStyle
 	Indicator color.NRGBA
 	Overlay   color.NRGBA
+	// Menu configures the right-click context menu for channel.
+	Menu component.MenuStyle
 }
 
 // ChannelConfig configures room item display.
@@ -43,7 +47,7 @@ type ChannelConfig struct {
 }
 
 // CreateChannel creates a style type that can lay out the data for a room.
-func CreateChannel(th *material.Theme, interact *Channel, room *ChannelConfig) ChannelStyle {
+func CreateChannel(th *material.Theme, interact *Channel, menu *component.MenuState, room *ChannelConfig) ChannelStyle {
 	interact.Image.Cache(room.Image)
 	return ChannelStyle{
 		Channel:   interact,
@@ -61,6 +65,7 @@ func CreateChannel(th *material.Theme, interact *Channel, room *ChannelConfig) C
 		},
 		Indicator: th.ContrastBg,
 		Overlay:   component.WithAlpha(th.Fg, 50),
+		Menu:      component.Menu(th, menu),
 	}
 }
 
@@ -117,5 +122,16 @@ func (room ChannelStyle) Layout(gtx layout.Context) layout.Dimensions {
 			})
 		})
 	})
-	return dims
+	return layout.Stack{}.Layout(gtx,
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return dims
+		}),
+		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+			return room.ContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				gtx.Constraints.Min = image.Point{}
+				return room.Menu.Layout(gtx)
+			})
+		}),
+	)
+	// return dims
 }

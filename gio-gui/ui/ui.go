@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image"
+	"slices"
 	"time"
 
 	"gioui.org/op/clip"
@@ -57,17 +58,23 @@ type UI struct {
 	// AddBtn widget.Clickable
 	// DeleteBtn holds click state for a button that removes a message
 	// from the current room.
+
+	CopyBtn   widget.Clickable
+	SyncBtn   widget.Clickable
 	DeleteBtn widget.Clickable
 
 	DownloadBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
 	MessageMenu component.MenuState
+	// ChannelMenu is the context menu available on channel.
+	ChannelMenu component.MenuState
 	// ContextMenuTarget tracks the message state on which the context
 	// menu is currently acting.
 	ContextMenuTarget *model.Message
 
-	Invalidator func()
-	th          *page.Theme
+	ChannelMenuTarget *Room
+	Invalidator       func()
+	th                *page.Theme
 }
 
 // NewUI constructs a UI and populates it with data.
@@ -79,15 +86,34 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
 
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
-				item.Icon = icon.DeleteIcon
-				item.Hint = component.MenuHintText(ui.th.Theme, "Test")
-				return item.Layout(gtx)
-			},
+			/*			func(gtx layout.Context) layout.Dimensions {
+						item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
+						item.Icon = icon.DeleteIcon
+						item.Hint = component.MenuHintText(ui.th.Theme, "Test")
+						return item.Layout(gtx)
+					},*/
 			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
 				item.Icon = icon.DownloadIcon
+				return item.Layout(gtx)
+			},
+		},
+	}
+	ui.ChannelMenu = component.MenuState{
+		Options: []func(gtx layout.Context) layout.Dimensions{
+			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.CopyBtn, "Copy")
+				item.Icon = icon.CopyIcon
+				return item.Layout(gtx)
+			},
+			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.SyncBtn, "Sync")
+				item.Icon = icon.SyncIcon
+				return item.Layout(gtx)
+			},
+			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
+				item.Icon = icon.DeleteIcon
 				return item.Layout(gtx)
 			},
 		},
@@ -146,6 +172,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
 		//ui.Rooms.List[ii].List.Position.First = 0
 		//ui.Rooms.List[ii].List.Position.Offset = 0
 	}*/
+
 	ui.Rooms.SelectAndFill(0, invalidator, ui.presentChatRow)
 
 	return &ui
@@ -234,8 +261,10 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 								active.Editor.SetText("")
 							}*/
 				if ui.DeleteBtn.Clicked() {
-					serial := ui.ContextMenuTarget.Serial()
-					ui.Rooms.Active().DeleteRow(serial)
+					// serial := ui.ContextMenuTarget.Serial()
+					// ui.Rooms.Active().DeleteRow(serial)
+					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
+					ui.Rooms.List = slices.Delete(ui.Rooms.List, ind, ind+1)
 				}
 				return layout.Inset{
 					Bottom: unit.Dp(8),
@@ -330,7 +359,10 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 			return material.List(ui.th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
 				r := ui.Rooms.Index(ii)
 				latest := r.Latest()
-				return CreateChannel(ui.th.Theme, &r.Interact, &ChannelConfig{
+				if r.Interact.ContextArea.Active() {
+					ui.ChannelMenuTarget = r
+				}
+				return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
 					Name:    r.Room.Name,
 					Image:   r.Room.Image,
 					Content: latest.Content,

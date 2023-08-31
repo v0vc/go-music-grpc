@@ -94,3 +94,13 @@ var MusicIcon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ImageMusicNote)
 	return icon
 }()
+
+var SyncIcon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.NotificationSync)
+	return icon
+}()
+
+var CopyIcon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ContentContentCopy)
+	return icon
+}()
