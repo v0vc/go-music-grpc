@@ -86,12 +86,12 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
 
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
-			/*			func(gtx layout.Context) layout.Dimensions {
-						item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
-						item.Icon = icon.DeleteIcon
-						item.Hint = component.MenuHintText(ui.th.Theme, "Test")
-						return item.Layout(gtx)
-					},*/
+			/*func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
+				item.Icon = icon.DeleteIcon
+				item.Hint = component.MenuHintText(ui.th.Theme, "Test")
+				return item.Layout(gtx)
+			},*/
 			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
 				item.Icon = icon.DownloadIcon
@@ -254,17 +254,17 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return lay.Background(ui.th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				/*				if ui.AddBtn.Clicked() {
-								active := ui.Rooms.Active()
-								// active.SendLocal(active.Editor.Text())
-								active.RunSearch(active.Editor.Text())
-								active.Editor.SetText("")
-							}*/
-				if ui.DeleteBtn.Clicked() {
-					// serial := ui.ContextMenuTarget.Serial()
-					// ui.Rooms.Active().DeleteRow(serial)
+				/*if ui.AddBtn.Clicked() {
+					active := ui.Rooms.Active()
+					active.SendLocal(active.Editor.Text())
+					active.Editor.SetText("")
+				}*/
+				if ui.DeleteBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
 					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
-					ui.Rooms.List = slices.Delete(ui.Rooms.List, ind, ind+1)
+					if ui.ChannelMenuTarget.Interact.Active {
+						ui.Rooms.SelectAndFill(ind-1, ui.Invalidator, ui.presentChatRow)
+					}
+					ui.Rooms.List = ui.Rooms.DeleteChannel(ind)
 				}
 				return layout.Inset{
 					Bottom: unit.Dp(8),
@@ -272,14 +272,10 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 					Left:   unit.Dp(8),
 					Right:  unit.Dp(8),
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					/*					gutter := lay.Gutter()
-										gutter.RightWidth = gutter.RightWidth + listStyle.ScrollbarStyle.Width()*/
-					/*return layout.Inset{
-						Left:  unit.Dp(8),
-						Right: unit.Dp(8),
-					}.Layout(gtx, ui.layoutEditor)*/
 					return ui.layoutEditor(gtx)
-					/*return gutter.Layout(gtx,
+					/*gutter := lay.Gutter()
+					gutter.RightWidth = gutter.RightWidth + listStyle.ScrollbarStyle.Width()
+					return gutter.Layout(gtx,
 						nil,
 						func(gtx layout.Context) layout.Dimensions {
 							return ui.layoutEditor(gtx)
@@ -386,12 +382,6 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 						break
 					}
 				}
-				/*for _, e := range editor.Events() {
-				switch e.(type) {
-				case widget.SubmitEvent:
-				active.SendLocal(editor.Text())
-				active.RunSearch(editor.Text())
-				editor.SetText("")*/
 				editor.Submit = true
 				editor.SingleLine = true
 				return material.Editor(ui.th.Theme, editor, "Search").Layout(gtx)

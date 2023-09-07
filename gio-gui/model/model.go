@@ -58,6 +58,8 @@ type Room struct {
 	Id string
 	// Latest message in the room, if any.
 	Latest *Message
+	IsBase bool
+	Loaded bool
 }
 
 type Messages struct {

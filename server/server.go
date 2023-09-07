@@ -86,6 +86,37 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	return albs, nil
 }
 
+func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ?;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stRows.Close()
+
+	rows, err := stRows.QueryContext(ctx, siteId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	var albs []*artist.Album
+	for rows.Next() {
+		var alb artist.Album
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail); err != nil {
+			log.Fatal(err)
+		}
+		albs = append(albs, &alb)
+	}
+
+	return albs, nil
+}
+
 func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
@@ -247,6 +278,27 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 		)
 	} else {
 		fmt.Printf("read artist releases: %v finished in %v \n", artistId, time.Since(start))
+	}
+
+	return &artist.ReadArtistAlbumResponse{
+		Releases: albums,
+	}, err
+}
+
+func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest) (*artist.ReadArtistAlbumResponse, error) {
+	siteId := req.GetSiteId()
+	fmt.Printf("read new releases: %v started \n", siteId)
+	start := time.Now()
+
+	albums, err := getNewReleasesFromDb(ctx, siteId)
+
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	} else {
+		fmt.Printf("read new releases: %v finished in %v \n", siteId, time.Since(start))
 	}
 
 	return &artist.ReadArtistAlbumResponse{

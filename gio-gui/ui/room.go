@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -127,6 +128,25 @@ func (r *Room) DeleteRow(serial list.Serial) {
 	go r.ListState.Modify(nil, nil, []list.Serial{serial})
 }
 
+/*func (r *Room) DeleteAllRows() {
+	var resp []list.Serial
+	for _, i := range r.RowTracker.Rows {
+		ser := i.(model.Message).Serial()
+		r.RowTracker.Delete(ser)
+		resp = append(resp, ser)
+	}
+	go r.ListState.Modify(nil, nil, resp)
+}*/
+
+func (r *Rooms) DeleteChannel(index int) []*Room {
+	r.Lock()
+	defer r.Unlock()
+	if len(r.List) != 0 {
+		return slices.Delete(r.List, index, index+1)
+	}
+	return make([]*Room, 0)
+}
+
 // Active returns the active room, empty if not rooms are available.
 func (r *Rooms) Active() *Room {
 	r.Lock()
@@ -149,7 +169,7 @@ func (r *Room) Latest() model.Message {
 
 // Select the room at the given index.
 // Index is bounded by [0, len(rooms)).
-func (r *Rooms) Select(index int) {
+/*func (r *Rooms) Select(index int) {
 	r.Lock()
 	defer r.Unlock()
 	if index < 0 {
@@ -162,7 +182,7 @@ func (r *Rooms) Select(index int) {
 	r.List[r.active].Interact.Active = false
 	r.active = index
 	r.List[r.active].Interact.Active = true
-}
+}*/
 
 func (r *Rooms) SelectAndFill(index int, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget) {
 	r.Lock()
@@ -179,11 +199,19 @@ func (r *Rooms) SelectAndFill(index int, invalidator func(), presentChatRow func
 	r.active = index
 	r.List[r.active].Interact.Active = true
 
-	if r.List[r.active].RowTracker.Rows == nil {
-		albs := r.List[r.active].RowTracker.Generator.GetArtistAlbums(1, r.List[r.active].Room.Id)
-		for _, alb := range albs {
-			r.List[r.active].RowTracker.Add(alb)
+	if r.List[r.active].RowTracker.Rows == nil && !r.List[r.active].Loaded {
+		channel := r.List[r.active]
+		var albs []model.Message
+		if channel.Room.IsBase {
+			albs = channel.RowTracker.Generator.GetNewAlbums(1)
+		} else {
+			albs = channel.RowTracker.Generator.GetArtistAlbums(1, r.List[r.active].Room.Id)
 		}
+
+		for _, alb := range albs {
+			channel.RowTracker.Add(alb)
+		}
+		channel.Room.Loaded = true
 		lm := list.NewManager(len(albs),
 			list.Hooks{
 				// Define an allocator function that can instantiate the appropriate
@@ -200,15 +228,15 @@ func (r *Rooms) SelectAndFill(index int, invalidator func(), presentChatRow func
 				// and state into a widget.
 				Presenter: presentChatRow,
 				// NOTE(jfm): award coupling between message data and `list.Manager`.
-				Loader:      r.List[r.active].RowTracker.Load,
+				Loader:      channel.RowTracker.Load,
 				Synthesizer: synth,
 				Comparator:  rowLessThan,
 				Invalidator: invalidator,
 			},
 		)
-		lm.Stickiness = list.After
-		// lm.Stickiness = list.Before
-		r.List[r.active].ListState = lm
+		// lm.Stickiness = list.After
+		lm.Stickiness = list.Before
+		channel.ListState = lm
 	}
 }
 

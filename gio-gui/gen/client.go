@@ -76,24 +76,57 @@ type Generator struct {
 
 func (g *Generator) GetChannels(siteId uint32) *model.Rooms {
 	var rooms model.Rooms
+	baseRoom := model.Room{
+		Name:   "       -= NEW =-",
+		Id:     "-1",
+		Image:  nil,
+		IsBase: true,
+	}
+	rooms.Add(baseRoom)
 	client, _ := GetClientInstance()
 	res, _ := client.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: siteId})
 	for _, artist := range res.Artists {
-		/*		if artist.ArtistId != "210053885" {
-				continue
-			}*/
 		thumb := artist.GetThumbnail()
 		if thumb == nil {
 			thumb = GetNoAvatarInstance()
 		}
 		im, _, _ := image.Decode(bytes.NewReader(thumb))
 		rooms.Add(model.Room{
-			Name:  artist.GetTitle(),
-			Id:    artist.GetArtistId(),
-			Image: im,
+			Name:   artist.GetTitle(),
+			Id:     artist.GetArtistId(),
+			Image:  im,
+			IsBase: false,
 		})
 	}
 	return &rooms
+}
+
+func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
+	client, _ := GetClientInstance()
+	res, _ := client.ReadNewAlbums(context.Background(), &artist.ListArtistRequest{
+		SiteId: siteId,
+	})
+	// var albums = make([]model.Message, 0)
+	var albums []model.Message
+	for _, alb := range res.Releases {
+		at, _ := time.Parse("2006-01-02T00:00:00", alb.GetReleaseDate())
+		serial := g.old.Increment()
+		thumb := alb.GetThumbnail()
+		if thumb == nil {
+			thumb = GetNoAvatarInstance()
+		}
+		im, _, _ := image.Decode(bytes.NewReader(thumb))
+		al := model.Message{
+			SerialID: fmt.Sprintf("%05d", serial),
+			Sender:   alb.GetTitle(),
+			Content:  alb.GetReleaseType(),
+			SentAt:   at,
+			Avatar:   im,
+			Read:     false,
+		}
+		albums = append(albums, al)
+	}
+	return albums
 }
 
 func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) []model.Message {
