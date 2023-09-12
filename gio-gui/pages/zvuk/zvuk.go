@@ -27,6 +27,8 @@ type Page struct {
 	// favorite         bool
 }
 
+const siteId = 1
+
 // New constructs a Page with the provided router.
 func New(router *page.Router) *Page {
 	return &Page{
@@ -115,7 +117,7 @@ func getInstance(invalidator func(), th *page.Theme, loadSize int) *ui.UI {
 	if singleInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
-		singleInstance = ui.NewUI(invalidator, th, loadSize)
+		singleInstance = ui.NewUI(invalidator, th, loadSize, siteId)
 	}
 	return singleInstance
 }

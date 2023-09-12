@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -19,10 +20,7 @@ import (
 	"github.com/v0vc/go-music-grpc/gio-gui/model"
 )
 
-// inflection point in the theoretical message timeline.
-// RowTracker with serial before inflection are older, and messages after it
-// are newer.
-// const inflection = math.MaxInt64 / 2
+const artistRegexString = `^https://zvuk.com/artist/(\d+)$`
 
 var lock = &sync.Mutex{}
 
@@ -97,6 +95,32 @@ func (g *Generator) GetChannels(siteId uint32) *model.Rooms {
 			Image:  im,
 			IsBase: false,
 		})
+	}
+	return &rooms
+}
+
+func (g *Generator) AddChannel(siteId uint32, artistUrl string) *model.Rooms {
+	var rooms model.Rooms
+	artistId := findArtistId(artistUrl)
+	if artistId != "" {
+		client, _ := GetClientInstance()
+		res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
+			SiteId:   siteId,
+			ArtistId: artistId,
+		})
+		for _, artist := range res.Artists {
+			thumb := artist.GetThumbnail()
+			if thumb == nil {
+				thumb = GetNoAvatarInstance()
+			}
+			im, _, _ := image.Decode(bytes.NewReader(thumb))
+			rooms.Add(model.Room{
+				Name:   artist.GetTitle(),
+				Id:     artist.GetArtistId(),
+				Image:  im,
+				IsBase: false,
+			})
+		}
 	}
 	return &rooms
 }
@@ -176,6 +200,14 @@ func (g *Generator) GenNewMessage(sender, content string) model.Message {
 		Read:     true,
 		// Status: "TEST",
 	}
+}
+
+func findArtistId(url string) string {
+	matchArtist := regexp.MustCompile(artistRegexString).FindStringSubmatch(url)
+	if matchArtist == nil {
+		return ""
+	}
+	return matchArtist[1]
 }
 
 // syncInt is a synchronized integer.

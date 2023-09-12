@@ -75,13 +75,15 @@ type UI struct {
 	ChannelMenuTarget *Room
 	Invalidator       func()
 	th                *page.Theme
+	SiteId            uint32
 }
 
 // NewUI constructs a UI and populates it with data.
-func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
+func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *UI {
 	var ui UI
 	ui.th = theme
 	ui.Invalidator = invalidator
+	ui.SiteId = siteId
 	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
 
 	ui.MessageMenu = component.MenuState{
@@ -122,7 +124,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
 	g := &gen.Generator{}
 
 	// Generate most of the model data.
-	rooms := g.GetChannels(1)
+	rooms := g.GetChannels(siteId)
 	for _, r := range rooms.List() {
 		mess := model.Messages{}
 		rt := &RowTracker{
@@ -173,7 +175,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int) *UI {
 		//ui.Rooms.List[ii].List.Position.Offset = 0
 	}*/
 
-	ui.Rooms.SelectAndFill(0, invalidator, ui.presentChatRow)
+	ui.Rooms.SelectAndFill(siteId, 0, invalidator, ui.presentChatRow)
 
 	return &ui
 }
@@ -189,7 +191,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked() {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ii, ui.Invalidator, ui.presentChatRow)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, ui.Invalidator, ui.presentChatRow)
 			ui.InsideRoom = true
 			break
 		}
@@ -262,7 +264,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 				if ui.DeleteBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
 					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 					if ui.ChannelMenuTarget.Interact.Active {
-						ui.Rooms.SelectAndFill(ind-1, ui.Invalidator, ui.presentChatRow)
+						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, ui.Invalidator, ui.presentChatRow)
 					}
 					ui.Rooms.List = ui.Rooms.DeleteChannel(ind)
 				}
