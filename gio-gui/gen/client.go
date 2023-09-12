@@ -77,7 +77,7 @@ type Generator struct {
 func (g *Generator) GetChannels(siteId uint32) *model.Rooms {
 	var rooms model.Rooms
 	baseRoom := model.Room{
-		Name:   "       -= NEW =-",
+		Name:   "-= NEW =-",
 		Id:     "-1",
 		Image:  nil,
 		IsBase: true,

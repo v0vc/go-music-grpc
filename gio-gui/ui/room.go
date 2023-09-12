@@ -128,16 +128,6 @@ func (r *Room) DeleteRow(serial list.Serial) {
 	go r.ListState.Modify(nil, nil, []list.Serial{serial})
 }
 
-/*func (r *Room) DeleteAllRows() {
-	var resp []list.Serial
-	for _, i := range r.RowTracker.Rows {
-		ser := i.(model.Message).Serial()
-		r.RowTracker.Delete(ser)
-		resp = append(resp, ser)
-	}
-	go r.ListState.Modify(nil, nil, resp)
-}*/
-
 func (r *Rooms) DeleteChannel(index int) []*Room {
 	r.Lock()
 	defer r.Unlock()

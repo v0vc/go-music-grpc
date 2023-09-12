@@ -104,3 +104,8 @@ var CopyIcon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ContentContentCopy)
 	return icon
 }()
+
+var SaveIcon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ContentSave)
+	return icon
+}()

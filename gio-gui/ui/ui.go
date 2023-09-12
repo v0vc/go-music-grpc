@@ -266,6 +266,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 					}
 					ui.Rooms.List = ui.Rooms.DeleteChannel(ind)
 				}
+				// inset := layout.UniformInset(unit.Dp(8))
 				return layout.Inset{
 					Bottom: unit.Dp(8),
 					Top:    unit.Dp(8),
