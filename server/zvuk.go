@@ -525,7 +525,8 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 					} else {
 						fmt.Printf("upsert: %v, id: %v \n", artistData.Title, artId)
 					}
-					if artRawId == 0 || !Contains(existArtistIds, artistData.ID) || userAdded {
+					// if artRawId == 0 || !Contains(existArtistIds, artistData.ID) {
+					if userAdded {
 						artists = append(artists, &artist.Artist{
 							Id:        int64(artId),
 							SiteId:    siteId,
@@ -535,6 +536,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 							UserAdded: userAdded,
 						})
 					}
+					//}
 					mArtist[artistData.ID] = artId
 				}
 

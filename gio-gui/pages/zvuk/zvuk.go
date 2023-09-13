@@ -50,6 +50,9 @@ func (p *Page) addActions() []component.AppBarAction {
 				gutter.RightWidth = gutter.RightWidth - unit.Dp(60)
 				if p.insertBtn.Clicked() {
 					p.Router.AppBar.StopContextual(gtx.Now)
+					if p.editor.Text() != "" {
+						singleInstance.AddChannel(siteId, p.editor.Text())
+					}
 				}
 				return gutter.Layout(gtx,
 					nil,

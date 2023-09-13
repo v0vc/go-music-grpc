@@ -5,6 +5,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/v0vc/go-music-grpc/gio-gui/gen"
+
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 
@@ -18,7 +20,6 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/v0vc/go-music-grpc/gio-gui/async"
-	"github.com/v0vc/go-music-grpc/gio-gui/gen"
 	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
 	"github.com/v0vc/go-music-grpc/gio-gui/list"
 	"github.com/v0vc/go-music-grpc/gio-gui/model"
@@ -76,6 +77,7 @@ type UI struct {
 	Invalidator       func()
 	th                *page.Theme
 	SiteId            uint32
+	LoadSize          int
 }
 
 // NewUI constructs a UI and populates it with data.
@@ -84,16 +86,11 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	ui.th = theme
 	ui.Invalidator = invalidator
 	ui.SiteId = siteId
+	ui.LoadSize = loadSize
 	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
 
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
-			/*func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
-				item.Icon = icon.DeleteIcon
-				item.Hint = component.MenuHintText(ui.th.Theme, "Test")
-				return item.Layout(gtx)
-			},*/
 			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
 				item.Icon = icon.DownloadIcon
@@ -125,7 +122,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 
 	// Generate most of the model data.
 	rooms := g.GetChannels(siteId)
-	for _, r := range rooms.List() {
+	/*for _, r := range rooms.List() {
 		mess := model.Messages{}
 		rt := &RowTracker{
 			SerialToIndex: make(map[list.Serial]int),
@@ -142,42 +139,40 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 		room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
 		room.List.Axis = layout.Vertical
 		ui.Rooms.List = append(ui.Rooms.List, room)
-	}
-
-	// spin up a bunch of async actors to send messages to rooms.
-	/*	for _, u := range users.List() {
-		u := u
-		if u.Name == local.Name {
-			continue
-		}
-		go func() {
-			for {
-				var (
-					respond = time.Second * time.Duration(1)
-					compose = time.Second * time.Duration(1)
-					room    = ui.Rooms.Random()
-				)
-				func() {
-					time.Sleep(respond)
-					// room.SetComposing(u.Name, true)
-					time.Sleep(compose)
-					// room.SetComposing(u.Name, false)
-					room.Send(u.Name, lorem.Paragraph(1, 4))
-				}()
-			}
-		}()
 	}*/
-
-	/*	for ii := range ui.Rooms.List {
-		ui.Rooms.List[ii].List.ScrollToEnd = false
-		ui.Rooms.List[ii].List.Axis = layout.Vertical
-		//ui.Rooms.List[ii].List.Position.First = 0
-		//ui.Rooms.List[ii].List.Position.Offset = 0
-	}*/
+	mess := model.Messages{}
+	MapDto(&ui, rooms, &mess, g)
 
 	ui.Rooms.SelectAndFill(siteId, 0, invalidator, ui.presentChatRow)
 
 	return &ui
+}
+
+func MapDto(ui *UI, rooms *model.Rooms, mess *model.Messages, g *gen.Generator) {
+	for _, r := range rooms.List() {
+		// mess := model.Messages{}
+		rt := &RowTracker{
+			SerialToIndex: make(map[list.Serial]int),
+			Generator:     g,
+			Messages:      mess,
+			MaxLoads:      ui.LoadSize,
+			ScrollToEnd:   false,
+		}
+		room := &Room{
+			Room:            r,
+			RowTracker:      rt,
+			SearchResponses: make(chan []list.Serial),
+		}
+		room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
+		room.List.Axis = layout.Vertical
+		ui.Rooms.List = append(ui.Rooms.List, room)
+	}
+}
+
+func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
+	g := &gen.Generator{}
+	channels, albums := g.AddChannel(siteId, artistUrl)
+	MapDto(ui, channels, albums, g)
 }
 
 // Layout the application UI.

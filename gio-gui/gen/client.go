@@ -99,8 +99,9 @@ func (g *Generator) GetChannels(siteId uint32) *model.Rooms {
 	return &rooms
 }
 
-func (g *Generator) AddChannel(siteId uint32, artistUrl string) *model.Rooms {
-	var rooms model.Rooms
+func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *model.Messages) {
+	var channels model.Rooms
+	var albums model.Messages
 	artistId := findArtistId(artistUrl)
 	if artistId != "" {
 		client, _ := GetClientInstance()
@@ -109,20 +110,42 @@ func (g *Generator) AddChannel(siteId uint32, artistUrl string) *model.Rooms {
 			ArtistId: artistId,
 		})
 		for _, artist := range res.Artists {
+			if !artist.UserAdded {
+				continue
+			}
 			thumb := artist.GetThumbnail()
 			if thumb == nil {
 				thumb = GetNoAvatarInstance()
 			}
 			im, _, _ := image.Decode(bytes.NewReader(thumb))
-			rooms.Add(model.Room{
+			channels.Add(model.Room{
 				Name:   artist.GetTitle(),
 				Id:     artist.GetArtistId(),
 				Image:  im,
 				IsBase: false,
+				Loaded: true,
+			})
+		}
+		for _, alb := range res.Albums {
+			at, _ := time.Parse("2006-01-02T00:00:00", alb.GetReleaseDate())
+			serial := g.old.Increment()
+			// at     = time.Now().Add(time.Hour * time.Duration(serial) * -1)
+			thumb := alb.GetThumbnail()
+			if thumb == nil {
+				thumb = GetNoAvatarInstance()
+			}
+			im, _, _ := image.Decode(bytes.NewReader(thumb))
+			albums.Add(model.Message{
+				SerialID: fmt.Sprintf("%05d", serial),
+				Sender:   alb.GetTitle(),
+				Content:  alb.GetReleaseType(),
+				SentAt:   at,
+				Avatar:   im,
+				Read:     false,
 			})
 		}
 	}
-	return &rooms
+	return &channels, &albums
 }
 
 func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
@@ -178,10 +201,7 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) []model.Mess
 			Content:  alb.GetReleaseType(),
 			SentAt:   at,
 			Avatar:   im,
-			/*			Read: func() bool {
-						return serial > index
-					}(),*/
-			Read: false,
+			Read:     false,
 		}
 		albums = append(albums, al)
 	}
