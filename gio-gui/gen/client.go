@@ -123,7 +123,6 @@ func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *
 				Id:     artist.GetArtistId(),
 				Image:  im,
 				IsBase: false,
-				Loaded: true,
 			})
 		}
 		for _, alb := range res.Albums {

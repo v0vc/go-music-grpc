@@ -84,6 +84,10 @@ func (us *Messages) List() (list []*Message) {
 	return list
 }
 
+func (us *Messages) GetList() (list []Message) {
+	return us.list
+}
+
 func (us *Messages) Lookup(name string) (*Message, bool) {
 	v, ok := us.index[name]
 	return v, ok

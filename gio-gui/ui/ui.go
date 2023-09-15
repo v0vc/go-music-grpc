@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image"
 	"slices"
 	"time"
@@ -140,21 +141,20 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 		room.List.Axis = layout.Vertical
 		ui.Rooms.List = append(ui.Rooms.List, room)
 	}*/
-	mess := model.Messages{}
-	MapDto(&ui, rooms, &mess, g)
 
-	ui.Rooms.SelectAndFill(siteId, 0, invalidator, ui.presentChatRow)
+	MapDto(&ui, rooms, nil, g)
+
+	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentChatRow)
 
 	return &ui
 }
 
-func MapDto(ui *UI, rooms *model.Rooms, mess *model.Messages, g *gen.Generator) {
-	for _, r := range rooms.List() {
-		// mess := model.Messages{}
+func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Generator) {
+	for _, r := range channels.List() {
 		rt := &RowTracker{
 			SerialToIndex: make(map[list.Serial]int),
 			Generator:     g,
-			Messages:      mess,
+			Messages:      albums,
 			MaxLoads:      ui.LoadSize,
 			ScrollToEnd:   false,
 		}
@@ -163,6 +163,7 @@ func MapDto(ui *UI, rooms *model.Rooms, mess *model.Messages, g *gen.Generator) 
 			RowTracker:      rt,
 			SearchResponses: make(chan []list.Serial),
 		}
+
 		room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
 		room.List.Axis = layout.Vertical
 		ui.Rooms.List = append(ui.Rooms.List, room)
@@ -173,6 +174,7 @@ func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	g := &gen.Generator{}
 	channels, albums := g.AddChannel(siteId, artistUrl)
 	MapDto(ui, channels, albums, g)
+	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow)
 }
 
 // Layout the application UI.
@@ -186,7 +188,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked() {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ui.SiteId, ii, ui.Invalidator, ui.presentChatRow)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentChatRow)
 			ui.InsideRoom = true
 			break
 		}
@@ -259,7 +261,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 				if ui.DeleteBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
 					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 					if ui.ChannelMenuTarget.Interact.Active {
-						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, ui.Invalidator, ui.presentChatRow)
+						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow)
 					}
 					ui.Rooms.List = ui.Rooms.DeleteChannel(ind)
 				}
@@ -415,6 +417,9 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				// inform the UI that this message is the target of any action
 				// taken within that menu.
 				ui.ContextMenuTarget = &el
+			}
+			if ui.DownloadBtn.Clicked() {
+				fmt.Println(el.SerialID)
 			}
 			return ui.row(el, elemState)(gtx)
 		}

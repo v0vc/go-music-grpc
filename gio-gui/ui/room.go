@@ -174,7 +174,7 @@ func (r *Room) Latest() model.Message {
 	r.List[r.active].Interact.Active = true
 }*/
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget) {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget) {
 	r.Lock()
 	defer r.Unlock()
 	if index < 0 {
@@ -191,17 +191,17 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, invalidator func(), pres
 
 	if r.List[r.active].RowTracker.Rows == nil && !r.List[r.active].Loaded {
 		channel := r.List[r.active]
-		var albs []model.Message
-		if channel.Room.IsBase {
-			albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
-		} else {
-			albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
+		// var albs []model.Message
+		if albs == nil {
+			if channel.Room.IsBase {
+				albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
+			} else {
+				albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
+			}
 		}
-
 		for _, alb := range albs {
 			channel.RowTracker.Add(alb)
 		}
-		channel.Room.Loaded = true
 		lm := list.NewManager(len(albs),
 			list.Hooks{
 				// Define an allocator function that can instantiate the appropriate
@@ -227,6 +227,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, invalidator func(), pres
 		// lm.Stickiness = list.After
 		lm.Stickiness = list.Before
 		channel.ListState = lm
+		channel.Room.Loaded = true
 	}
 }
 
