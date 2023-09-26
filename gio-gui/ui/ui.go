@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"image"
 	"slices"
 	"time"
@@ -419,7 +418,8 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				ui.ContextMenuTarget = &el
 			}
 			if ui.DownloadBtn.Clicked() {
-				fmt.Println(el.SerialID)
+				active := ui.Rooms.Active()
+				go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.Status}, "mid")
 			}
 			return ui.row(el, elemState)(gtx)
 		}

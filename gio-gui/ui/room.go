@@ -157,6 +157,12 @@ func (r *Room) Latest() model.Message {
 	return *r.Room.Latest
 }
 
+func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) {
+	r.Lock()
+	defer r.Unlock()
+	go r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality)
+}
+
 // Select the room at the given index.
 // Index is bounded by [0, len(rooms)).
 /*func (r *Rooms) Select(index int) {
