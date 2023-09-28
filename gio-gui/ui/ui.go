@@ -262,7 +262,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 					if ui.ChannelMenuTarget.Interact.Active {
 						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow)
 					}
-					ui.Rooms.List = ui.Rooms.DeleteChannel(ind)
+					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				}
 				// inset := layout.UniformInset(unit.Dp(8))
 				return layout.Inset{

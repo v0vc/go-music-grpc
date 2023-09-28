@@ -28,8 +28,6 @@ var singleInstance artist.ArtistServiceClient
 
 var cc *grpc.ClientConn
 
-var err error
-
 var singleInstanceNoAvatar []byte
 
 func GetNoAvatarInstance() []byte {
@@ -51,7 +49,7 @@ func GetClientInstance() (artist.ArtistServiceClient, error) {
 		lock.Lock()
 		defer lock.Unlock()
 		fmt.Println("Creating single instance now.")
-		cc, err = grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cc, err := grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			fmt.Printf("could not connect: %v\n", err)
 			cc.Close()
@@ -132,6 +130,16 @@ func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *
 		}
 	}
 	return &channels, &albums
+}
+
+func (g *Generator) DeleteArtist(siteId uint32, artistId string) int64 {
+	client, _ := GetClientInstance()
+	res, _ := client.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{
+		SiteId:   siteId,
+		ArtistId: artistId,
+	})
+
+	return res.GetRowsAffected()
 }
 
 func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {

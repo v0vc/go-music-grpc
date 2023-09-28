@@ -128,10 +128,12 @@ func (r *Room) DeleteRow(serial list.Serial) {
 	go r.ListState.Modify(nil, nil, []list.Serial{serial})
 }
 
-func (r *Rooms) DeleteChannel(index int) []*Room {
+func (r *Rooms) DeleteChannel(index int, siteId uint32) []*Room {
+	channel := r.Index(index)
 	r.Lock()
 	defer r.Unlock()
 	if len(r.List) != 0 {
+		go channel.RowTracker.Generator.DeleteArtist(siteId, channel.Id)
 		return slices.Delete(r.List, index, index+1)
 	}
 	return make([]*Room, 0)
