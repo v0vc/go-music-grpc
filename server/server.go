@@ -22,7 +22,7 @@ import (
 const (
 	defaultPort      = "4041"
 	defaultInterface = "0.0.0.0"
-	dbFile           = "./db/db.sqlite"
+	dbFile           = "./db.sqlite"
 )
 
 var DownloadDir string
@@ -53,6 +53,37 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 		fmt.Printf("artist db id is %d \n", artRawId)
 	}
 	return artRawId, userAdded
+}
+
+func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string) ([]string, error) {
+	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	stRows, err := db.PrepareContext(ctx, "select a.albumId from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ?;")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stRows.Close()
+
+	rows, err := stRows.QueryContext(ctx, artistId, siteId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	var albIds []string
+	for rows.Next() {
+		var alb string
+		if err = rows.Scan(&alb); err != nil {
+			log.Fatal(err)
+		}
+		albIds = append(albIds, alb)
+	}
+
+	return albIds, nil
 }
 
 func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
@@ -391,6 +422,42 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 		resDown map[string]string
 	)
 
+	switch siteId {
+	case 1:
+		// mid, high, flac
+		resDown, err = DownloadAlbumSb(ctx, siteId, albIds, req.GetTrackQuality())
+	case 2:
+		// "артист со спотика"
+	case 3:
+		// "артист с дизера"
+	}
+
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	} else {
+		fmt.Printf("download albums: %v finished in %v \n", albIds, time.Since(start))
+	}
+
+	return &artist.DownloadAlbumsResponse{
+		Downloaded: resDown,
+	}, nil
+}
+
+func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistRequest) (*artist.DownloadAlbumsResponse, error) {
+	siteId := req.GetSiteId()
+	artistId := req.GetArtistId()
+	fmt.Printf("download artistId: %v started \n", artistId)
+	start := time.Now()
+
+	var (
+		err     error
+		resDown map[string]string
+	)
+
+	albIds, err := getArtistReleasesIdFromDb(ctx, siteId, artistId)
 	switch siteId {
 	case 1:
 		// mid, high, flac

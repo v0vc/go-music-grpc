@@ -30,6 +30,7 @@ type ArtistServiceClient interface {
 	ReadAlbumTracks(ctx context.Context, in *ReadAlbumTrackRequest, opts ...grpc.CallOption) (*ReadAlbumTrackResponse, error)
 	DeleteArtist(ctx context.Context, in *DeleteArtistRequest, opts ...grpc.CallOption) (*DeleteArtistResponse, error)
 	DownloadAlbums(ctx context.Context, in *DownloadAlbumsRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
+	DownloadArtist(ctx context.Context, in *DownloadArtistRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
 	DownloadTracks(ctx context.Context, in *DownloadTracksRequest, opts ...grpc.CallOption) (*DownloadTracksResponse, error)
 	ListArtist(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (*ListArtistResponse, error)
 	ListStreamArtist(ctx context.Context, in *ListStreamArtistRequest, opts ...grpc.CallOption) (ArtistService_ListStreamArtistClient, error)
@@ -106,6 +107,15 @@ func (c *artistServiceClient) DownloadAlbums(ctx context.Context, in *DownloadAl
 	return out, nil
 }
 
+func (c *artistServiceClient) DownloadArtist(ctx context.Context, in *DownloadArtistRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error) {
+	out := new(DownloadAlbumsResponse)
+	err := c.cc.Invoke(ctx, "/artist.ArtistService/DownloadArtist", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *artistServiceClient) DownloadTracks(ctx context.Context, in *DownloadTracksRequest, opts ...grpc.CallOption) (*DownloadTracksResponse, error) {
 	out := new(DownloadTracksResponse)
 	err := c.cc.Invoke(ctx, "/artist.ArtistService/DownloadTracks", in, out, opts...)
@@ -167,6 +177,7 @@ type ArtistServiceServer interface {
 	ReadAlbumTracks(context.Context, *ReadAlbumTrackRequest) (*ReadAlbumTrackResponse, error)
 	DeleteArtist(context.Context, *DeleteArtistRequest) (*DeleteArtistResponse, error)
 	DownloadAlbums(context.Context, *DownloadAlbumsRequest) (*DownloadAlbumsResponse, error)
+	DownloadArtist(context.Context, *DownloadArtistRequest) (*DownloadAlbumsResponse, error)
 	DownloadTracks(context.Context, *DownloadTracksRequest) (*DownloadTracksResponse, error)
 	ListArtist(context.Context, *ListArtistRequest) (*ListArtistResponse, error)
 	ListStreamArtist(*ListStreamArtistRequest, ArtistService_ListStreamArtistServer) error
@@ -197,6 +208,9 @@ func (UnimplementedArtistServiceServer) DeleteArtist(context.Context, *DeleteArt
 }
 func (UnimplementedArtistServiceServer) DownloadAlbums(context.Context, *DownloadAlbumsRequest) (*DownloadAlbumsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DownloadAlbums not implemented")
+}
+func (UnimplementedArtistServiceServer) DownloadArtist(context.Context, *DownloadArtistRequest) (*DownloadAlbumsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DownloadArtist not implemented")
 }
 func (UnimplementedArtistServiceServer) DownloadTracks(context.Context, *DownloadTracksRequest) (*DownloadTracksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DownloadTracks not implemented")
@@ -346,6 +360,24 @@ func _ArtistService_DownloadAlbums_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArtistService_DownloadArtist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DownloadArtistRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArtistServiceServer).DownloadArtist(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/artist.ArtistService/DownloadArtist",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArtistServiceServer).DownloadArtist(ctx, req.(*DownloadArtistRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ArtistService_DownloadTracks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DownloadTracksRequest)
 	if err := dec(in); err != nil {
@@ -437,6 +469,10 @@ var ArtistService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DownloadAlbums",
 			Handler:    _ArtistService_DownloadAlbums_Handler,
+		},
+		{
+			MethodName: "DownloadArtist",
+			Handler:    _ArtistService_DownloadArtist_Handler,
 		},
 		{
 			MethodName: "DownloadTracks",

@@ -26,8 +26,6 @@ var lock = &sync.Mutex{}
 
 var singleInstance artist.ArtistServiceClient
 
-var cc *grpc.ClientConn
-
 var singleInstanceNoAvatar []byte
 
 func GetNoAvatarInstance() []byte {
@@ -193,6 +191,16 @@ func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality 
 	res, _ := client.DownloadAlbums(context.Background(), &artist.DownloadAlbumsRequest{
 		SiteId:       siteId,
 		AlbumIds:     albumId,
+		TrackQuality: trackQuality,
+	})
+	return res.Downloaded
+}
+
+func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality string) map[string]string {
+	client, _ := GetClientInstance()
+	res, _ := client.DownloadArtist(context.Background(), &artist.DownloadArtistRequest{
+		SiteId:       siteId,
+		ArtistId:     artistId,
 		TrackQuality: trackQuality,
 	})
 	return res.Downloaded

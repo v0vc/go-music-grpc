@@ -165,6 +165,12 @@ func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality strin
 	go r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality)
 }
 
+func (r *Room) DownloadArtist(siteId uint32, artistId string, trackQuality string) {
+	r.Lock()
+	defer r.Unlock()
+	go r.RowTracker.Generator.DownloadArtist(siteId, artistId, trackQuality)
+}
+
 // Select the room at the given index.
 // Index is bounded by [0, len(rooms)).
 /*func (r *Rooms) Select(index int) {

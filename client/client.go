@@ -134,17 +134,32 @@ func main() {
 	}*/
 
 	// download albums (mid, high, flac)
-	/*	req := &artist.DownloadAlbumsRequest{
-			SiteId:       1,
-			AlbumIds:     []string{"7356267", "16026887"},
-			TrackQuality: "flac",
-		}
-		fmt.Printf("download albums: %v \n", req.GetAlbumIds())
-		resp, err := c.DownloadAlbums(context.Background(), req)
-		if err != nil {
-			fmt.Printf("error while downloading: %v \n", err)
-		}
-		for trackId, dSize := range resp.Downloaded {
-			fmt.Printf("track %v was downloaded: %v \n", trackId, dSize)
-		}*/
+	/*req := &artist.DownloadAlbumsRequest{
+		SiteId:       1,
+		AlbumIds:     []string{"7356267", "16026887"},
+		TrackQuality: "flac",
+	}
+	fmt.Printf("download albums: %v \n", req.GetAlbumIds())
+	resp, err := c.DownloadAlbums(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error while downloading: %v \n", err)
+	}
+	for trackId, dSize := range resp.Downloaded {
+		fmt.Printf("track %v was downloaded: %v \n", trackId, dSize)
+	}*/
+
+	// download all artist albums (mid, high, flac)
+	/*req := &artist.DownloadArtistRequest{
+		SiteId:       1,
+		ArtistId:     "210053885",
+		TrackQuality: "flac",
+	}
+	fmt.Printf("download all artist albums: %v \n", req.GetArtistId())
+	resp, err := c.DownloadArtist(context.Background(), req)
+	if err != nil {
+		fmt.Printf("error while downloading: %v \n", err)
+	}
+	for trackId, dSize := range resp.Downloaded {
+		fmt.Printf("track %v was downloaded: %v \n", trackId, dSize)
+	}*/
 }

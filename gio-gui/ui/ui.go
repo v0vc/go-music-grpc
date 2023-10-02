@@ -5,6 +5,8 @@ import (
 	"slices"
 	"time"
 
+	"gioui.org/io/clipboard"
+
 	"github.com/v0vc/go-music-grpc/gio-gui/gen"
 
 	"gioui.org/op/clip"
@@ -60,9 +62,10 @@ type UI struct {
 	// DeleteBtn holds click state for a button that removes a message
 	// from the current room.
 
-	CopyBtn   widget.Clickable
-	SyncBtn   widget.Clickable
-	DeleteBtn widget.Clickable
+	CopyBtn        widget.Clickable
+	SyncBtn        widget.Clickable
+	DeleteBtn      widget.Clickable
+	DownloadAllBtn widget.Clickable
 
 	DownloadBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
@@ -103,6 +106,11 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.CopyBtn, "Copy")
 				item.Icon = icon.CopyIcon
+				return item.Layout(gtx)
+			},
+			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.DownloadAllBtn, "Download")
+				item.Icon = icon.DownloadIcon
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
@@ -263,6 +271,29 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow)
 					}
 					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
+				}
+				if ui.DownloadAllBtn.Clicked() {
+
+					channel := ui.ChannelMenuTarget
+					if channel.Loaded {
+						var albumIds []string
+						for i := range channel.RowTracker.Rows {
+							alb := channel.RowTracker.Rows[i].(model.Message)
+							albumIds = append(albumIds, alb.Status)
+						}
+						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
+					} else {
+						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
+					}
+				}
+				if ui.CopyBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
+					switch ui.SiteId {
+					case 1:
+						clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
+					}
+				}
+				if ui.SyncBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
+					// TODO sync channel
 				}
 				// inset := layout.UniformInset(unit.Dp(8))
 				return layout.Inset{
