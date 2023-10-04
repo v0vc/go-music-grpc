@@ -60,13 +60,13 @@ func main() {
 	fmt.Printf("artist releases was read: %v \n", readArtistRes)*/
 
 	// list artist
-	fmt.Println("list artist's")
+	/*fmt.Println("list artist's")
 	listArtistRes, err := c.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: 1})
 	if err != nil {
 		fmt.Printf("error while reading: %v \n", err)
 	}
 
-	fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)
+	fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)*/
 
 	// list Artists Stream
 	/*stream, err := c.ListStreamArtist(context.Background(), &artist.ListStreamArtistRequest{})
@@ -134,9 +134,9 @@ func main() {
 	}*/
 
 	// download albums (mid, high, flac)
-	/*req := &artist.DownloadAlbumsRequest{
+	req := &artist.DownloadAlbumsRequest{
 		SiteId:       1,
-		AlbumIds:     []string{"7356267", "16026887"},
+		AlbumIds:     []string{"29462093"},
 		TrackQuality: "flac",
 	}
 	fmt.Printf("download albums: %v \n", req.GetAlbumIds())
@@ -146,7 +146,7 @@ func main() {
 	}
 	for trackId, dSize := range resp.Downloaded {
 		fmt.Printf("track %v was downloaded: %v \n", trackId, dSize)
-	}*/
+	}
 
 	// download all artist albums (mid, high, flac)
 	/*req := &artist.DownloadArtistRequest{

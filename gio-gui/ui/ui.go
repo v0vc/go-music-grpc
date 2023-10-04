@@ -294,6 +294,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 				}
 				if ui.SyncBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
 					// TODO sync channel
+					clipboard.WriteOp{Text: "sync in progress: " + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
 				}
 				// inset := layout.UniformInset(unit.Dp(8))
 				return layout.Inset{

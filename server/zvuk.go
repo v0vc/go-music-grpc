@@ -363,29 +363,29 @@ func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, strin
 	}
 	defer do.Body.Close()
 	needTokenUpd := false
-	if do.StatusCode != http.StatusOK {
+	switch do.StatusCode {
+	case http.StatusTeapot:
+		return nil, "", false
+	case http.StatusUnauthorized:
 		log.Printf("Try to renew access token...")
 		token, err = getTokenFromSite(email, password)
 		if err == nil {
-			req.Header.Set(authHeader, token)
-			do, err = client.Do(req)
-			if err != nil {
-				log.Println("Can't get album data from api.", err)
-			} else {
-				log.Printf("Token was updated successfully.")
-				needTokenUpd = true
-			}
-			defer do.Body.Close()
+			log.Printf("Token was updated successfully.")
+			needTokenUpd = true
 		} else {
-			log.Println("Can't get new token. ", err)
+			log.Println("Can't get new token", err)
 		}
+		return nil, token, needTokenUpd
+	case http.StatusOK:
+		var obj ReleaseInfo
+		err = json.NewDecoder(do.Body).Decode(&obj)
+		if err != nil {
+			log.Println("Can't decode response from api: ", err)
+		}
+		return &obj, token, needTokenUpd
+	default:
+		return nil, "", false
 	}
-	var obj ReleaseInfo
-	err = json.NewDecoder(do.Body).Decode(&obj)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return &obj, token, needTokenUpd
 }
 
 func getArtistReleases(ctx context.Context, artistId, token, email, password string) (*ArtistReleases, string, bool) {
@@ -794,10 +794,20 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 
 	notDbAlbumIds := FindDifference(albIds, dbAlbums)
 	for _, albumId := range notDbAlbumIds {
+		var tryCount int
+	L1:
 		item, tokenNew, needTokenUpd := getAlbumTracks(albumId, token, login, pass)
 		if needTokenUpd {
 			updateTokenDb(tx, ctx, tokenNew, siteId)
 			tx.Commit()
+		}
+		if item == nil {
+			tryCount += 1
+			if tryCount == 4 {
+				continue
+			}
+			RandomPause(3, 7)
+			goto L1
 		}
 		for trId, track := range item.Result.Tracks {
 			if trId != "" {
@@ -823,6 +833,5 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 		downloadFiles(trackId, token, trackQuality, albInfo, mDownloaded)
 		RandomPause(3, 7)
 	}
-
 	return mDownloaded, nil
 }
