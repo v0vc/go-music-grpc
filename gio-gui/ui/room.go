@@ -81,6 +81,20 @@ func (r *Room) SendLocal(msg string) {
 	}()
 }
 
+func (r *Room) AddAlbums(albs []model.Message) {
+	go func() {
+		r.Lock()
+		el := make([]list.Element, 0, len(albs))
+		for _, alb := range albs {
+			// r.Room.Latest = &alb
+			el = append(el, alb)
+			r.RowTracker.Add(alb)
+		}
+		r.Unlock()
+		r.ListState.Modify(el, nil, nil)
+	}()
+}
+
 func (r *Room) RunSearch(searchText string) {
 	var resp []list.Serial
 	go func() {
@@ -169,6 +183,19 @@ func (r *Room) DownloadArtist(siteId uint32, artistId string, trackQuality strin
 	r.Lock()
 	defer r.Unlock()
 	go r.RowTracker.Generator.DownloadArtist(siteId, artistId, trackQuality)
+}
+
+func (r *Room) SyncArtist(siteId uint32, artistId string) {
+	r.Lock()
+	defer r.Unlock()
+	albs := make(chan []model.Message, 1)
+	fmt.Println("Main: Starting worker")
+	go r.RowTracker.Generator.SyncArtist(siteId, artistId, albs)
+	fmt.Println("Main: Waiting for worker to finish")
+	res := <-albs
+	fmt.Println("Main: Completed")
+	// r.SendLocal(res[0].Status)
+	r.AddAlbums(res)
 }
 
 // Select the room at the given index.

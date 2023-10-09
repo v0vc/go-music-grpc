@@ -206,6 +206,21 @@ func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality 
 	return res.Downloaded
 }
 
+func (g *Generator) SyncArtist(siteId uint32, artistId string, albs chan []model.Message) {
+	client, _ := GetClientInstance()
+	res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
+		SiteId:   siteId,
+		ArtistId: artistId,
+	})
+	var albums []model.Message
+	for _, alb := range res.Albums {
+		serial := g.new.Decrement()
+		al := MapAlbum(alb, serial, true)
+		albums = append(albums, al)
+	}
+	albs <- albums
+}
+
 func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 	at, _ := time.Parse("2006-01-02T00:00:00", alb.GetReleaseDate())
 	thumb := alb.GetThumbnail()

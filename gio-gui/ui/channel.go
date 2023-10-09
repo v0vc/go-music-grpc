@@ -109,9 +109,9 @@ func (room ChannelStyle) Layout(gtx layout.Context) layout.Dimensions {
 								return room.Name.Layout(gtx)
 							}),
 							layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							/*layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								return component.TruncatingLabelStyle(room.Summary).Layout(gtx)
-							}),
+							}),*/
 						)
 					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
