@@ -3,7 +3,6 @@ package ui
 import (
 	"image"
 	"image/color"
-	"time"
 
 	"gioui.org/layout"
 	"gioui.org/unit"
@@ -27,7 +26,7 @@ type ChannelStyle struct {
 	Image     Image
 	Name      material.LabelStyle
 	Summary   material.LabelStyle
-	TimeStamp material.LabelStyle
+	Count     material.LabelStyle
 	Indicator color.NRGBA
 	Overlay   color.NRGBA
 	// Menu configures the right-click context menu for channel.
@@ -42,18 +41,18 @@ type ChannelConfig struct {
 	Image image.Image
 	// Content of the latest message as raw text.
 	Content string
-	// SentAt timestamp of the latest message.
-	SentAt time.Time
+	// Count of the latest message.
+	Count string
 }
 
 // CreateChannel creates a style type that can lay out the data for a room.
 func CreateChannel(th *material.Theme, interact *Channel, menu *component.MenuState, room *ChannelConfig) ChannelStyle {
 	interact.Image.Cache(room.Image)
 	return ChannelStyle{
-		Channel:   interact,
-		Name:      material.Label(th, unit.Sp(14), room.Name),
-		Summary:   material.Label(th, unit.Sp(12), room.Content),
-		TimeStamp: material.Label(th, unit.Sp(12), room.SentAt.Local().Format("15:04")),
+		Channel: interact,
+		Name:    material.Label(th, unit.Sp(14), room.Name),
+		Summary: material.Label(th, unit.Sp(12), room.Content),
+		Count:   material.Label(th, unit.Sp(12), room.Count),
 		Image: Image{
 			Image: widget.Image{
 				Src: interact.Image.Op(),
@@ -116,7 +115,7 @@ func (room ChannelStyle) Layout(gtx layout.Context) layout.Dimensions {
 					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return room.TimeStamp.Layout(gtx)
+						return room.Count.Layout(gtx)
 					}),
 				)
 			})

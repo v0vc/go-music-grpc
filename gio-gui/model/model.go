@@ -57,9 +57,11 @@ type Room struct {
 	// Channel id
 	Id string
 	// Latest message in the room, if any.
-	Latest *Message
-	IsBase bool
-	Loaded bool
+	// Latest *Message
+	Count   int
+	Content string
+	IsBase  bool
+	Loaded  bool
 }
 
 type Messages struct {

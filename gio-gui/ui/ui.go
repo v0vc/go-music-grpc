@@ -385,15 +385,15 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min = gtx.Constraints.Max
 			return material.List(ui.th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
 				r := ui.Rooms.Index(ii)
-				latest := r.Latest()
+				// latest := r.Latest()
 				if r.Interact.ContextArea.Active() {
 					ui.ChannelMenuTarget = r
 				}
 				return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
-					Name:    r.Room.Name,
-					Image:   r.Room.Image,
-					Content: latest.Content,
-					SentAt:  latest.SentAt,
+					Name:  r.Room.Name,
+					Image: r.Room.Image,
+					/*Content: latest.Content,
+					Count:  latest.SentAt,*/
 				}).Layout(gtx)
 			})
 		}),

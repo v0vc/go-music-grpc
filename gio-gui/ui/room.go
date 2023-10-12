@@ -59,19 +59,19 @@ type Room struct {
 }*/
 
 // Send attempts to send arbitrary content as a message from the specified user.
-func (r *Room) Send(user, content string) {
+/*func (r *Room) Send(user, content string) {
 	row := r.RowTracker.Send(user, content)
 	r.Lock()
 	r.Room.Latest = &row
 	r.Unlock()
 	go r.ListState.Modify([]list.Element{row}, nil, nil)
-}
+}*/
 
 // SendLocal attempts to send the contents of the edit buffer as a
 // to the model.
 // All the work of this method is dispatched in a new goroutine
 // so that it can safely be called from layout code without blocking.
-func (r *Room) SendLocal(msg string) {
+/*func (r *Room) SendLocal(msg string) {
 	go func() {
 		r.Lock()
 		row := r.RowTracker.Send("TEST", msg)
@@ -79,17 +79,18 @@ func (r *Room) SendLocal(msg string) {
 		r.Unlock()
 		r.ListState.Modify([]list.Element{row}, nil, nil)
 	}()
-}
+}*/
 
 func (r *Room) AddAlbums(albs []model.Message) {
 	go func() {
 		r.Lock()
-		el := make([]list.Element, 0, len(albs))
+		count := len(albs)
+		el := make([]list.Element, 0, count)
 		for _, alb := range albs {
-			// r.Room.Latest = &alb
 			el = append(el, alb)
 			r.RowTracker.Add(alb)
 		}
+		r.Room.Count = count
 		r.Unlock()
 		r.ListState.Modify(el, nil, nil)
 	}()
@@ -164,14 +165,14 @@ func (r *Rooms) Active() *Room {
 }
 
 // Latest returns a copy of the latest message for the room.
-func (r *Room) Latest() model.Message {
+/*func (r *Room) Latest() model.Message {
 	r.Lock()
 	defer r.Unlock()
 	if r.Room.Latest == nil {
 		return model.Message{}
 	}
 	return *r.Room.Latest
-}
+}*/
 
 func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) {
 	r.Lock()
@@ -189,12 +190,8 @@ func (r *Room) SyncArtist(siteId uint32, artistId string) {
 	r.Lock()
 	defer r.Unlock()
 	albs := make(chan []model.Message, 1)
-	fmt.Println("Main: Starting worker")
 	go r.RowTracker.Generator.SyncArtist(siteId, artistId, albs)
-	fmt.Println("Main: Waiting for worker to finish")
 	res := <-albs
-	fmt.Println("Main: Completed")
-	// r.SendLocal(res[0].Status)
 	r.AddAlbums(res)
 }
 
