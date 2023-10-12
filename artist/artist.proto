@@ -11,6 +11,7 @@ message Artist {
   string title = 4;
   bytes thumbnail = 5;
   bool userAdded = 6;
+  int32 newAlbs = 7;
 }
 
 message Album {
@@ -20,6 +21,7 @@ message Album {
   string releaseDate = 4;
   string releaseType = 5;
   bytes thumbnail = 6;
+  int32 syncState = 7;
 }
 
 message Track {

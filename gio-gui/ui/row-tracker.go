@@ -32,16 +32,16 @@ type RowTracker struct {
 
 // Send adds the message to the data model.
 // This is analogous to interacting with the backend api.
-func (rt *RowTracker) Send(user, content string) model.Message {
-	/*	u, ok := rt.RowTracker.Lookup(user)
+/*func (rt *RowTracker) Send(user, content string) model.Message {
+		u, ok := rt.RowTracker.Lookup(user)
 		if !ok {
 			return model.Message{}
-		}*/
-	//msg := rt.Generator.GenNewMessage(u.Sender, content)
+		}
+	msg := rt.Generator.GenNewMessage(u.Sender, content)
 	msg := rt.Generator.GenNewMessage("Album", content)
 	rt.Add(msg)
 	return msg
-}
+}*/
 
 // Add a list element as a row of data to track.
 func (rt *RowTracker) Add(r list.Element) {

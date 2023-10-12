@@ -58,7 +58,7 @@ type Room struct {
 	Id string
 	// Latest message in the room, if any.
 	// Latest *Message
-	Count   int
+	Count   string
 	Content string
 	IsBase  bool
 	Loaded  bool

@@ -56,18 +56,10 @@ type UI struct {
 	// InsideRoom if we are currently in the room view.
 	// Used to decide when to render the sidebar on small viewports.
 	InsideRoom bool
-	// AddBtn holds click state for a button that adds a new message to
-	// the current room.
-	// AddBtn widget.Clickable
-	// DeleteBtn holds click state for a button that removes a message
-	// from the current room.
-
-	CopyBtn        widget.Clickable
-	SyncBtn        widget.Clickable
-	DeleteBtn      widget.Clickable
-	DownloadAllBtn widget.Clickable
-
-	DownloadBtn widget.Clickable
+	// room menu
+	CopyChannelBtn, SyncBtn, DeleteBtn, DownloadChannelBtn widget.Clickable
+	// message menu
+	CopyAlbBtn, DownloadBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
 	MessageMenu component.MenuState
 	// ChannelMenu is the context menu available on channel.
@@ -95,6 +87,11 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
 			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy")
+				item.Icon = icon.CopyIcon
+				return item.Layout(gtx)
+			},
+			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
 				item.Icon = icon.DownloadIcon
 				return item.Layout(gtx)
@@ -104,12 +101,12 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	ui.ChannelMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyBtn, "Copy")
+				item := component.MenuItem(ui.th.Theme, &ui.CopyChannelBtn, "Copy")
 				item.Icon = icon.CopyIcon
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DownloadAllBtn, "Download")
+				item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelBtn, "Download")
 				item.Icon = icon.DownloadIcon
 				return item.Layout(gtx)
 			},
@@ -272,7 +269,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 					}
 					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				}
-				if ui.DownloadAllBtn.Clicked() {
+				if ui.DownloadChannelBtn.Clicked() {
 
 					channel := ui.ChannelMenuTarget
 					if channel.Loaded {
@@ -286,7 +283,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
 					}
 				}
-				if ui.CopyBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
+				if ui.CopyChannelBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
 					switch ui.SiteId {
 					case 1:
 						clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
@@ -392,8 +389,8 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 				return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
 					Name:  r.Room.Name,
 					Image: r.Room.Image,
-					/*Content: latest.Content,
-					Count:  latest.SentAt,*/
+					// Content: latest.Content,
+					Count: r.Count,
 				}).Layout(gtx)
 			})
 		}),
@@ -448,6 +445,12 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				// inform the UI that this message is the target of any action
 				// taken within that menu.
 				ui.ContextMenuTarget = &el
+			}
+			if ui.CopyAlbBtn.Clicked() {
+				switch ui.SiteId {
+				case 1:
+					clipboard.WriteOp{Text: "https://zvuk.com/release/" + ui.ContextMenuTarget.Status}.Add(gtx.Ops)
+				}
 			}
 			if ui.DownloadBtn.Clicked() {
 				active := ui.Rooms.Active()

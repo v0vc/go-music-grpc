@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"image"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,12 +86,16 @@ func (g *Generator) GetChannels(siteId uint32) *model.Rooms {
 			thumb = GetNoAvatarInstance()
 		}
 		im, _, _ := image.Decode(bytes.NewReader(thumb))
-		rooms.Add(model.Room{
+		channel := model.Room{
 			Name:   artist.GetTitle(),
 			Id:     artist.GetArtistId(),
 			Image:  im,
 			IsBase: false,
-		})
+		}
+		if artist.GetNewAlbs() > 0 {
+			channel.Count = strconv.Itoa(int(artist.GetNewAlbs()))
+		}
+		rooms.Add(channel)
 	}
 	return &rooms
 }
@@ -165,13 +170,17 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) []model.Mess
 
 	for _, alb := range res.Releases {
 		serial := g.old.Increment()
-		al := MapAlbum(alb, serial, false)
+		var isRead bool
+		if alb.SyncState > 0 {
+			isRead = true
+		}
+		al := MapAlbum(alb, serial, isRead)
 		albums = append(albums, al)
 	}
 	return albums
 }
 
-func (g *Generator) GenNewMessage(sender, content string) model.Message {
+/*func (g *Generator) GenNewMessage(sender, content string) model.Message {
 	serial := g.new.Decrement()
 	im, _, _ := image.Decode(bytes.NewReader(GetNoAvatarInstance()))
 
@@ -184,7 +193,7 @@ func (g *Generator) GenNewMessage(sender, content string) model.Message {
 		Read:     true,
 		// Status: "TEST",
 	}
-}
+}*/
 
 func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) map[string]string {
 	client, _ := GetClientInstance()

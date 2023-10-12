@@ -90,7 +90,7 @@ func (r *Room) AddAlbums(albs []model.Message) {
 			el = append(el, alb)
 			r.RowTracker.Add(alb)
 		}
-		r.Room.Count = count
+		r.Room.Count = strconv.Itoa(count)
 		r.Unlock()
 		r.ListState.Modify(el, nil, nil)
 	}()
@@ -233,6 +233,10 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 		if albs == nil {
 			if channel.Room.IsBase {
 				albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
+				count := len(albs)
+				if count > 0 {
+					channel.Count = strconv.Itoa(count)
+				}
 			} else {
 				albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
 			}

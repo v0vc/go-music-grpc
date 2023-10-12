@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -45,7 +46,7 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 
 	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		fmt.Printf("no artist with id %v \n", artistId)
 	case err != nil:
 		log.Fatal(err)
@@ -93,7 +94,7 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	}
 	defer db.Close()
 
-	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ? order by a.releaseDate desc;")
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail, a.syncState from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ? order by a.releaseDate desc;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -108,7 +109,7 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	var albs []*artist.Album
 	for rows.Next() {
 		var alb artist.Album
-		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail); err != nil {
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail, &alb.SyncState); err != nil {
 			log.Fatal(err)
 		}
 		albs = append(albs, &alb)
@@ -124,7 +125,7 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 	}
 	defer db.Close()
 
-	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? order by a.releaseDate desc;")
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId order by a.releaseDate desc;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -308,7 +309,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		fmt.Printf("read artist releases: %v finished in %v \n", artistId, time.Since(start))
+		fmt.Printf("read artist releases: %v finished in %v, total: %v \n", artistId, time.Since(start), len(albums))
 	}
 
 	return &artist.ReadArtistAlbumResponse{
@@ -329,7 +330,7 @@ func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest)
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		fmt.Printf("read new releases: %v finished in %v \n", siteId, time.Since(start))
+		fmt.Printf("read new releases: %v finished in %v, total: %v \n", siteId, time.Since(start), len(albums))
 	}
 
 	return &artist.ReadArtistAlbumResponse{
@@ -530,7 +531,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	}
 	defer db.Close()
 
-	stmtArt, err := db.PrepareContext(ctx, "select art_id, artistId, title, thumbnail from artist where userAdded = 1 and siteId = ?;")
+	stmtArt, err := db.PrepareContext(ctx, "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from artist ar inner join artistAlbum aa on ar.art_id = aa.artistId left outer join album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -551,16 +552,16 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	var arts []*artist.Artist
 	for rows.Next() {
 		var art artist.Artist
-		if err := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail); err != nil {
+		if er := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); er != nil {
 			return nil, status.Errorf(
 				codes.Internal,
-				fmt.Sprintf("Internal error: %v", err),
+				fmt.Sprintf("Internal error: %v", er),
 			)
 		}
 		art.SiteId = siteId
 		arts = append(arts, &art)
 	}
-	fmt.Printf("get artists: %v finished in %v \n", siteId, time.Since(start))
+	fmt.Printf("get artists: %v finished in %v, total: %v \n", siteId, time.Since(start), len(arts))
 	return &artist.ListArtistResponse{
 		Artists: arts,
 	}, err
@@ -578,7 +579,7 @@ func (*server) ListStreamArtist(req *artist.ListStreamArtistRequest, stream arti
 	}
 	defer db.Close()
 
-	stmtArt, err := db.Prepare("select art_id, artistId, title, thumbnail from artist where userAdded = 1 and siteId = ?;")
+	stmtArt, err := db.Prepare("select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from artist ar inner join artistAlbum aa on ar.art_id = aa.artistId left outer join album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
 	if err != nil {
 		return status.Errorf(
 			codes.Internal,
@@ -598,10 +599,10 @@ func (*server) ListStreamArtist(req *artist.ListStreamArtistRequest, stream arti
 
 	for rows.Next() {
 		var art artist.Artist
-		if err := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail); err != nil {
+		if er := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); er != nil {
 			return status.Errorf(
 				codes.Internal,
-				fmt.Sprintf("error while getting data from DB: %v", err),
+				fmt.Sprintf("error while getting data from DB: %v", er),
 			)
 		}
 		art.SiteId = siteId
@@ -666,10 +667,10 @@ func main() {
 	}
 
 	var opts []grpc.ServerOption
-	grpc := grpc.NewServer(opts...)
-	artist.RegisterArtistServiceServer(grpc, &server{})
+	newServer := grpc.NewServer(opts...)
+	artist.RegisterArtistServiceServer(newServer, &server{})
 	// Register reflection service on gRPC server.
-	// reflection.Register(grpc)
+	// reflection.Register(newServer)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
@@ -678,13 +679,13 @@ func main() {
 	go func() {
 		s := <-sigCh
 		fmt.Printf("got signal %v, attempting graceful shutdown \n", s)
-		grpc.GracefulStop()
+		newServer.GracefulStop()
 		wg.Done()
 	}()
 
 	go func() {
 		// fmt.Println("waiting for connections...")
-		if err := grpc.Serve(lis); err != nil {
+		if err := newServer.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
