@@ -180,21 +180,6 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) []model.Mess
 	return albums
 }
 
-/*func (g *Generator) GenNewMessage(sender, content string) model.Message {
-	serial := g.new.Decrement()
-	im, _, _ := image.Decode(bytes.NewReader(GetNoAvatarInstance()))
-
-	return model.Message{
-		SerialID: fmt.Sprintf("%05d", serial),
-		Sender:   sender,
-		Content:  content,
-		SentAt:   time.Now(),
-		Avatar:   im,
-		Read:     true,
-		// Status: "TEST",
-	}
-}*/
-
 func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) map[string]string {
 	client, _ := GetClientInstance()
 	res, _ := client.DownloadAlbums(context.Background(), &artist.DownloadAlbumsRequest{

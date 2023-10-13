@@ -455,7 +455,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	}
 	defer stArtistSlave.Close()
 
-	stAlbum, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail, thumbnailUrl) values (?, ?, ?, ?, ?, ?) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
+	stAlbum, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail, thumbnailUrl, syncState) values (?, ?, ?, ?, ?, ?, 1) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
