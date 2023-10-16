@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	gioui.org v0.3.1
-	gioui.org/x v0.3.1
+	gioui.org/x v0.3.2
 	github.com/bogem/id3v2/v2 v2.1.4
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-flac/flacpicture v0.3.0
