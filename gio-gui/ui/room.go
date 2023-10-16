@@ -82,17 +82,22 @@ type Room struct {
 }*/
 
 func (r *Room) AddAlbums(albs []model.Message) {
+	count := len(albs)
+	if count == 0 {
+		return
+	}
 	go func() {
 		r.Lock()
-		count := len(albs)
-		el := make([]list.Element, 0, count)
-		for _, alb := range albs {
-			el = append(el, alb)
-			r.RowTracker.Add(alb)
-		}
 		r.Room.Count = strconv.Itoa(count)
+		if r.RowTracker.Rows != nil {
+			el := make([]list.Element, 0, count)
+			for _, alb := range albs {
+				el = append(el, alb)
+				r.RowTracker.Add(alb)
+			}
+			r.ListState.Modify(el, nil, nil)
+		}
 		r.Unlock()
-		r.ListState.Modify(el, nil, nil)
 	}()
 }
 
