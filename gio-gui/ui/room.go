@@ -114,7 +114,7 @@ func (r *Room) RunSearch(searchText string) {
 		resp = make([]list.Serial, 0, len(r.RowTracker.Rows)/3)
 		for i := range r.RowTracker.Rows {
 			e := r.RowTracker.Rows[i].(model.Message)
-			if strings.Contains(e.Sender, input) || strings.Contains(strings.ToLower(e.Sender), input) {
+			if strings.Contains(e.Title, input) || strings.Contains(strings.ToLower(e.Title), input) {
 				// log.Println(e.SerialID)
 				resp = append(resp, e.Serial())
 			} // else {

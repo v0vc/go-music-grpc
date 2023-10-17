@@ -41,7 +41,7 @@ type RowStyle struct {
 
 type RowConfig struct {
 	// Name of the room as raw text.
-	Sender string
+	Title string
 	// Image of the room.
 	Avatar image.Image
 	// Content of the latest message as raw text.
@@ -54,7 +54,7 @@ func NewRow(th *material.Theme, interact *Row, menu *component.MenuState, msg *R
 	interact.Avatar.Cache(msg.Avatar)
 	return RowStyle{
 		Row:       interact,
-		Name:      material.Label(th, unit.Sp(14), msg.Sender),
+		Name:      material.Label(th, unit.Sp(14), msg.Title),
 		Summary:   material.Label(th, unit.Sp(12), msg.Content),
 		TimeStamp: material.Label(th, unit.Sp(12), strconv.Itoa(msg.SentAt.Local().Year())),
 		Image: Image{

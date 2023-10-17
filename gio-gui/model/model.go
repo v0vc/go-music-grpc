@@ -14,11 +14,12 @@ import (
 
 // Message represents a chat message.
 type Message struct {
-	SerialID                string
-	Sender, Content, Status string
-	SentAt                  time.Time
-	Avatar                  image.Image
-	Read                    bool
+	SerialID               string
+	Title, Content, Status string
+	ParentId               []string
+	SentAt                 time.Time
+	Avatar                 image.Image
+	Read                   bool
 }
 
 // Serial returns the unique identifier for this message.
@@ -75,7 +76,7 @@ func (us *Messages) Add(u Message) {
 		us.index = map[string]*Message{}
 	})
 	us.list = append(us.list, u)
-	us.index[u.Sender] = &us.list[len(us.list)-1]
+	us.index[u.Title] = &us.list[len(us.list)-1]
 }
 
 func (us *Messages) List() (list []*Message) {

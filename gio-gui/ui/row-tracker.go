@@ -37,7 +37,7 @@ type RowTracker struct {
 		if !ok {
 			return model.Message{}
 		}
-	msg := rt.Generator.GenNewMessage(u.Sender, content)
+	msg := rt.Generator.GenNewMessage(u.Title, content)
 	msg := rt.Generator.GenNewMessage("Album", content)
 	rt.Add(msg)
 	return msg
@@ -75,7 +75,7 @@ func (rt *RowTracker) Index(ii int) list.Element {
 
 // NewRow generates a new row.
 /*func (rt *RowTracker) NewRow() list.Element {
-	el := rt.Generator.GenNewMessage(rt.Messages.Random().Sender, "test new", len(rt.Rows))
+	el := rt.Generator.GenNewMessage(rt.Messages.Random().Title, "test new", len(rt.Rows))
 	rt.Add(el)
 	return el
 }*/

@@ -225,7 +225,7 @@ func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 	return model.Message{
 		// SerialID: fmt.Sprintf("%05d", cur-at.Unix()),
 		SerialID: fmt.Sprintf("%05d", serial),
-		Sender:   alb.GetTitle(),
+		Title:    alb.GetTitle(),
 		Content:  alb.GetReleaseType(),
 		Status:   alb.GetAlbumId(),
 		SentAt:   at,
