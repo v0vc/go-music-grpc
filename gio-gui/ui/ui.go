@@ -57,7 +57,7 @@ type UI struct {
 	// Used to decide when to render the sidebar on small viewports.
 	InsideRoom bool
 	// room menu
-	CopyChannelBtn, SyncBtn, DeleteBtn, DownloadChannelBtn widget.Clickable
+	SyncBtn, DownloadChannelBtn, CopyChannelBtn, DeleteBtn widget.Clickable
 	// message menu
 	CopyAlbBtn, DownloadBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
@@ -101,8 +101,8 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	ui.ChannelMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyChannelBtn, "Copy")
-				item.Icon = icon.CopyIcon
+				item := component.MenuItem(ui.th.Theme, &ui.SyncBtn, "Sync")
+				item.Icon = icon.SyncIcon
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
@@ -111,8 +111,8 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.SyncBtn, "Sync")
-				item.Icon = icon.SyncIcon
+				item := component.MenuItem(ui.th.Theme, &ui.CopyChannelBtn, "Copy")
+				item.Icon = icon.CopyIcon
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
@@ -291,7 +291,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 				}
 				if ui.SyncBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
 					channel := ui.ChannelMenuTarget
-					go channel.SyncArtist(ui.SiteId, channel.Id)
+					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
 				}
 				// inset := layout.UniformInset(unit.Dp(8))
 				return layout.Inset{

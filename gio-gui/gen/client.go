@@ -228,6 +228,7 @@ func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 		Title:    alb.GetTitle(),
 		Content:  alb.GetReleaseType(),
 		Status:   alb.GetAlbumId(),
+		ParentId: alb.GetArtistIds(),
 		SentAt:   at,
 		Avatar:   im,
 		Read:     isRead,

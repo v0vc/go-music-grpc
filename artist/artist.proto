@@ -22,6 +22,7 @@ message Album {
   string releaseType = 5;
   bytes thumbnail = 6;
   int32 syncState = 7;
+  repeated string artistIds = 8;
 }
 
 message Track {

@@ -15,7 +15,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.17
 	golang.org/x/exp/shiny v0.0.0-20231006140011-7918f672742d
 	golang.org/x/image v0.13.0
-	google.golang.org/grpc v1.58.3
+	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 )
 

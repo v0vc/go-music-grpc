@@ -493,18 +493,19 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 			} else {
 				fmt.Printf("processed: %v, id: %v \n", release.Title, albId)
 			}
+			alb := &artist.Album{}
 			if artRawId == 0 || userAddedDb == 0 || !Contains(existAlbumIds, release.ID) {
-				albums = append(albums, &artist.Album{
-					Id:          int64(albId),
-					AlbumId:     release.ID,
-					Title:       release.Title,
-					ReleaseType: release.Type,
-					ReleaseDate: release.Date,
-					Thumbnail:   thumbAlb,
-				})
+				alb.Id = int64(albId)
+				alb.AlbumId = release.ID
+				alb.Title = release.Title
+				alb.ReleaseType = release.Type
+				alb.ReleaseDate = release.Date
+				alb.Thumbnail = thumbAlb
 			}
-
 			for _, artistData := range release.Artists {
+				if alb.Id != 0 {
+					alb.ArtistIds = append(alb.ArtistIds, artistData.ID)
+				}
 				if !Contains(artistIds, artistData.ID) {
 					artistIds = append(artistIds, artistData.ID)
 				}
@@ -543,6 +544,9 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 				if artId != 0 && albId != 0 {
 					_, _ = stArtistAlbum.ExecContext(ctx, artId, albId)
 				}
+			}
+			if alb.Id != 0 {
+				albums = append(albums, alb)
 			}
 		}
 	}

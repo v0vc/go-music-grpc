@@ -81,23 +81,40 @@ type Room struct {
 	}()
 }*/
 
-func (r *Room) AddAlbums(albs []model.Message) {
-	count := len(albs)
-	if count == 0 {
-		return
+func AddAlbums(rooms *Rooms, albs []model.Message) {
+	artMap := make(map[string][]model.Message)
+	for _, alb := range albs {
+		artMap["-1"] = append(artMap["-1"], alb)
+		for _, artId := range alb.ParentId {
+			_, ok := artMap[artId]
+			if !ok {
+				artMap[artId] = append(artMap[artId], alb)
+			}
+		}
 	}
 	go func() {
-		r.Lock()
-		r.Room.Count = strconv.Itoa(count)
-		if r.RowTracker.Rows != nil {
-			el := make([]list.Element, 0, count)
-			for _, alb := range albs {
-				el = append(el, alb)
-				r.RowTracker.Add(alb)
+		for artId, albums := range artMap {
+			ch := rooms.GetChannelById(artId)
+			if ch != nil {
+				ch.Lock()
+				if ch.IsBase {
+					curCount, _ := strconv.Atoi(ch.Room.Count)
+					ch.Room.Count = strconv.Itoa(curCount + 1)
+				} else {
+					ch.Room.Count = strconv.Itoa(len(albums))
+				}
+
+				if ch.RowTracker.Rows != nil {
+					el := make([]list.Element, 0, len(albums))
+					for _, alb := range albums {
+						el = append(el, alb)
+						ch.RowTracker.Add(alb)
+					}
+					ch.ListState.Modify(el, nil, nil)
+				}
+				ch.Unlock()
 			}
-			r.ListState.Modify(el, nil, nil)
 		}
-		r.Unlock()
 	}()
 }
 
@@ -191,13 +208,14 @@ func (r *Room) DownloadArtist(siteId uint32, artistId string, trackQuality strin
 	go r.RowTracker.Generator.DownloadArtist(siteId, artistId, trackQuality)
 }
 
-func (r *Room) SyncArtist(siteId uint32, artistId string) {
+func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	r.Lock()
 	defer r.Unlock()
 	albs := make(chan []model.Message, 1)
-	go r.RowTracker.Generator.SyncArtist(siteId, artistId, albs)
+	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, albs)
 	res := <-albs
-	r.AddAlbums(res)
+	AddAlbums(rooms, res)
+	// rooms.SelectAndFill(siteId, len(rooms.List)-1, res, ui.Invalidator, ui.presentChatRow)
 }
 
 // Select the room at the given index.
@@ -298,6 +316,17 @@ func (r *Rooms) Index(index int) *Room {
 		index = len(r.List) - 1
 	}
 	return r.List[index]
+}
+
+func (r *Rooms) GetChannelById(artistId string) *Room {
+	r.Lock()
+	defer r.Unlock()
+	for _, alb := range r.List {
+		if alb.Id == artistId {
+			return alb
+		}
+	}
+	return nil
 }
 
 func (r *Rooms) Random() *Room {
