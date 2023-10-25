@@ -112,9 +112,9 @@ func (row RowStyle) Layout(gtx layout.Context) layout.Dimensions {
 								return row.Name.Layout(gtx)
 							}),
 							layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
-							/*layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return component.TruncatingLabelStyle(row.Summary).Layout(gtx)
-							}),*/
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return row.Summary.Layout(gtx)
+							}),
 						)
 					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),

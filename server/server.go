@@ -125,7 +125,7 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 	}
 	defer db.Close()
 
-	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId order by a.releaseDate desc;")
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, a.thumbnail from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId order by a.releaseDate desc;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 	var albs []*artist.Album
 	for rows.Next() {
 		var alb artist.Album
-		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.Thumbnail); err != nil {
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &alb.Thumbnail); err != nil {
 			log.Fatal(err)
 		}
 		albs = append(albs, &alb)
@@ -567,7 +567,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	}, err
 }
 
-func (*server) ListStreamArtist(req *artist.ListStreamArtistRequest, stream artist.ArtistService_ListStreamArtistServer) error {
+func (*server) ListArtistStream(req *artist.ListArtistStreamRequest, stream artist.ArtistService_ListArtistStreamServer) error {
 	siteId := req.GetSiteId()
 	fmt.Printf("list artist's: %v \n", siteId)
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
@@ -606,7 +606,7 @@ func (*server) ListStreamArtist(req *artist.ListStreamArtistRequest, stream arti
 			)
 		}
 		art.SiteId = siteId
-		err = stream.Send(&artist.ListStreamArtistResponse{Artist: &art})
+		err = stream.Send(&artist.ListArtistStreamResponse{Artist: &art})
 		if err != nil {
 			return status.Errorf(
 				codes.Internal,

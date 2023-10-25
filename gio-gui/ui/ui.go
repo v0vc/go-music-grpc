@@ -289,7 +289,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 						clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
 					}
 				}
-				if ui.SyncBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
+				if ui.SyncBtn.Clicked() {
 					channel := ui.ChannelMenuTarget
 					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
 				}

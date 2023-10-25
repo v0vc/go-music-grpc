@@ -8,7 +8,6 @@ package artist
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -33,7 +32,7 @@ type ArtistServiceClient interface {
 	DownloadArtist(ctx context.Context, in *DownloadArtistRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
 	DownloadTracks(ctx context.Context, in *DownloadTracksRequest, opts ...grpc.CallOption) (*DownloadTracksResponse, error)
 	ListArtist(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (*ListArtistResponse, error)
-	ListStreamArtist(ctx context.Context, in *ListStreamArtistRequest, opts ...grpc.CallOption) (ArtistService_ListStreamArtistClient, error)
+	ListArtistStream(ctx context.Context, in *ListArtistStreamRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error)
 }
 
 type artistServiceClient struct {
@@ -134,12 +133,12 @@ func (c *artistServiceClient) ListArtist(ctx context.Context, in *ListArtistRequ
 	return out, nil
 }
 
-func (c *artistServiceClient) ListStreamArtist(ctx context.Context, in *ListStreamArtistRequest, opts ...grpc.CallOption) (ArtistService_ListStreamArtistClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ArtistService_ServiceDesc.Streams[0], "/artist.ArtistService/ListStreamArtist", opts...)
+func (c *artistServiceClient) ListArtistStream(ctx context.Context, in *ListArtistStreamRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ArtistService_ServiceDesc.Streams[0], "/artist.ArtistService/ListArtistStream", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &artistServiceListStreamArtistClient{stream}
+	x := &artistServiceListArtistStreamClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -149,17 +148,17 @@ func (c *artistServiceClient) ListStreamArtist(ctx context.Context, in *ListStre
 	return x, nil
 }
 
-type ArtistService_ListStreamArtistClient interface {
-	Recv() (*ListStreamArtistResponse, error)
+type ArtistService_ListArtistStreamClient interface {
+	Recv() (*ListArtistStreamResponse, error)
 	grpc.ClientStream
 }
 
-type artistServiceListStreamArtistClient struct {
+type artistServiceListArtistStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *artistServiceListStreamArtistClient) Recv() (*ListStreamArtistResponse, error) {
-	m := new(ListStreamArtistResponse)
+func (x *artistServiceListArtistStreamClient) Recv() (*ListArtistStreamResponse, error) {
+	m := new(ListArtistStreamResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -180,7 +179,7 @@ type ArtistServiceServer interface {
 	DownloadArtist(context.Context, *DownloadArtistRequest) (*DownloadAlbumsResponse, error)
 	DownloadTracks(context.Context, *DownloadTracksRequest) (*DownloadTracksResponse, error)
 	ListArtist(context.Context, *ListArtistRequest) (*ListArtistResponse, error)
-	ListStreamArtist(*ListStreamArtistRequest, ArtistService_ListStreamArtistServer) error
+	ListArtistStream(*ListArtistStreamRequest, ArtistService_ListArtistStreamServer) error
 	mustEmbedUnimplementedArtistServiceServer()
 }
 
@@ -218,8 +217,8 @@ func (UnimplementedArtistServiceServer) DownloadTracks(context.Context, *Downloa
 func (UnimplementedArtistServiceServer) ListArtist(context.Context, *ListArtistRequest) (*ListArtistResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListArtist not implemented")
 }
-func (UnimplementedArtistServiceServer) ListStreamArtist(*ListStreamArtistRequest, ArtistService_ListStreamArtistServer) error {
-	return status.Errorf(codes.Unimplemented, "method ListStreamArtist not implemented")
+func (UnimplementedArtistServiceServer) ListArtistStream(*ListArtistStreamRequest, ArtistService_ListArtistStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListArtistStream not implemented")
 }
 func (UnimplementedArtistServiceServer) mustEmbedUnimplementedArtistServiceServer() {}
 
@@ -414,24 +413,24 @@ func _ArtistService_ListArtist_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ArtistService_ListStreamArtist_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ListStreamArtistRequest)
+func _ArtistService_ListArtistStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ListArtistStreamRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(ArtistServiceServer).ListStreamArtist(m, &artistServiceListStreamArtistServer{stream})
+	return srv.(ArtistServiceServer).ListArtistStream(m, &artistServiceListArtistStreamServer{stream})
 }
 
-type ArtistService_ListStreamArtistServer interface {
-	Send(*ListStreamArtistResponse) error
+type ArtistService_ListArtistStreamServer interface {
+	Send(*ListArtistStreamResponse) error
 	grpc.ServerStream
 }
 
-type artistServiceListStreamArtistServer struct {
+type artistServiceListArtistStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *artistServiceListStreamArtistServer) Send(m *ListStreamArtistResponse) error {
+func (x *artistServiceListArtistStreamServer) Send(m *ListArtistStreamResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -485,8 +484,8 @@ var ArtistService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "ListStreamArtist",
-			Handler:       _ArtistService_ListStreamArtist_Handler,
+			StreamName:    "ListArtistStream",
+			Handler:       _ArtistService_ListArtistStream_Handler,
 			ServerStreams: true,
 		},
 	},

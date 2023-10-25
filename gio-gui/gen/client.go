@@ -202,6 +202,7 @@ func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality 
 
 func (g *Generator) SyncArtist(siteId uint32, artistId string, albs chan []model.Message) {
 	client, _ := GetClientInstance()
+
 	res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 		SiteId:   siteId,
 		ArtistId: artistId,
@@ -226,7 +227,7 @@ func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 		// SerialID: fmt.Sprintf("%05d", cur-at.Unix()),
 		SerialID: fmt.Sprintf("%05d", serial),
 		Title:    alb.GetTitle(),
-		Content:  alb.GetReleaseType(),
+		Content:  alb.GetSubTitle(),
 		Status:   alb.GetAlbumId(),
 		ParentId: alb.GetArtistIds(),
 		SentAt:   at,

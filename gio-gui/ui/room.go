@@ -86,10 +86,11 @@ func AddAlbums(rooms *Rooms, albs []model.Message) {
 	for _, alb := range albs {
 		artMap["-1"] = append(artMap["-1"], alb)
 		for _, artId := range alb.ParentId {
-			_, ok := artMap[artId]
+			/*_, ok := artMap[artId]
 			if !ok {
 				artMap[artId] = append(artMap[artId], alb)
-			}
+			}*/
+			artMap[artId] = append(artMap[artId], alb)
 		}
 	}
 	go func() {
@@ -215,7 +216,6 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, albs)
 	res := <-albs
 	AddAlbums(rooms, res)
-	// rooms.SelectAndFill(siteId, len(rooms.List)-1, res, ui.Invalidator, ui.presentChatRow)
 }
 
 // Select the room at the given index.

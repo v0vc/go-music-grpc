@@ -18,11 +18,12 @@ message Album {
   int64 id = 1;
   string albumId = 2;
   string title = 3;
-  string releaseDate = 4;
-  string releaseType = 5;
-  bytes thumbnail = 6;
-  int32 syncState = 7;
-  repeated string artistIds = 8;
+  string subTitle = 4;
+  string releaseDate = 5;
+  string releaseType = 6;
+  bytes thumbnail = 7;
+  int32 syncState = 8;
+  repeated string artistIds = 9;
 }
 
 message Track {
@@ -120,11 +121,11 @@ message ListArtistResponse {
   repeated Artist artists = 1;
 }
 
-message ListStreamArtistRequest {
+message ListArtistStreamRequest {
   uint32 siteId = 1;
 }
 
-message ListStreamArtistResponse {
+message ListArtistStreamResponse {
   Artist artist = 1;
 }
 
@@ -139,5 +140,5 @@ service ArtistService {
   rpc DownloadArtist (DownloadArtistRequest) returns (DownloadAlbumsResponse);
   rpc DownloadTracks(DownloadTracksRequest) returns (DownloadTracksResponse);
   rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
-  rpc ListStreamArtist (ListStreamArtistRequest) returns (stream ListStreamArtistResponse);
+  rpc ListArtistStream (ListArtistStreamRequest) returns (stream ListArtistStreamResponse);
 }
