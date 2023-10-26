@@ -145,7 +145,7 @@ func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
 }
 
 func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string) int {
-	stmtAlb, err := tx.PrepareContext(ctx, "select aa.albumId from artistAlbum aa inner join album a on a.alb_id = aa.albumId inner join artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? limit 1;")
+	stmtAlb, err := tx.PrepareContext(ctx, "select aa.albumId from main.artistAlbum aa join album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? limit 1;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 	)
 
 	if artId != 0 {
-		rows, err := tx.QueryContext(ctx, "select al.albumId, a.artistId res from artistAlbum aa join artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from artistAlbum where artistId = ?);", artId)
+		rows, err := tx.QueryContext(ctx, "select al.albumId, a.artistId res from main.artistAlbum aa join main.artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from main.artistAlbum where artistId = ?);", artId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -195,15 +195,15 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 	var sqlStr string
 	if len(ids) == 1 {
 		if isAlbum {
-			sqlStr = "select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from albumTrack at join artistAlbum aa on at.albumId = aa.albumId join album a on a.alb_id = aa.albumId join artist ar on ar.art_id = aA.artistId join track t on t.trk_id = at.trackId where at.albumId in (select alb_id from album where albumId = ? limit 1) and ar.siteId = ? group by at.trackId;"
+			sqlStr = "select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.albumId in (select alb_id from album where albumId = ? limit 1) and ar.siteId = ? group by at.trackId;"
 		} else {
-			sqlStr = "select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from albumTrack at join artistAlbum aa on at.albumId = aa.albumId join album a on a.alb_id = aa.albumId join artist ar on ar.art_id = aA.artistId join track t on t.trk_id = at.trackId where at.trackId in (select trk_id from track where trackId = ? limit 1) and ar.siteId = ? group by at.trackId;"
+			sqlStr = "select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.trackId in (select trk_id from track where trackId = ? limit 1) and ar.siteId = ? group by at.trackId;"
 		}
 	} else {
 		if isAlbum {
-			sqlStr = fmt.Sprintf("select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from albumTrack at join artistAlbum aa on at.albumId = aa.albumId join album a on a.alb_id = aa.albumId join artist ar on ar.art_id = aA.artistId join track t on t.trk_id = at.trackId where at.albumId in (select alb_id from album where albumId in (? %v)) and ar.siteId = ? group by at.trackId;", strings.Repeat(",?", len(ids)-1))
+			sqlStr = fmt.Sprintf("select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.albumId in (select alb_id from album where albumId in (? %v)) and ar.siteId = ? group by at.trackId;", strings.Repeat(",?", len(ids)-1))
 		} else {
-			sqlStr = fmt.Sprintf("select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from albumTrack at join artistAlbum aa on at.albumId = aa.albumId join album a on a.alb_id = aa.albumId join artist ar on ar.art_id = aA.artistId join track t on t.trk_id = at.trackId where at.trackId in (select trk_id from track where trackId in (? %v)) and ar.siteId = ? group by at.trackId;", strings.Repeat(",?", len(ids)-1))
+			sqlStr = fmt.Sprintf("select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, a.thumbnailUrl, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.trackId in (select trk_id from track where trackId in (? %v)) and ar.siteId = ? group by at.trackId;", strings.Repeat(",?", len(ids)-1))
 		}
 	}
 
@@ -247,7 +247,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 }
 
 func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string, string) {
-	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from site where site_id = ? limit 1;")
+	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from main.site where site_id = ? limit 1;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 }
 
 func updateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32) {
-	stmtUpdToken, err := tx.PrepareContext(ctx, "update site set token = ? where site_id = ?;")
+	stmtUpdToken, err := tx.PrepareContext(ctx, "update main.site set token = ? where site_id = ?;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -443,25 +443,25 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	artRawId, userAddedDb := GetArtistIdDb(tx, ctx, siteId, artistId)
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
 
-	stArtistMaster, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
+	stArtistMaster, err := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stArtistMaster.Close()
 
-	stArtistSlave, err := tx.PrepareContext(ctx, "insert into artist(siteId, artistId, title, thumbnail) values (?, ?, ?, ?) on conflict (siteId, artistId) do update set syncState = 0 returning art_id;")
+	stArtistSlave, err := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, thumbnail) values (?, ?, ?, ?) on conflict (siteId, artistId) do update set syncState = 0 returning art_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stArtistSlave.Close()
 
-	stAlbum, err := tx.PrepareContext(ctx, "insert into album(albumId, title, releaseDate, releaseType, thumbnail, thumbnailUrl, syncState) values (?, ?, ?, ?, ?, ?, 1) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
+	stAlbum, err := tx.PrepareContext(ctx, "insert into main.album(albumId, title, releaseDate, releaseType, thumbnail, thumbnailUrl, syncState) values (?, ?, ?, ?, ?, ?, 1) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer stAlbum.Close()
 
-	stArtistAlbum, err := tx.PrepareContext(ctx, "insert into artistAlbum(artistId, albumId) values (?, ?) on conflict (artistId, albumId) do nothing;")
+	stArtistAlbum, err := tx.PrepareContext(ctx, "insert into main.artistAlbum(artistId, albumId) values (?, ?) on conflict (artistId, albumId) do nothing;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -557,9 +557,9 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	)
 	if artRawId != 0 {
 		deletedAlbumIds = FindDifference(existAlbumIds, albumIds)
-		runExec(tx, ctx, deletedAlbumIds, "delete from album where albumId = ?;")
+		runExec(tx, ctx, deletedAlbumIds, "delete from main.album where albumId = ?;")
 		deletedArtistIds = FindDifference(existArtistIds, artistIds)
-		runExec(tx, ctx, deletedArtistIds, "delete from artist where artistId = ?;")
+		runExec(tx, ctx, deletedArtistIds, "delete from main.artist where artistId = ?;")
 	}
 	return artists, albums, deletedAlbumIds, deletedArtistIds, tx.Commit()
 }
@@ -582,7 +582,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 		updateTokenDb(tx, ctx, token, siteId)
 	}
 
-	stTrack, err := tx.PrepareContext(ctx, "insert into track (trackId, trackNum, title, hasFlac, hasLyric, quality, condition, genre, duration) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict (trackId, title) do nothing returning trk_id;")
+	stTrack, err := tx.PrepareContext(ctx, "insert into main.track (trackId, trackNum, title, hasFlac, hasLyric, quality, condition, genre, duration) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict (trackId, title) do nothing returning trk_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -594,27 +594,27 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 	)
 	if trackTotal > 0 {
 		albId := getAlbumIdDb(tx, ctx, siteId, albumId)
-		stAlbumUpd, err := tx.PrepareContext(ctx, "update album set trackTotal = ? where alb_id = ?;")
+		stAlbumUpd, err := tx.PrepareContext(ctx, "update main.album set trackTotal = ? where alb_id = ?;")
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer stAlbumUpd.Close()
 		_, _ = stAlbumUpd.ExecContext(ctx, trackTotal, albId)
 
-		stAlbumTrackRem, err := tx.PrepareContext(ctx, "delete from track where trk_id in (select trackId from albumTrack where albumId = ?)")
+		stAlbumTrackRem, err := tx.PrepareContext(ctx, "delete from main.track where trk_id in (select trackId from albumTrack where albumId = ?)")
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer stAlbumTrackRem.Close()
 		_, _ = stAlbumTrackRem.ExecContext(ctx, albId)
 
-		stAlbumTrack, err := tx.PrepareContext(ctx, "insert into albumTrack(albumId, trackId) values (?, ?) on conflict (albumId, trackId) do nothing;")
+		stAlbumTrack, err := tx.PrepareContext(ctx, "insert into main.albumTrack(albumId, trackId) values (?, ?) on conflict (albumId, trackId) do nothing;")
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer stAlbumTrack.Close()
 
-		stTrackArtist, err := tx.PrepareContext(ctx, "insert into trackArtist(trackId, artistId) values (?, ?) on conflict (trackId, artistId) do nothing;")
+		stTrackArtist, err := tx.PrepareContext(ctx, "insert into main.trackArtist(trackId, artistId) values (?, ?) on conflict (trackId, artistId) do nothing;")
 		if err != nil {
 			log.Fatal(err)
 		}
