@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"regexp"
 	"time"
 
 	"gioui.org/gesture"
@@ -27,9 +26,9 @@ import (
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 )
 
-const (
+/*const (
 	artistRegexString = `^https://zvuk.com/artist/(\d+)$`
-)
+)*/
 
 type Page struct {
 	// artistList        layout.List
@@ -174,13 +173,13 @@ func (p *Page) Layout(gtx layout.Context, th *page.Theme, loadSize int) layout.D
 							Text: "SS",
 						}.Add(gtx.Ops)*/
 						go incProgress(p)
-						artistUrl := p.artistInput.Text()
+						/*artistUrl := p.artistInput.Text()
 						if artistUrl != "" {
 							artistId := findArtistId(artistUrl)
 							if artistId != "" {
 								go addArtist(p, artistId)
 							}
-						}
+						}*/
 					}
 					return layout.Inset{Top: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return material.Button(th.Theme, &p.addButton, "Add").Layout(gtx)
@@ -190,13 +189,13 @@ func (p *Page) Layout(gtx layout.Context, th *page.Theme, loadSize int) layout.D
 	)
 }
 
-func findArtistId(url string) string {
+/*func findArtistId(url string) string {
 	matchArtist := regexp.MustCompile(artistRegexString).FindStringSubmatch(url)
 	if matchArtist == nil {
 		return ""
 	}
 	return matchArtist[1]
-}
+}*/
 
 func addToList(p *Page, artists []*artist.Artist) {
 	var users []*user
@@ -227,7 +226,7 @@ func incProgress(p *Page) {
 	}
 }
 
-func addArtist(p *Page, artistId string) {
+/*func addArtist(p *Page, artistId string) {
 	client, err := client.GetClientInstance()
 	if err != nil {
 		p.listChanErr <- err
@@ -246,7 +245,7 @@ func addArtist(p *Page, artistId string) {
 	p.Progress = 1
 	p.artistInput.SetText("")
 	addToList(p, res.Artists)
-}
+}*/
 
 func fetchArtists(p *Page) {
 	client, err := client.GetClientInstance()

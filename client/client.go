@@ -70,7 +70,7 @@ func main() {
 	fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)*/
 
 	// list Artists Stream
-	stream, err := c.ListArtistStream(context.Background(), &artist.ListArtistStreamRequest{SiteId: 1})
+	stream, err := c.ListArtistStream(context.Background(), &artist.ListArtistRequest{SiteId: 1})
 	if err != nil {
 		log.Fatalf("error while calling ListArtist RPC: %v", err)
 	}

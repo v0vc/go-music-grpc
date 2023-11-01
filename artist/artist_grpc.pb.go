@@ -8,7 +8,6 @@ package artist
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -24,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ArtistServiceClient interface {
 	SyncArtist(ctx context.Context, in *SyncArtistRequest, opts ...grpc.CallOption) (*SyncArtistResponse, error)
+	SyncArtistStream(ctx context.Context, in *SyncArtistRequest, opts ...grpc.CallOption) (ArtistService_SyncArtistStreamClient, error)
 	ReadArtistAlbums(ctx context.Context, in *ReadArtistAlbumRequest, opts ...grpc.CallOption) (*ReadArtistAlbumResponse, error)
 	ReadNewAlbums(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (*ReadArtistAlbumResponse, error)
 	SyncAlbum(ctx context.Context, in *SyncAlbumRequest, opts ...grpc.CallOption) (*SyncAlbumResponse, error)
@@ -33,7 +33,7 @@ type ArtistServiceClient interface {
 	DownloadArtist(ctx context.Context, in *DownloadArtistRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
 	DownloadTracks(ctx context.Context, in *DownloadTracksRequest, opts ...grpc.CallOption) (*DownloadTracksResponse, error)
 	ListArtist(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (*ListArtistResponse, error)
-	ListArtistStream(ctx context.Context, in *ListArtistStreamRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error)
+	ListArtistStream(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error)
 }
 
 type artistServiceClient struct {
@@ -51,6 +51,38 @@ func (c *artistServiceClient) SyncArtist(ctx context.Context, in *SyncArtistRequ
 		return nil, err
 	}
 	return out, nil
+}
+
+func (c *artistServiceClient) SyncArtistStream(ctx context.Context, in *SyncArtistRequest, opts ...grpc.CallOption) (ArtistService_SyncArtistStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ArtistService_ServiceDesc.Streams[0], "/artist.ArtistService/SyncArtistStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &artistServiceSyncArtistStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ArtistService_SyncArtistStreamClient interface {
+	Recv() (*SyncArtistResponse, error)
+	grpc.ClientStream
+}
+
+type artistServiceSyncArtistStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *artistServiceSyncArtistStreamClient) Recv() (*SyncArtistResponse, error) {
+	m := new(SyncArtistResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *artistServiceClient) ReadArtistAlbums(ctx context.Context, in *ReadArtistAlbumRequest, opts ...grpc.CallOption) (*ReadArtistAlbumResponse, error) {
@@ -134,8 +166,8 @@ func (c *artistServiceClient) ListArtist(ctx context.Context, in *ListArtistRequ
 	return out, nil
 }
 
-func (c *artistServiceClient) ListArtistStream(ctx context.Context, in *ListArtistStreamRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ArtistService_ServiceDesc.Streams[0], "/artist.ArtistService/ListArtistStream", opts...)
+func (c *artistServiceClient) ListArtistStream(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ArtistService_ServiceDesc.Streams[1], "/artist.ArtistService/ListArtistStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +203,7 @@ func (x *artistServiceListArtistStreamClient) Recv() (*ListArtistStreamResponse,
 // for forward compatibility
 type ArtistServiceServer interface {
 	SyncArtist(context.Context, *SyncArtistRequest) (*SyncArtistResponse, error)
+	SyncArtistStream(*SyncArtistRequest, ArtistService_SyncArtistStreamServer) error
 	ReadArtistAlbums(context.Context, *ReadArtistAlbumRequest) (*ReadArtistAlbumResponse, error)
 	ReadNewAlbums(context.Context, *ListArtistRequest) (*ReadArtistAlbumResponse, error)
 	SyncAlbum(context.Context, *SyncAlbumRequest) (*SyncAlbumResponse, error)
@@ -180,7 +213,7 @@ type ArtistServiceServer interface {
 	DownloadArtist(context.Context, *DownloadArtistRequest) (*DownloadAlbumsResponse, error)
 	DownloadTracks(context.Context, *DownloadTracksRequest) (*DownloadTracksResponse, error)
 	ListArtist(context.Context, *ListArtistRequest) (*ListArtistResponse, error)
-	ListArtistStream(*ListArtistStreamRequest, ArtistService_ListArtistStreamServer) error
+	ListArtistStream(*ListArtistRequest, ArtistService_ListArtistStreamServer) error
 	mustEmbedUnimplementedArtistServiceServer()
 }
 
@@ -190,6 +223,9 @@ type UnimplementedArtistServiceServer struct {
 
 func (UnimplementedArtistServiceServer) SyncArtist(context.Context, *SyncArtistRequest) (*SyncArtistResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncArtist not implemented")
+}
+func (UnimplementedArtistServiceServer) SyncArtistStream(*SyncArtistRequest, ArtistService_SyncArtistStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method SyncArtistStream not implemented")
 }
 func (UnimplementedArtistServiceServer) ReadArtistAlbums(context.Context, *ReadArtistAlbumRequest) (*ReadArtistAlbumResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadArtistAlbums not implemented")
@@ -218,7 +254,7 @@ func (UnimplementedArtistServiceServer) DownloadTracks(context.Context, *Downloa
 func (UnimplementedArtistServiceServer) ListArtist(context.Context, *ListArtistRequest) (*ListArtistResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListArtist not implemented")
 }
-func (UnimplementedArtistServiceServer) ListArtistStream(*ListArtistStreamRequest, ArtistService_ListArtistStreamServer) error {
+func (UnimplementedArtistServiceServer) ListArtistStream(*ListArtistRequest, ArtistService_ListArtistStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method ListArtistStream not implemented")
 }
 func (UnimplementedArtistServiceServer) mustEmbedUnimplementedArtistServiceServer() {}
@@ -250,6 +286,27 @@ func _ArtistService_SyncArtist_Handler(srv interface{}, ctx context.Context, dec
 		return srv.(ArtistServiceServer).SyncArtist(ctx, req.(*SyncArtistRequest))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _ArtistService_SyncArtistStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SyncArtistRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ArtistServiceServer).SyncArtistStream(m, &artistServiceSyncArtistStreamServer{stream})
+}
+
+type ArtistService_SyncArtistStreamServer interface {
+	Send(*SyncArtistResponse) error
+	grpc.ServerStream
+}
+
+type artistServiceSyncArtistStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *artistServiceSyncArtistStreamServer) Send(m *SyncArtistResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _ArtistService_ReadArtistAlbums_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -415,7 +472,7 @@ func _ArtistService_ListArtist_Handler(srv interface{}, ctx context.Context, dec
 }
 
 func _ArtistService_ListArtistStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ListArtistStreamRequest)
+	m := new(ListArtistRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
@@ -484,6 +541,11 @@ var ArtistService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "SyncArtistStream",
+			Handler:       _ArtistService_SyncArtistStream_Handler,
+			ServerStreams: true,
+		},
 		{
 			StreamName:    "ListArtistStream",
 			Handler:       _ArtistService_ListArtistStream_Handler,

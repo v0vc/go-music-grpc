@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -260,7 +261,7 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 	)
 	err = stmt.QueryRowContext(ctx, siteId).Scan(&login, &pass, &token)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		log.Fatalf("no token for sourceId: %d", siteId)
 	case err != nil:
 		log.Fatal(err)
@@ -423,7 +424,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	return &obj, token, needTokenUpd
 }
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, []*artist.Album, []string, []string, error) {
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) (*artist.Artist, []*artist.Album, []string, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -468,7 +469,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 	defer stArtistAlbum.Close()
 
 	var (
-		artists   []*artist.Artist
+		artists   *artist.Artist
 		albums    []*artist.Album
 		albumIds  []string
 		artistIds []string
@@ -501,51 +502,50 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 				alb.ReleaseType = release.Type
 				alb.ReleaseDate = release.Date
 				alb.Thumbnail = thumbAlb
-			}
-			for _, artistData := range release.Artists {
-				if alb.Id != 0 {
-					alb.ArtistIds = append(alb.ArtistIds, artistData.ID)
-				}
-				if !Contains(artistIds, artistData.ID) {
-					artistIds = append(artistIds, artistData.ID)
-				}
-				artId, ok := mArtist[artistData.ID]
-				if !ok {
-					thumbArtUrl := strings.Replace(artistData.Image.Src, "{size}", thumbSize, 1)
-					thumbArt := getThumb(thumbArtUrl)
-					artistTitle := strings.TrimSpace(artistData.Title)
-					userAdded := false
-					if artistData.ID == artistId {
-						err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, thumbArt, 1).Scan(&artId)
-						userAdded = true
-					} else {
-						err = stArtistSlave.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, nil).Scan(&artId)
-					}
-					if err != nil {
-						log.Fatal(err)
-					} else {
-						fmt.Printf("upsert: %v, id: %v \n", artistData.Title, artId)
-					}
-					// if artRawId == 0 || !Contains(existArtistIds, artistData.ID) {
-					if userAdded {
-						artists = append(artists, &artist.Artist{
-							Id:        int64(artId),
-							SiteId:    siteId,
-							ArtistId:  artistId,
-							Title:     artistTitle,
-							Thumbnail: thumbArt,
-							UserAdded: userAdded,
-						})
-					}
-					//}
-					mArtist[artistData.ID] = artId
-				}
 
-				if artId != 0 && albId != 0 {
-					_, _ = stArtistAlbum.ExecContext(ctx, artId, albId)
+				var sb []string
+				for _, artistData := range release.Artists {
+					alb.ArtistIds = append(alb.ArtistIds, artistData.ID)
+					sb = append(sb, artistData.Title)
+					if !Contains(artistIds, artistData.ID) {
+						artistIds = append(artistIds, artistData.ID)
+					}
+					artId, ok := mArtist[artistData.ID]
+					if !ok {
+						thumbArtUrl := strings.Replace(artistData.Image.Src, "{size}", thumbSize, 1)
+						thumbArt := getThumb(thumbArtUrl)
+						artistTitle := strings.TrimSpace(artistData.Title)
+						userAdded := false
+						if artistData.ID == artistId {
+							err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, thumbArt, 1).Scan(&artId)
+							userAdded = true
+						} else {
+							err = stArtistSlave.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, nil).Scan(&artId)
+						}
+						if err != nil {
+							log.Fatal(err)
+						} else {
+							fmt.Printf("upsert: %v, id: %v \n", artistData.Title, artId)
+						}
+						// if artRawId == 0 || !Contains(existArtistIds, artistData.ID) {
+						if userAdded {
+							artists = &artist.Artist{
+								Id:        int64(artId),
+								SiteId:    siteId,
+								ArtistId:  artistId,
+								Title:     artistTitle,
+								Thumbnail: thumbArt,
+								UserAdded: userAdded,
+							}
+						}
+						mArtist[artistData.ID] = artId
+					}
+
+					if artId != 0 {
+						_, _ = stArtistAlbum.ExecContext(ctx, artId, albId)
+					}
 				}
-			}
-			if alb.Id != 0 {
+				alb.SubTitle = strings.Join(sb, ", ")
 				albums = append(albums, alb)
 			}
 		}
@@ -561,7 +561,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 		deletedArtistIds = FindDifference(existArtistIds, artistIds)
 		runExec(tx, ctx, deletedArtistIds, "delete from main.artist where artistId = ?;")
 	}
-	return artists, albums, deletedAlbumIds, deletedArtistIds, tx.Commit()
+	return artists, albums, deletedAlbumIds, tx.Commit()
 }
 
 func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {

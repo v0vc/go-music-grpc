@@ -63,10 +63,9 @@ message SyncArtistRequest {
 }
 
 message SyncArtistResponse {
-  repeated Artist artists = 1;
+  Artist artists = 1;
   repeated Album albums = 2;
   repeated string deletedAlb = 3;
-  repeated string deletedArt = 4;
 }
 
 message ReadArtistAlbumRequest {
@@ -121,16 +120,13 @@ message ListArtistResponse {
   repeated Artist artists = 1;
 }
 
-message ListArtistStreamRequest {
-  uint32 siteId = 1;
-}
-
 message ListArtistStreamResponse {
   Artist artist = 1;
 }
 
 service ArtistService {
   rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
+  rpc SyncArtistStream (SyncArtistRequest) returns (stream SyncArtistResponse);
   rpc ReadArtistAlbums (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
   rpc ReadNewAlbums (ListArtistRequest) returns (ReadArtistAlbumResponse);
   rpc SyncAlbum (SyncAlbumRequest) returns (SyncAlbumResponse);
@@ -140,5 +136,5 @@ service ArtistService {
   rpc DownloadArtist (DownloadArtistRequest) returns (DownloadAlbumsResponse);
   rpc DownloadTracks(DownloadTracksRequest) returns (DownloadTracksResponse);
   rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
-  rpc ListArtistStream (ListArtistStreamRequest) returns (stream ListArtistStreamResponse);
+  rpc ListArtistStream (ListArtistRequest) returns (stream ListArtistStreamResponse);
 }

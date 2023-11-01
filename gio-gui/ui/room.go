@@ -98,12 +98,14 @@ func AddAlbums(rooms *Rooms, albs []model.Message) {
 			ch := rooms.GetChannelById(artId)
 			if ch != nil {
 				ch.Lock()
-				if ch.IsBase {
+				curCount, _ := strconv.Atoi(ch.Room.Count)
+				ch.Room.Count = strconv.Itoa(curCount + len(albs))
+				/*if ch.IsBase {
 					curCount, _ := strconv.Atoi(ch.Room.Count)
 					ch.Room.Count = strconv.Itoa(curCount + len(albs))
 				} else {
 					ch.Room.Count = strconv.Itoa(len(albums))
-				}
+				}*/
 
 				if ch.IsBase || ch.RowTracker.Rows != nil {
 					el := make([]list.Element, 0, len(albums))

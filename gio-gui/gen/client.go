@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -110,18 +111,15 @@ func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *
 			SiteId:   siteId,
 			ArtistId: artistId,
 		})
-		for _, artist := range res.Artists {
-			if !artist.UserAdded {
-				continue
-			}
-			thumb := artist.GetThumbnail()
+		if res.Artists != nil {
+			thumb := res.Artists.GetThumbnail()
 			if thumb == nil {
 				thumb = GetNoAvatarInstance()
 			}
 			im, _, _ := image.Decode(bytes.NewReader(thumb))
 			channels.Add(model.Room{
-				Name:   artist.GetTitle(),
-				Id:     artist.GetArtistId(),
+				Name:   res.Artists.GetTitle(),
+				Id:     res.Artists.GetArtistId(),
 				Image:  im,
 				IsBase: false,
 			})
@@ -203,17 +201,38 @@ func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality 
 func (g *Generator) SyncArtist(siteId uint32, artistId string, albs chan []model.Message) {
 	client, _ := GetClientInstance()
 
-	res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
-		SiteId:   siteId,
-		ArtistId: artistId,
-	})
-	var albums []model.Message
-	for _, alb := range res.Albums {
-		serial := g.new.Decrement()
-		al := MapAlbum(alb, serial, true)
-		albums = append(albums, al)
+	if artistId == "-1" {
+		stream, err := client.SyncArtistStream(context.Background(), &artist.SyncArtistRequest{SiteId: 1})
+		if err != nil {
+			fmt.Printf("error while calling SyncArtistStream RPC: %v\n", err)
+		}
+		for {
+			res, er := stream.Recv()
+			if er == io.EOF {
+				break
+			}
+			if er != nil {
+				fmt.Printf("SyncArtistStream something happened: %v\n", er)
+			}
+			for _, alb := range res.Albums {
+				serial := g.new.Decrement()
+				al := MapAlbum(alb, serial, true)
+				albs <- []model.Message{al}
+			}
+		}
+	} else {
+		res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
+			SiteId:   siteId,
+			ArtistId: artistId,
+		})
+		var albums []model.Message
+		for _, alb := range res.Albums {
+			serial := g.new.Decrement()
+			al := MapAlbum(alb, serial, true)
+			albums = append(albums, al)
+		}
+		albs <- albums
 	}
-	albs <- albums
 }
 
 func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
