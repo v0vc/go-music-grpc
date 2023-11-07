@@ -12,6 +12,8 @@ message Artist {
   bytes thumbnail = 5;
   bool userAdded = 6;
   int32 newAlbs = 7;
+  repeated Album albums = 8;
+  repeated string deletedAlb = 9;
 }
 
 message Album {
@@ -63,9 +65,7 @@ message SyncArtistRequest {
 }
 
 message SyncArtistResponse {
-  Artist artists = 1;
-  repeated Album albums = 2;
-  repeated string deletedAlb = 3;
+  repeated Artist artists = 1;
 }
 
 message ReadArtistAlbumRequest {

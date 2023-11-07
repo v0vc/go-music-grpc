@@ -290,19 +290,38 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	start := time.Now()
 
 	var (
-		newArtists      *artist.Artist
-		newAlbums       []*artist.Album
-		deletedAlbumIds []string
-		err             error
+		artists []*artist.Artist
+		artIds  []string
+		err     error
 	)
+	if artistId == "-1" {
+		artIds, err = getArtistIdsFromDb(ctx, siteId)
+		// artIds = append(artIds, "175943", "31873616")
+	} else {
+		artIds = append(artIds, artistId)
+	}
 
-	switch siteId {
-	case 1:
-		newArtists, newAlbums, deletedAlbumIds, err = SyncArtistSb(ctx, siteId, artistId)
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
+	/*pool, _ := ants.NewPool(1)
+	defer pool.Release()*/
+	for _, artId := range artIds {
+		// err = pool.Submit(func() {
+		switch siteId {
+		case 1:
+			arti, er := SyncArtistSb(ctx, siteId, artId)
+			if er == nil {
+				artists = append(artists, arti...)
+			} else {
+				fmt.Printf("Sync error: %v", er)
+			}
+		case 2:
+			// "артист со спотика"
+		case 3:
+			// "артист с дизера"
+		}
+		//})
+		/*if err != nil {
+			fmt.Sprintf("Pool sync error: %v", err)
+		}*/
 	}
 
 	if err != nil {
@@ -315,9 +334,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	}
 
 	return &artist.SyncArtistResponse{
-		Artists:    newArtists,
-		Albums:     newAlbums,
-		DeletedAlb: deletedAlbumIds,
+		Artists: artists,
 	}, nil
 }
 
@@ -336,19 +353,15 @@ func (*server) SyncArtistStream(req *artist.SyncArtistRequest, stream artist.Art
 	case 1:
 		for _, artId := range artIds {
 			var (
-				newArtists      *artist.Artist
-				newAlbums       []*artist.Album
-				deletedAlbumIds []string
-				er              error
+				artists []*artist.Artist
+				er      error
 			)
 			//id := artId // Create a local copy of the artist id for goroutine safety
 			//_ = pool.Submit(func() {
-			newArtists, newAlbums, deletedAlbumIds, er = SyncArtistSb(context.Background(), siteId, artId)
+			artists, er = SyncArtistSb(context.Background(), siteId, artId)
 			if er == nil {
 				err = stream.Send(&artist.SyncArtistResponse{
-					Artists:    newArtists,
-					Albums:     newAlbums,
-					DeletedAlb: deletedAlbumIds,
+					Artists: artists,
 				})
 				if err != nil {
 					fmt.Printf("SyncArtistStream send error: %v\n", err)

@@ -424,7 +424,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	return &obj, token, needTokenUpd
 }
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) (*artist.Artist, []*artist.Album, []string, error) {
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, error) {
 	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -469,14 +469,17 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) (*artist.
 	defer stArtistAlbum.Close()
 
 	var (
-		artists   *artist.Artist
-		albums    []*artist.Album
+		authors   []*artist.Artist
 		albumIds  []string
 		artistIds []string
 	)
-
 	mArtist := make(map[string]int)
 	for _, data := range item.GetArtists {
+		var (
+			author *artist.Artist
+			albums []*artist.Album
+		)
+
 		for _, release := range data.Releases {
 			if release.ID == "" {
 				continue
@@ -529,7 +532,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) (*artist.
 						}
 						// if artRawId == 0 || !Contains(existArtistIds, artistData.ID) {
 						if userAdded {
-							artists = &artist.Artist{
+							author = &artist.Artist{
 								Id:        int64(artId),
 								SiteId:    siteId,
 								ArtistId:  artistId,
@@ -549,6 +552,11 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) (*artist.
 				albums = append(albums, alb)
 			}
 		}
+		if author != nil && albums != nil {
+			author.Albums = albums
+			// author.NewAlbs = int32(len(albums))
+			authors = append(authors, author)
+		}
 	}
 
 	var (
@@ -561,7 +569,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) (*artist.
 		deletedArtistIds = FindDifference(existArtistIds, artistIds)
 		runExec(tx, ctx, deletedArtistIds, "delete from main.artist where artistId = ?;")
 	}
-	return artists, albums, deletedAlbumIds, tx.Commit()
+	return authors, tx.Commit()
 }
 
 func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {

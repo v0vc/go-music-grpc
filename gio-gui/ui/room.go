@@ -81,25 +81,14 @@ type Room struct {
 	}()
 }*/
 
-func AddAlbums(rooms *Rooms, albs []model.Message) {
-	artMap := make(map[string][]model.Message)
-	for _, alb := range albs {
-		artMap["-1"] = append(artMap["-1"], alb)
-		for _, artId := range alb.ParentId {
-			/*_, ok := artMap[artId]
-			if !ok {
-				artMap[artId] = append(artMap[artId], alb)
-			}*/
-			artMap[artId] = append(artMap[artId], alb)
-		}
-	}
+func AddAlbums(rooms *Rooms, artMap map[string][]*model.Message) {
 	go func() {
 		for artId, albums := range artMap {
 			ch := rooms.GetChannelById(artId)
 			if ch != nil {
 				ch.Lock()
 				curCount, _ := strconv.Atoi(ch.Room.Count)
-				ch.Room.Count = strconv.Itoa(curCount + len(albs))
+				ch.Room.Count = strconv.Itoa(curCount + len(albums))
 				/*if ch.IsBase {
 					curCount, _ := strconv.Atoi(ch.Room.Count)
 					ch.Room.Count = strconv.Itoa(curCount + len(albs))
@@ -111,7 +100,7 @@ func AddAlbums(rooms *Rooms, albs []model.Message) {
 					el := make([]list.Element, 0, len(albums))
 					for _, alb := range albums {
 						el = append(el, alb)
-						ch.RowTracker.Add(alb)
+						ch.RowTracker.Add(*alb)
 					}
 					ch.ListState.Modify(el, nil, nil)
 				}
@@ -214,9 +203,9 @@ func (r *Room) DownloadArtist(siteId uint32, artistId string, trackQuality strin
 func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	r.Lock()
 	defer r.Unlock()
-	albs := make(chan []model.Message, 1)
-	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, albs)
-	res := <-albs
+	arts := make(chan map[string][]*model.Message, 1)
+	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, arts)
+	res := <-arts
 	AddAlbums(rooms, res)
 }
 
@@ -237,7 +226,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	r.List[r.active].Interact.Active = true
 }*/
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget) {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget, err error) {
 	r.Lock()
 	defer r.Unlock()
 	if index < 0 {
@@ -254,20 +243,21 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 
 	if r.List[r.active].RowTracker.Rows == nil && !r.List[r.active].Loaded {
 		channel := r.List[r.active]
-		// var albs []model.Message
-		if albs == nil {
-			if channel.Room.IsBase {
-				albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
-				count := len(albs)
-				if count > 0 {
-					channel.Count = strconv.Itoa(count)
+		if err == nil {
+			if albs == nil {
+				if channel.Room.IsBase {
+					albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
+					count := len(albs)
+					if count > 0 {
+						channel.Count = strconv.Itoa(count)
+					}
+				} else {
+					albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
 				}
-			} else {
-				albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
 			}
-		}
-		for _, alb := range albs {
-			channel.RowTracker.Add(alb)
+			for _, alb := range albs {
+				channel.RowTracker.Add(alb)
+			}
 		}
 		lm := list.NewManager(len(albs),
 			list.Hooks{

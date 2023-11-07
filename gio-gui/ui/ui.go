@@ -126,7 +126,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	g := &gen.Generator{}
 
 	// Generate most of the model data.
-	rooms := g.GetChannels(siteId)
+	rooms, err := g.GetChannels(siteId)
 	/*for _, r := range rooms.List() {
 		mess := model.Messages{}
 		rt := &RowTracker{
@@ -148,7 +148,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 
 	MapDto(&ui, rooms, nil, g)
 
-	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentChatRow)
+	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentChatRow, err)
 
 	return &ui
 }
@@ -178,7 +178,7 @@ func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	g := &gen.Generator{}
 	channels, albums := g.AddChannel(siteId, artistUrl)
 	MapDto(ui, channels, albums, g)
-	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow)
+	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow, nil)
 }
 
 // Layout the application UI.
@@ -192,7 +192,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked() {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentChatRow)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentChatRow, nil)
 			ui.InsideRoom = true
 			break
 		}
@@ -265,7 +265,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 				if ui.DeleteBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
 					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 					if ui.ChannelMenuTarget.Interact.Active {
-						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow)
+						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow, nil)
 					}
 					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				}
@@ -387,10 +387,10 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					ui.ChannelMenuTarget = r
 				}
 				return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
-					Name:  r.Room.Name,
-					Image: r.Room.Image,
-					// Content: latest.Content,
-					Count: r.Count,
+					Name:    r.Room.Name,
+					Image:   r.Room.Image,
+					Content: r.Room.Content,
+					Count:   r.Count,
 				}).Layout(gtx)
 			})
 		}),

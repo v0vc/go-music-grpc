@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
-	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -70,7 +69,7 @@ type Generator struct {
 	new syncInt
 }
 
-func (g *Generator) GetChannels(siteId uint32) *model.Rooms {
+func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 	var rooms model.Rooms
 	baseRoom := model.Room{
 		Name:   "-= NEW =-",
@@ -78,27 +77,39 @@ func (g *Generator) GetChannels(siteId uint32) *model.Rooms {
 		Image:  nil,
 		IsBase: true,
 	}
-	rooms.Add(baseRoom)
-	client, _ := GetClientInstance()
-	res, _ := client.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: siteId})
-	for _, artist := range res.Artists {
-		thumb := artist.GetThumbnail()
-		if thumb == nil {
-			thumb = GetNoAvatarInstance()
-		}
-		im, _, _ := image.Decode(bytes.NewReader(thumb))
-		channel := model.Room{
-			Name:   artist.GetTitle(),
-			Id:     artist.GetArtistId(),
-			Image:  im,
-			IsBase: false,
-		}
-		if artist.GetNewAlbs() > 0 {
-			channel.Count = strconv.Itoa(int(artist.GetNewAlbs()))
-		}
-		rooms.Add(channel)
+
+	client, err := GetClientInstance()
+	if err != nil {
+		baseRoom.Content = err.Error()
+		rooms.Add(baseRoom)
+		return &rooms, err
 	}
-	return &rooms
+	res, err := client.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: siteId})
+	if err != nil {
+		baseRoom.Content = err.Error()
+		rooms.Add(baseRoom)
+		return &rooms, err
+	} else {
+		rooms.Add(baseRoom)
+		for _, artist := range res.Artists {
+			thumb := artist.GetThumbnail()
+			if thumb == nil {
+				thumb = GetNoAvatarInstance()
+			}
+			im, _, _ := image.Decode(bytes.NewReader(thumb))
+			channel := model.Room{
+				Name:   artist.GetTitle(),
+				Id:     artist.GetArtistId(),
+				Image:  im,
+				IsBase: false,
+			}
+			if artist.GetNewAlbs() > 0 {
+				channel.Count = strconv.Itoa(int(artist.GetNewAlbs()))
+			}
+			rooms.Add(channel)
+		}
+		return &rooms, err
+	}
 }
 
 func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *model.Messages) {
@@ -111,23 +122,23 @@ func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *
 			SiteId:   siteId,
 			ArtistId: artistId,
 		})
-		if res.Artists != nil {
-			thumb := res.Artists.GetThumbnail()
+		for _, art := range res.GetArtists() {
+			thumb := art.GetThumbnail()
 			if thumb == nil {
 				thumb = GetNoAvatarInstance()
 			}
 			im, _, _ := image.Decode(bytes.NewReader(thumb))
 			channels.Add(model.Room{
-				Name:   res.Artists.GetTitle(),
-				Id:     res.Artists.GetArtistId(),
+				Name:   art.GetTitle(),
+				Id:     art.GetArtistId(),
 				Image:  im,
 				IsBase: false,
 			})
-		}
-		for _, alb := range res.Albums {
-			serial := g.old.Increment()
-			al := MapAlbum(alb, serial, false)
-			albums.Add(al)
+			for _, alb := range art.Albums {
+				serial := g.old.Increment()
+				al := MapAlbum(alb, serial, false)
+				albums.Add(al)
+			}
 		}
 	}
 	return &channels, &albums
@@ -198,41 +209,26 @@ func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality 
 	return res.Downloaded
 }
 
-func (g *Generator) SyncArtist(siteId uint32, artistId string, albs chan []model.Message) {
+func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[string][]*model.Message) {
 	client, _ := GetClientInstance()
+	artMap := make(map[string][]*model.Message)
 
-	if artistId == "-1" {
-		stream, err := client.SyncArtistStream(context.Background(), &artist.SyncArtistRequest{SiteId: 1})
-		if err != nil {
-			fmt.Printf("error while calling SyncArtistStream RPC: %v\n", err)
-		}
-		for {
-			res, er := stream.Recv()
-			if er == io.EOF {
-				break
-			}
-			if er != nil {
-				fmt.Printf("SyncArtistStream something happened: %v\n", er)
-			}
-			for _, alb := range res.Albums {
-				serial := g.new.Decrement()
-				al := MapAlbum(alb, serial, true)
-				albs <- []model.Message{al}
-			}
-		}
-	} else {
-		res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
-			SiteId:   siteId,
-			ArtistId: artistId,
-		})
-		var albums []model.Message
-		for _, alb := range res.Albums {
+	res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
+		SiteId:   siteId,
+		ArtistId: artistId,
+	})
+
+	for _, art := range res.Artists {
+		for _, alb := range art.Albums {
 			serial := g.new.Decrement()
 			al := MapAlbum(alb, serial, true)
-			albums = append(albums, al)
+			artMap["-1"] = append(artMap["-1"], &al)
+			for _, artId := range al.ParentId {
+				artMap[artId] = append(artMap[artId], &al)
+			}
 		}
-		albs <- albums
 	}
+	arts <- artMap
 }
 
 func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {

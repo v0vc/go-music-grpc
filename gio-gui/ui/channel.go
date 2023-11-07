@@ -48,7 +48,7 @@ type ChannelConfig struct {
 // CreateChannel creates a style type that can lay out the data for a room.
 func CreateChannel(th *material.Theme, interact *Channel, menu *component.MenuState, room *ChannelConfig) ChannelStyle {
 	interact.Image.Cache(room.Image)
-	return ChannelStyle{
+	channelStyle := ChannelStyle{
 		Channel: interact,
 		Name:    material.Label(th, unit.Sp(14), room.Name),
 		Summary: material.Label(th, unit.Sp(12), room.Content),
@@ -66,6 +66,8 @@ func CreateChannel(th *material.Theme, interact *Channel, menu *component.MenuSt
 		Overlay:   component.WithAlpha(th.Fg, 50),
 		Menu:      component.Menu(th, menu),
 	}
+	channelStyle.Summary.MaxLines = 1
+	return channelStyle
 }
 
 func (room ChannelStyle) Layout(gtx layout.Context) layout.Dimensions {
@@ -108,9 +110,10 @@ func (room ChannelStyle) Layout(gtx layout.Context) layout.Dimensions {
 								return room.Name.Layout(gtx)
 							}),
 							layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
-							/*layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return component.TruncatingLabelStyle(room.Summary).Layout(gtx)
-							}),*/
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return room.Summary.Layout(gtx)
+								// return component.TruncatingLabelStyle(room.Summary).Layout(gtx)
+							}),
 						)
 					}),
 					layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
