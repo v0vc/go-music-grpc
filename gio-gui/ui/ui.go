@@ -176,7 +176,12 @@ func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 
 func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	g := &gen.Generator{}
-	channels, albums := g.AddChannel(siteId, artistUrl)
+	channels, albums, err := g.AddChannel(siteId, artistUrl)
+	if err != nil {
+		ch := ui.Rooms.GetBaseChannel()
+		ch.Content = err.Error()
+		return
+	}
 	MapDto(ui, channels, albums, g)
 	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow, nil)
 }

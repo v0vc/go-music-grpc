@@ -50,6 +50,7 @@ func (p *Page) addActions() []component.AppBarAction {
 					if p.editor.Text() != "" {
 						go p.Router.AppBar.StopContextual(gtx.Now)
 						go singleInstance.AddChannel(siteId, p.editor.Text())
+						p.editor.SetText("")
 					}
 				}
 				return gutter.Layout(gtx,

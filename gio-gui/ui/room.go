@@ -313,9 +313,20 @@ func (r *Rooms) Index(index int) *Room {
 func (r *Rooms) GetChannelById(artistId string) *Room {
 	r.Lock()
 	defer r.Unlock()
-	for _, alb := range r.List {
-		if alb.Id == artistId {
-			return alb
+	for _, channel := range r.List {
+		if channel.Id == artistId {
+			return channel
+		}
+	}
+	return nil
+}
+
+func (r *Rooms) GetBaseChannel() *Room {
+	r.Lock()
+	defer r.Unlock()
+	for _, channel := range r.List {
+		if channel.IsBase {
+			return channel
 		}
 	}
 	return nil

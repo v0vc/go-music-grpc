@@ -62,6 +62,7 @@ message ReadAlbumTrackResponse {
 message SyncArtistRequest {
   uint32 siteId = 1;
   string artistId = 2;
+  bool isAdd = 3;
 }
 
 message SyncArtistResponse {

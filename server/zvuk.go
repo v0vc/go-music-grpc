@@ -424,8 +424,8 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	return &obj, token, needTokenUpd
 }
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Artist, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd bool) ([]*artist.Artist, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -455,8 +455,14 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 		log.Fatal(err)
 	}
 	defer stArtistSlave.Close()
+	var syncState uint8
+	if isAdd {
+		syncState = 0
+	} else {
+		syncState = 1
+	}
 
-	stAlbum, err := tx.PrepareContext(ctx, "insert into main.album(albumId, title, releaseDate, releaseType, thumbnail, thumbnailUrl, syncState) values (?, ?, ?, ?, ?, ?, 1) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
+	stAlbum, err := tx.PrepareContext(ctx, "insert into main.album(albumId, title, releaseDate, releaseType, thumbnail, thumbnailUrl, syncState) values (?, ?, ?, ?, ?, ?, ?) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -491,7 +497,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 			thumbAlb := getThumb(thumbAlbUrl)
 
 			var albId int
-			err = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, thumbAlb, release.Image.Src).Scan(&albId)
+			err = stAlbum.QueryRowContext(ctx, release.ID, strings.TrimSpace(release.Title), release.Date, release.Type, thumbAlb, release.Image.Src, syncState).Scan(&albId)
 			if err != nil {
 				log.Fatal(err)
 			} else {
@@ -573,7 +579,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string) ([]*artis
 }
 
 func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -758,7 +764,7 @@ func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDow
 }
 
 func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -788,7 +794,7 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 }
 
 func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQuality string) (map[string]string, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}

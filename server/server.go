@@ -24,6 +24,7 @@ const (
 	defaultPort      = "4041"
 	defaultInterface = "0.0.0.0"
 	dbFile           = "./db.sqlite"
+	sqlite3          = "sqlite3"
 )
 
 var DownloadDir string
@@ -57,7 +58,7 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 }
 
 func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string) ([]string, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 }
 
 func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -119,7 +120,7 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 }
 
 func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -150,7 +151,7 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 }
 
 func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]string, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -178,7 +179,7 @@ func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]string, error) {
 }
 
 func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -209,7 +210,7 @@ func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]
 }
 
 func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -233,6 +234,11 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		{stmt: "delete from album where alb_id in (select albumId from _temp_album);", res: 5},
 		{stmt: "drop table _temp_album;", res: 6},
 		{stmt: "drop table _temp_artist;", res: 7},
+		/*update main.artist set userAdded = 0 where artistId = 31873616 and siteId = 1;
+		create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) and a.userAdded = 0 group by aa.albumId having res > 1);
+		delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) and a.userAdded = 1 and a.art_id <> (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1) group by aa.artistId)) group by aa.artistId);
+		delete from main.album where alb_id in (select albumId from _temp_album);
+		drop table _temp_album;*/
 	}
 
 	for _, exec := range execs {
@@ -307,7 +313,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		// err = pool.Submit(func() {
 		switch siteId {
 		case 1:
-			arti, er := SyncArtistSb(ctx, siteId, artId)
+			arti, er := SyncArtistSb(ctx, siteId, artId, req.GetIsAdd())
 			if er == nil {
 				artists = append(artists, arti...)
 			} else {
@@ -358,7 +364,7 @@ func (*server) SyncArtistStream(req *artist.SyncArtistRequest, stream artist.Art
 			)
 			//id := artId // Create a local copy of the artist id for goroutine safety
 			//_ = pool.Submit(func() {
-			artists, er = SyncArtistSb(context.Background(), siteId, artId)
+			artists, er = SyncArtistSb(context.Background(), siteId, artId, req.GetIsAdd())
 			if er == nil {
 				err = stream.Send(&artist.SyncArtistResponse{
 					Artists: artists,
@@ -605,7 +611,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	siteId := req.GetSiteId()
 	fmt.Printf("siteId: %v, list artists started \n", siteId)
 	start := time.Now()
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -653,7 +659,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 func (*server) ListArtistStream(req *artist.ListArtistRequest, stream artist.ArtistService_ListArtistStreamServer) error {
 	siteId := req.GetSiteId()
 	fmt.Printf("siteId: %v, list artists stream started \n", siteId)
-	db, err := sql.Open("sqlite3", fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return status.Errorf(
 			codes.Internal,

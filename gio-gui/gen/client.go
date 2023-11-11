@@ -13,12 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/v0vc/go-music-grpc/artist"
+	"github.com/v0vc/go-music-grpc/gio-gui/model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/v0vc/go-music-grpc/artist"
-
-	"github.com/v0vc/go-music-grpc/gio-gui/model"
 )
 
 const artistRegexString = `^https://zvuk.com/artist/(\d+)$`
@@ -112,16 +110,19 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 	}
 }
 
-func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *model.Messages) {
+func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *model.Messages, error) {
 	var channels model.Rooms
 	var albums model.Messages
 	artistId := findArtistId(artistUrl)
 	if artistId != "" {
 		client, _ := GetClientInstance()
-		res, _ := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
+		res, err := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 			SiteId:   siteId,
 			ArtistId: artistId,
 		})
+		if err != nil {
+			return nil, nil, err
+		}
 		for _, art := range res.GetArtists() {
 			thumb := art.GetThumbnail()
 			if thumb == nil {
@@ -141,7 +142,7 @@ func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *
 			}
 		}
 	}
-	return &channels, &albums
+	return &channels, &albums, nil
 }
 
 func (g *Generator) DeleteArtist(siteId uint32, artistId string) int64 {
