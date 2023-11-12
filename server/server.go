@@ -226,14 +226,11 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		stmt string
 		res  int
 	}{
-		{stmt: fmt.Sprintf("create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.albumId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) and a.userAdded = 1 group by aa.albumId having res = 1);", artId), res: 0},
-		{stmt: fmt.Sprintf("create temporary table _temp_artist as select aa.artistId, a.userAdded from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = %v) group by aa.artistId;", artistId), res: 1},
-		{stmt: "select count(1) from _temp_artist where userAdded = 1;", res: 2},
-		{stmt: "delete from artist where art_id in (select artistId from _temp_artist where userAdded = 0);", res: 3},
-		{stmt: "delete from track where trk_id in (select trackId from main.albumTrack where albumId in (select albumId from _temp_album));", res: 4},
-		{stmt: "delete from album where alb_id in (select albumId from _temp_album);", res: 5},
-		{stmt: "drop table _temp_album;", res: 6},
-		{stmt: "drop table _temp_artist;", res: 7},
+		{stmt: fmt.Sprintf("update main.artist set userAdded = 0 where art_id = %d ", artId), res: 0},
+		{stmt: fmt.Sprintf("create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) and a.userAdded = 0 group by aa.albumId having res > 1);", artId, artId), res: 1},
+		{stmt: fmt.Sprintf("delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) and a.userAdded = 1 and a.art_id <> %d group by aa.artistId)) group by aa.artistId);", artId, artId, artId), res: 2},
+		{stmt: "delete from main.album where alb_id in (select albumId from _temp_album);", res: 3},
+		{stmt: "drop table _temp_album;", res: 4},
 		/*update main.artist set userAdded = 0 where artistId = 31873616 and siteId = 1;
 		create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) and a.userAdded = 0 group by aa.albumId having res > 1);
 		delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) and a.userAdded = 1 and a.art_id <> (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1) group by aa.artistId)) group by aa.artistId);
@@ -242,46 +239,16 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 	}
 
 	for _, exec := range execs {
-		stmt, err := tx.PrepareContext(ctx, exec.stmt)
-		if err != nil {
-			log.Fatal(err)
+		stmt, er := tx.PrepareContext(ctx, exec.stmt)
+		if er != nil {
+			log.Fatal(er)
 		}
-
-		if exec.res == 2 {
-			var artCount int
-			err = stmt.QueryRowContext(ctx).Scan(&artCount)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if artCount == 1 {
-				artSt, err := tx.PrepareContext(ctx, "delete from main.artist where art_id = ?;")
-				if err != nil {
-					log.Fatal(err)
-				}
-				_, err = artSt.ExecContext(ctx, artId)
-				if err != nil {
-					log.Fatal(err)
-				}
-				artSt.Close()
-			} else {
-				artUpSt, err := tx.PrepareContext(ctx, "update main.artist set userAdded = 0 where art_id = ?;")
-				if err != nil {
-					log.Fatal(err)
-				}
-				_, err = artUpSt.ExecContext(ctx, artId)
-				if err != nil {
-					log.Fatal(err)
-				}
-				artUpSt.Close()
-			}
-		} else {
-			cc, err := stmt.ExecContext(ctx)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if exec.res == 4 {
-				aff, _ = cc.RowsAffected()
-			}
+		cc, er := stmt.ExecContext(ctx)
+		if er != nil {
+			log.Fatal(er)
+		}
+		if exec.res == 3 {
+			aff, _ = cc.RowsAffected()
 		}
 		stmt.Close()
 	}
