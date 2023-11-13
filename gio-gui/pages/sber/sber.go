@@ -264,6 +264,9 @@ func fetchArtists(p *Page) {
 }
 
 func userLayout(gtx layout.Context, index int, p *Page, th *material.Theme) layout.Dimensions {
+	if p.users == nil {
+		return layout.Dimensions{}
+	}
 	u := p.users[index]
 	in := layout.UniformInset(unit.Dp(8))
 	dims := in.Layout(gtx, func(gtx layout.Context) layout.Dimensions {

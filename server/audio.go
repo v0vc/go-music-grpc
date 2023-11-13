@@ -109,13 +109,14 @@ func extractFLACComment(fileName string) (*flacvorbis.MetaDataBlockVorbisComment
 		cmt    *flacvorbis.MetaDataBlockVorbisComment
 		cmtIdx int
 	)
-
-	for idx, meta := range f.Meta {
-		if meta.Type == flac.VorbisComment {
-			cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
-			cmtIdx = idx
-			if err != nil {
-				fmt.Println(err)
+	if f != nil {
+		for idx, meta := range f.Meta {
+			if meta.Type == flac.VorbisComment {
+				cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
+				cmtIdx = idx
+				if err != nil {
+					fmt.Println(err)
+				}
 			}
 		}
 	}

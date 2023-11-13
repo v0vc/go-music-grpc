@@ -22,7 +22,7 @@ require (
 require (
 	gioui.org/cpu v0.0.0-20220412190645-f1e9e8c3b1f7 // indirect
 	gioui.org/shader v1.0.8 // indirect
-	github.com/go-text/typesetting v0.0.0-20231110223828-31a9559ebc00 // indirect
+	github.com/go-text/typesetting v0.0.0-20231113130822-cf4b5dada737 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/matryer/is v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

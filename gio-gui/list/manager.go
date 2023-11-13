@@ -93,7 +93,7 @@ type Manager struct {
 // goroutine is immediately able to start working on it. Otherwise, it will
 // discard the request.
 func (m *Manager) tryRequest(dir Direction) {
-	if m.ignoring.Contains(dir) {
+	if m.ignoring.Contains(dir) || m.requests == nil {
 		return
 	}
 	m.lastRequest = dir
@@ -198,6 +198,9 @@ const DefaultPrefetch = 0.15
 //
 // For "pull" modifications, see the Loader hook.
 func (m *Manager) Modify(newOrUpdated []Element, updateOnly []Element, remove []Serial) {
+	if m.requests == nil {
+		return
+	}
 	m.requests <- modificationRequest{
 		NewOrUpdate: newOrUpdated,
 		UpdateOnly:  updateOnly,
@@ -211,6 +214,9 @@ func (m *Manager) Modify(newOrUpdated []Element, updateOnly []Element, remove []
 // Elements provided that exist in the Manager will be updated in-place, and those
 // that do not will be inserted as new elements.
 func (m *Manager) Update(newOrUpdated []Element) {
+	if m.requests == nil {
+		return
+	}
 	m.requests <- modificationRequest{
 		NewOrUpdate: newOrUpdated,
 		UpdateOnly:  nil,
@@ -223,6 +229,9 @@ func (m *Manager) Update(newOrUpdated []Element) {
 // Elements provided that exist in the Manager will be updated in-place, and those
 // that do not  will be ignored.
 func (m *Manager) InPlace(updateOnly []Element) {
+	if m.requests == nil {
+		return
+	}
 	m.requests <- modificationRequest{
 		NewOrUpdate: nil,
 		UpdateOnly:  updateOnly,
@@ -235,6 +244,9 @@ func (m *Manager) InPlace(updateOnly []Element) {
 // Elements in the Manager that are specified in the remove list will be deleted.
 // Serials that map to non-existent elements will be ignored.
 func (m *Manager) Remove(remove []Serial) {
+	if m.requests == nil {
+		return
+	}
 	m.requests <- modificationRequest{
 		NewOrUpdate: nil,
 		UpdateOnly:  nil,

@@ -179,7 +179,9 @@ func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	channels, albums, err := g.AddChannel(siteId, artistUrl)
 	if err != nil {
 		ch := ui.Rooms.GetBaseChannel()
-		ch.Content = err.Error()
+		if ch != nil {
+			ch.Content = err.Error()
+		}
 		return
 	}
 	MapDto(ui, channels, albums, g)

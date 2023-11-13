@@ -139,13 +139,17 @@ func DefaultHooks(w *app.Window, th *material.Theme) Hooks {
 }
 
 func min(ints ...int) int {
-	lowest := ints[0]
-	for i := 1; i < len(ints); i++ {
-		if ints[i] < lowest {
-			lowest = ints[i]
+	if len(ints) > 0 {
+		lowest := ints[0]
+		for i := 1; i < len(ints); i++ {
+			if ints[i] < lowest {
+				lowest = ints[i]
+			}
 		}
+		return lowest
+	} else {
+		return 0
 	}
-	return lowest
 }
 
 func max(a, b int) int {

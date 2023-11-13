@@ -121,6 +121,9 @@ func (r *Rooms) Add(room Room) {
 
 // List returns an ordered list of room data.
 func (r *Rooms) List() (list []*Room) {
+	if r == nil {
+		return nil
+	}
 	list = make([]*Room, len(r.list))
 	for ii := range r.list {
 		list[ii] = &r.list[ii]

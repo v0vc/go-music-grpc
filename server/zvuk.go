@@ -71,7 +71,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func getThumb(url string) []byte {
 	response, err := http.Get(url)
-	if err != nil || response.StatusCode != http.StatusOK {
+	if err != nil || response == nil || response.StatusCode != http.StatusOK {
 		return []byte{}
 	}
 	defer response.Body.Close()
@@ -90,7 +90,7 @@ func downloadAlbumCover(url, path string) error {
 	}
 	defer f.Close()
 	req, err := client.Get(url)
-	if err != nil {
+	if err != nil || req == nil {
 		return err
 	}
 	defer req.Body.Close()
@@ -113,7 +113,7 @@ func downloadTrack(trackPath, url string) (string, error) {
 	}
 	req.Header.Add("Range", "bytes=0-")
 	do, err := client.Do(req)
-	if err != nil {
+	if err != nil || do == nil {
 		return "", err
 	}
 	defer do.Body.Close()
@@ -288,7 +288,7 @@ func getTokenFromSite(email, password string) (string, error) {
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	do, err := client.Do(req)
-	if err != nil {
+	if err != nil || do == nil {
 		return "", err
 	}
 	defer do.Body.Close()
@@ -296,8 +296,9 @@ func getTokenFromSite(email, password string) (string, error) {
 		return "", err
 	}
 	var obj *Auth
+
 	err = json.NewDecoder(do.Body).Decode(&obj)
-	if err != nil {
+	if err != nil || obj == nil {
 		return "", err
 	}
 	return obj.Result.Token, nil
@@ -316,7 +317,7 @@ func getTrackStreamUrl(trackId, trackQuality, token string) (string, error) {
 	req.URL.RawQuery = query.Encode()
 	for i := 0; i < 5; i++ {
 		do, err = client.Do(req)
-		if err != nil {
+		if err != nil || do == nil {
 			return "", err
 		}
 		if do.StatusCode == http.StatusTeapot && i != 4 {
@@ -330,10 +331,13 @@ func getTrackStreamUrl(trackId, trackQuality, token string) (string, error) {
 		}
 		break
 	}
+	if do == nil {
+		return "", err
+	}
 	defer do.Body.Close()
 	var obj *TrackStreamInfo
 	err = json.NewDecoder(do.Body).Decode(&obj)
-	if err != nil {
+	if err != nil || obj == nil {
 		return "", err
 	}
 	return obj.Result.Stream, nil
@@ -359,7 +363,7 @@ func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, strin
 	query.Set("include", "track")
 	req.URL.RawQuery = query.Encode()
 	do, err := client.Do(req)
-	if err != nil {
+	if err != nil || do == nil {
 		log.Fatal(err)
 	}
 	defer do.Body.Close()
@@ -379,6 +383,7 @@ func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, strin
 		return nil, token, needTokenUpd
 	case http.StatusOK:
 		var obj ReleaseInfo
+
 		err = json.NewDecoder(do.Body).Decode(&obj)
 		if err != nil {
 			log.Println("Can't decode response from api: ", err)
@@ -595,6 +600,9 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
 	}
+	if item == nil {
+		return nil, nil
+	}
 
 	stTrack, err := tx.PrepareContext(ctx, "insert into main.track (trackId, trackNum, title, hasFlac, hasLyric, quality, condition, genre, duration) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict (trackId, title) do nothing returning trk_id;")
 	if err != nil {
@@ -606,6 +614,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 		tracks     []*artist.Track
 		trackTotal = len(item.Result.Tracks)
 	)
+
 	if trackTotal > 0 {
 		albId := getAlbumIdDb(tx, ctx, siteId, albumId)
 		stAlbumUpd, err := tx.PrepareContext(ctx, "update main.album set trackTotal = ? where alb_id = ?;")
