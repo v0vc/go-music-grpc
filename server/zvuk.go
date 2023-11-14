@@ -449,7 +449,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	artRawId, userAddedDb := GetArtistIdDb(tx, ctx, siteId, artistId)
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
 
-	stArtistMaster, err := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
+	stArtistMaster, err := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded = 1, thumbnail = ? returning art_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -531,7 +531,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 						artistTitle := strings.TrimSpace(artistData.Title)
 						userAdded := false
 						if artistData.ID == artistId {
-							err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, thumbArt, 1).Scan(&artId)
+							err = stArtistMaster.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, thumbArt, 1, thumbArt).Scan(&artId)
 							userAdded = true
 						} else {
 							err = stArtistSlave.QueryRowContext(ctx, siteId, artistData.ID, artistTitle, nil).Scan(&artId)

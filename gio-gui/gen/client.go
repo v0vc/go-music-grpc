@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,8 +17,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
-
-const artistRegexString = `^https://zvuk.com/artist/(\d+)$`
 
 var lock = &sync.Mutex{}
 
@@ -53,10 +50,10 @@ func GetClientInstance() (artist.ArtistServiceClient, error) {
 			return nil, err
 		}
 		singleInstance = artist.NewArtistServiceClient(cc)
-	} else {
-		fmt.Println("Single instance already created.")
-		// defer cc.Close()
-	}
+	} // else {
+	// fmt.Println("Single instance already created.")
+	// defer cc.Close()
+	//}
 	return singleInstance, nil
 }
 
@@ -110,13 +107,9 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 	}
 }
 
-func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *model.Messages, error) {
+func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, error) {
 	var channels model.Rooms
 	var albums model.Messages
-	artistId := findArtistId(artistUrl)
-	if artistId == "" {
-		return &channels, &albums, nil
-	}
 
 	client, err := GetClientInstance()
 	if client == nil {
@@ -125,6 +118,7 @@ func (g *Generator) AddChannel(siteId uint32, artistUrl string) (*model.Rooms, *
 	res, err := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 		SiteId:   siteId,
 		ArtistId: artistId,
+		IsAdd:    true,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -285,14 +279,6 @@ func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 		Avatar:   im,
 		Read:     isRead,
 	}
-}
-
-func findArtistId(url string) string {
-	matchArtist := regexp.MustCompile(artistRegexString).FindStringSubmatch(url)
-	if matchArtist == nil {
-		return ""
-	}
-	return matchArtist[1]
 }
 
 // syncInt is a synchronized integer.

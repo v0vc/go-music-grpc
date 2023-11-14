@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"fmt"
 	"image"
+	"regexp"
 	"slices"
 	"time"
 
@@ -26,6 +28,8 @@ import (
 	"github.com/v0vc/go-music-grpc/gio-gui/list"
 	"github.com/v0vc/go-music-grpc/gio-gui/model"
 )
+
+const artistRegexString = `^https://zvuk.com/artist/(\d+)$`
 
 var (
 	// SidebarMaxWidth specifies how large the sidebar should be on
@@ -176,13 +180,23 @@ func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 
 func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	g := &gen.Generator{}
-	channels, albums, err := g.AddChannel(siteId, artistUrl)
-	if err != nil {
-		ch := ui.Rooms.GetBaseChannel()
-		if ch != nil {
-			ch.Content = err.Error()
-		}
+	ch := ui.Rooms.GetBaseChannel()
+	if ch == nil {
 		return
+	}
+	artistId := findArtistId(artistUrl)
+	if artistId == "" {
+		ch.Content = "invalid url"
+		return
+	} else {
+		ch.Content = fmt.Sprintf("working: %v", artistId)
+	}
+	channels, albums, err := g.AddChannel(siteId, artistId)
+	if err != nil {
+		ch.Content = err.Error()
+		return
+	} else {
+		ch.Content = ""
 	}
 	MapDto(ui, channels, albums, g)
 	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow, nil)
@@ -485,4 +499,12 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 	})
 
 	return msg.Layout
+}
+
+func findArtistId(url string) string {
+	matchArtist := regexp.MustCompile(artistRegexString).FindStringSubmatch(url)
+	if matchArtist == nil {
+		return ""
+	}
+	return matchArtist[1]
 }
