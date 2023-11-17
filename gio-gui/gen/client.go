@@ -234,12 +234,12 @@ func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality 
 	return res.Downloaded
 }
 
-func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[string][]*model.Message) {
+func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[string][]model.Message) {
 	client, _ := GetClientInstance()
 	if client == nil {
 		return
 	}
-	artMap := make(map[string][]*model.Message)
+	artMap := make(map[string][]model.Message)
 
 	res, err := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 		SiteId:   siteId,
@@ -252,9 +252,9 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 		for _, alb := range art.Albums {
 			serial := g.new.Decrement()
 			al := MapAlbum(alb, serial, true)
-			artMap["-1"] = append(artMap["-1"], &al)
+			artMap["-1"] = append(artMap["-1"], al)
 			for _, artId := range al.ParentId {
-				artMap[artId] = append(artMap[artId], &al)
+				artMap[artId] = append(artMap[artId], al)
 			}
 		}
 	}
