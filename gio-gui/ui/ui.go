@@ -211,14 +211,14 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 	small := gtx.Constraints.Max.X < gtx.Dp(Breakpoint)
 	for ii := range ui.Rooms.List {
 		r := ui.Rooms.List[ii]
-		if r.Interact.Clicked() {
+		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
 			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentChatRow, nil)
 			ui.InsideRoom = true
 			break
 		}
 	}
-	if ui.Back.Clicked() {
+	if ui.Back.Clicked(gtx) {
 		ui.InsideRoom = false
 	}
 	paint.FillShape(gtx.Ops, ui.th.Palette.BgSecondary, clip.Rect(image.Rectangle{Max: gtx.Constraints.Max}).Op())
@@ -283,15 +283,14 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 					active.SendLocal(active.Editor.Text())
 					active.Editor.SetText("")
 				}*/
-				if ui.DeleteBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
+				if ui.DeleteBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
 					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 					if ui.ChannelMenuTarget.Interact.Active {
 						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow, nil)
 					}
 					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				}
-				if ui.DownloadChannelBtn.Clicked() {
-
+				if ui.DownloadChannelBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
 					if channel.Loaded {
 						var albumIds []string
@@ -304,13 +303,13 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
 					}
 				}
-				if ui.CopyChannelBtn.Clicked() && !ui.ChannelMenuTarget.IsBase {
+				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
 					switch ui.SiteId {
 					case 1:
 						clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
 					}
 				}
-				if ui.SyncBtn.Clicked() {
+				if ui.SyncBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
 					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
 				}
@@ -467,13 +466,13 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				// taken within that menu.
 				ui.ContextMenuTarget = &el
 			}
-			if ui.CopyAlbBtn.Clicked() {
+			if ui.CopyAlbBtn.Clicked(gtx) {
 				switch ui.SiteId {
 				case 1:
 					clipboard.WriteOp{Text: "https://zvuk.com/release/" + ui.ContextMenuTarget.Status}.Add(gtx.Ops)
 				}
 			}
-			if ui.DownloadBtn.Clicked() {
+			if ui.DownloadBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.Status}, "mid")
 			}

@@ -57,11 +57,11 @@ type user struct {
 	avatarOp paint.ImageOp
 }
 
-type rect struct {
+/*type rect struct {
 	Color color.NRGBA
 	Size  image.Point
 	Radii int
-}
+}*/
 
 func New(router *page.Router) *Page {
 	return &Page{
@@ -78,7 +78,7 @@ func (p *Page) Actions() []component.AppBarAction {
 				Tag:  &p.addBtn,
 			},
 			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
-				if p.addBtn.Clicked() {
+				if p.addBtn.Clicked(gtx) {
 					p.Router.AppBar.SetContextualActions(
 						[]component.AppBarAction{},
 						[]component.OverflowAction{},
@@ -168,7 +168,7 @@ func (p *Page) Layout(gtx layout.Context, th *page.Theme, loadSize int) layout.D
 					return p.artistInput.Layout(gtx, th.Theme, "zvuk.com artist link")
 				},
 				func(gtx layout.Context) layout.Dimensions {
-					if p.addButton.Clicked() {
+					if p.addButton.Clicked(gtx) {
 						/*clipboard.WriteOp{
 							Text: "SS",
 						}.Add(gtx.Ops)*/
@@ -303,19 +303,6 @@ func userLayout(gtx layout.Context, index int, p *Page, th *material.Theme) layo
 	defer clip.Rect(image.Rectangle{Max: dims.Size}).Push(gtx.Ops).Pop()
 
 	hover := &p.userHovers[index]
-	if hover.Hovered(gtx) {
-		rr := gtx.Dp(unit.Dp(4))
-		defer clip.RRect{
-			Rect: image.Rectangle{
-				Max: dims.Size,
-			},
-			NE: rr,
-			SE: rr,
-			NW: rr,
-			SW: rr,
-		}.Push(gtx.Ops).Pop()
-		paintRect(gtx, gtx.Constraints.Max, WithAlpha(th.Palette.ContrastBg, 48))
-	}
 	defer hover.Add(gtx.Ops)
 
 	/*click := &p.userClicks[index]
@@ -385,16 +372,16 @@ func baseline() layout.Flex {
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}
 }
 
-func WithAlpha(c color.NRGBA, a uint8) color.NRGBA {
+/*func WithAlpha(c color.NRGBA, a uint8) color.NRGBA {
 	return color.NRGBA{
 		R: c.R,
 		G: c.G,
 		B: c.B,
 		A: a,
 	}
-}
+}*/
 
-func paintRect(gtx layout.Context, size image.Point, fill color.NRGBA) {
+/*func paintRect(gtx layout.Context, size image.Point, fill color.NRGBA) {
 	rect{
 		Color: fill,
 		Size:  size,
@@ -412,4 +399,4 @@ func (r rect) Layout(gtx layout.Context) layout.Dimensions {
 			r.Radii,
 		).Op(gtx.Ops))
 	return layout.Dimensions{Size: r.Size}
-}
+}*/

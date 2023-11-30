@@ -40,7 +40,7 @@ func (p *Page) Actions() []component.AppBarAction {
 				Tag:  &p.heartBtn,
 			},
 			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
-				if p.heartBtn.Clicked() {
+				if p.heartBtn.Clicked(gtx) {
 					p.favorite = !p.favorite
 				}
 				btn := component.SimpleIconButton(bg, fg, &p.heartBtn, icon.HeartIcon)
@@ -94,7 +94,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return lay.DetailRow{}.Layout(gtx, material.Body1(th, "Contextual App Bar").Layout, func(gtx layout.Context) layout.Dimensions {
-					if p.contextBtn.Clicked() {
+					if p.contextBtn.Clicked(gtx) {
 						p.Router.AppBar.SetContextualActions(
 							[]component.AppBarAction{
 								component.SimpleIconAction(&p.red, icon.HeartIcon,
@@ -124,7 +124,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 				return lay.DetailRow{}.Layout(gtx,
 					material.Body1(th, "Bottom App Bar").Layout,
 					func(gtx layout.Context) layout.Dimensions {
-						if p.bottomBar.Changed() {
+						if p.bottomBar.Update(gtx) {
 							if p.bottomBar.Value {
 								p.Router.ModalNavDrawer.Anchor = component.Bottom
 								p.Router.AppBar.Anchor = component.Bottom
@@ -142,7 +142,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 				return lay.DetailRow{}.Layout(gtx,
 					material.Body1(th, "Custom Navigation Icon").Layout,
 					func(gtx layout.Context) layout.Dimensions {
-						if p.customNavIcon.Changed() {
+						if p.customNavIcon.Update(gtx) {
 							if p.customNavIcon.Value {
 								p.Router.AppBar.NavigationIcon = icon.HomeIcon
 							} else {

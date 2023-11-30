@@ -5,14 +5,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/v0vc/go-music-grpc/gio-gui/pages/sber"
-
-	"github.com/joho/godotenv"
-
 	"gioui.org/app"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"github.com/joho/godotenv"
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 	"github.com/v0vc/go-music-grpc/gio-gui/pages/zvuk"
 )
@@ -67,10 +64,8 @@ func loop(w *app.Window) error {
 	var ops op.Ops
 
 	router := page.NewRouter(w)
-	zv := zvuk.New(&router)
-	sb := sber.New(&router)
-	router.Register(0, zv)
-	router.Register(1, sb)
+	router.Register(0, zvuk.New(&router))
+	// router.Register(1, sber.New(&router))
 	// router.Register(2, spotify.New(&router))
 	// router.Register(3, deezer.New(&router))
 	// router.Register(4, rutracker.New(&router))*/
@@ -78,26 +73,14 @@ func loop(w *app.Window) error {
 	// router.Register(6, appbar.New(&router))
 
 	for {
-		select {
-		case e := <-w.Events():
-			switch e := e.(type) {
-			case system.DestroyEvent:
-				return e.Err
-			case system.FrameEvent:
-				gtx := layout.NewContext(&ops, e)
-				router.Layout(gtx, th, conf.LoadSize)
-				e.Frame(gtx.Ops)
-			}
-		case pr := <-sb.ProgressIncrementer:
-			if sb.Progress < 1 {
-				sb.Progress += pr
-				w.Invalidate()
-			}
-			/*		case pr := <-zv.SingleInstance:
-					if sb.Progress < 1 {
-						sb.Progress += pr
-						w.Invalidate()
-					}*/
+		// detect the type of the event.
+		switch e := w.NextEvent().(type) {
+		case system.DestroyEvent:
+			return e.Err
+		case system.FrameEvent:
+			gtx := layout.NewContext(&ops, e)
+			router.Layout(gtx, th, conf.LoadSize)
+			e.Frame(gtx.Ops)
 		}
 	}
 }

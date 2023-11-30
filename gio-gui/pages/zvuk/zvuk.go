@@ -46,7 +46,7 @@ func (p *Page) addActions() []component.AppBarAction {
 				thh.Palette.Fg = p.th.Palette.BgSecondary
 				gutter := lay.Gutter()
 				gutter.RightWidth = gutter.RightWidth - unit.Dp(60)
-				if p.insertBtn.Clicked() {
+				if p.insertBtn.Clicked(gtx) {
 					if p.editor.Text() != "" {
 						go p.Router.AppBar.StopContextual(gtx.Now)
 						go singleInstance.AddChannel(siteId, p.editor.Text())
@@ -77,7 +77,7 @@ func (p *Page) Actions() []component.AppBarAction {
 				Tag:  &p.addBtn,
 			},
 			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
-				if p.addBtn.Clicked() {
+				if p.addBtn.Clicked(gtx) {
 					p.Router.AppBar.SetContextualActions(
 						p.addActions(),
 						[]component.OverflowAction{},
