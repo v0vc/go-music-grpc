@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"gioui.org/app"
-
 	"gioui.org/layout"
 	"gioui.org/x/component"
 	"github.com/v0vc/go-music-grpc/gio-gui/icon"

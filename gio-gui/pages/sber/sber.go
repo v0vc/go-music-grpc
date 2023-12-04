@@ -9,11 +9,9 @@ import (
 	"time"
 
 	"gioui.org/gesture"
+	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
-	"golang.org/x/image/draw"
-
-	"gioui.org/layout"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -24,6 +22,7 @@ import (
 	"github.com/v0vc/go-music-grpc/gio-gui/icon"
 	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
+	"golang.org/x/image/draw"
 )
 
 /*const (

@@ -1,9 +1,9 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"math"
-	"sync"
 
 	"gioui.org/layout"
 )
@@ -13,7 +13,7 @@ import (
 //
 // State is updated with two strategies, push and pull:
 //
-// Pull updates occur when the list has scrolled to the end of it's current data
+// Pull updates occur when the list has scrolled to the end of its current data
 // and needs to ask for more. In this case, the Loader hook will be invoked
 // concurrently to get the data, if any.
 //
@@ -62,8 +62,8 @@ type Manager struct {
 	lastRequest Direction
 
 	// Cached parameters useful for restarting the async process.
-	hooks Hooks
-	// maxSize int
+	hooks   Hooks
+	maxSize int
 
 	// elementState is a map storing the state for the elements managed
 	// by the manager.
@@ -85,8 +85,10 @@ type Manager struct {
 	viewports    chan viewport
 	lastPosition layout.Position
 
-	// shutdown ensures that the Manager is only shut down once.
-	shutdown sync.Once
+	// ctx tracks the lifecycle of the async processing for this manager.
+	ctx context.Context
+	// cancel is used to stop the async processing.
+	cancel context.CancelFunc
 }
 
 // tryRequest will send the loadRequest if and only if the background processing
@@ -147,13 +149,16 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 	case hooks.Invalidator == nil:
 		panic(fmt.Errorf("must provide an implementation of Invalidator"))
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	rm := &Manager{
 		elementState: make(map[Serial]interface{}),
 		hooks:        hooks,
-		// maxSize:      maxSize,
+		maxSize:      maxSize,
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 
-	rm.requests, rm.viewports, rm.stateUpdates = asyncProcess(maxSize, hooks)
+	rm.requests, rm.viewports, rm.stateUpdates = asyncProcess(ctx, maxSize, hooks)
 
 	return rm
 }
@@ -161,18 +166,8 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 // Shutdown kills the asynchronous goroutine powering the list. After this, the
 // Manager can no longer be used.
 func (m *Manager) Shutdown() {
-	m.shutdown.Do(func() {
-		if m.requests != nil {
-			// Check if nil because some test cases override this channel with
-			// nil.
-			close(m.requests)
-		}
-	})
+	m.cancel()
 }
-
-/*func (m *Manager) SetMaxSize(maxSize int) {
-	m.maxSize = maxSize
-}*/
 
 // DefaultPrefetch is the default prefetching threshold.
 const DefaultPrefetch = 0.15
@@ -198,13 +193,17 @@ const DefaultPrefetch = 0.15
 //
 // For "pull" modifications, see the Loader hook.
 func (m *Manager) Modify(newOrUpdated []Element, updateOnly []Element, remove []Serial) {
-	if m.requests == nil {
+	if m.ctx.Done() == nil || m.requests == nil {
 		return
 	}
-	m.requests <- modificationRequest{
+	req := modificationRequest{
 		NewOrUpdate: newOrUpdated,
 		UpdateOnly:  updateOnly,
 		Remove:      remove,
+	}
+	select {
+	case <-m.ctx.Done():
+	case m.requests <- req:
 	}
 }
 
@@ -214,13 +213,17 @@ func (m *Manager) Modify(newOrUpdated []Element, updateOnly []Element, remove []
 // Elements provided that exist in the Manager will be updated in-place, and those
 // that do not will be inserted as new elements.
 func (m *Manager) Update(newOrUpdated []Element) {
-	if m.requests == nil {
+	if m.ctx.Done() == nil || m.requests == nil {
 		return
 	}
-	m.requests <- modificationRequest{
+	req := modificationRequest{
 		NewOrUpdate: newOrUpdated,
 		UpdateOnly:  nil,
 		Remove:      nil,
+	}
+	select {
+	case <-m.ctx.Done():
+	case m.requests <- req:
 	}
 }
 
@@ -229,13 +232,17 @@ func (m *Manager) Update(newOrUpdated []Element) {
 // Elements provided that exist in the Manager will be updated in-place, and those
 // that do not  will be ignored.
 func (m *Manager) InPlace(updateOnly []Element) {
-	if m.requests == nil {
+	if m.ctx.Done() == nil || m.requests == nil {
 		return
 	}
-	m.requests <- modificationRequest{
+	req := modificationRequest{
 		NewOrUpdate: nil,
 		UpdateOnly:  updateOnly,
 		Remove:      nil,
+	}
+	select {
+	case <-m.ctx.Done():
+	case m.requests <- req:
 	}
 }
 
@@ -244,13 +251,17 @@ func (m *Manager) InPlace(updateOnly []Element) {
 // Elements in the Manager that are specified in the remove list will be deleted.
 // Serials that map to non-existent elements will be ignored.
 func (m *Manager) Remove(remove []Serial) {
-	if m.requests == nil {
+	if m.ctx.Done() == nil || m.requests == nil {
 		return
 	}
-	m.requests <- modificationRequest{
+	req := modificationRequest{
 		NewOrUpdate: nil,
 		UpdateOnly:  nil,
 		Remove:      remove,
+	}
+	select {
+	case <-m.ctx.Done():
+	case m.requests <- req:
 	}
 }
 

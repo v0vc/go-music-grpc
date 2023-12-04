@@ -1,6 +1,7 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -10,7 +11,7 @@ import (
 
 // define a set of elements that can be used across tests.
 var testElements = func() []Element {
-	var testElements []Element
+	testElements := []Element{}
 	for i := 0; i < 10; i++ {
 		testElements = append(testElements, testElement{
 			serial:     fmt.Sprintf("%03d", i),
@@ -34,7 +35,7 @@ func TestAsyncProcess(t *testing.T) {
 		},
 	}
 	size := 6
-	reqs, _, updates := asyncProcess(size, hooks)
+	reqs, _, updates := asyncProcess(context.Background(), size, hooks)
 
 	type testcase struct {
 		// description of what this test case is checking
@@ -322,7 +323,7 @@ func TestCanModifyWhenIdle(t *testing.T) {
 		// at the beginning or end of the list.
 		return false
 	}
-	requests, viewports, updates := asyncProcess(4, hooks)
+	requests, viewports, updates := asyncProcess(context.Background(), 4, hooks)
 
 	viewports <- viewport{
 		Start: "0",
@@ -363,7 +364,7 @@ func TestCanModifyWhenIdle(t *testing.T) {
 		t.Fatalf("updates channel: expected 1 queued value, got %d", len(updates))
 	}
 
-	// We should receive update elements 1, 2, 3, 4.
+	// We should recieve update elements 1, 2, 3, 4.
 	total := 0
 	var want []Element
 	for pending := range updates {

@@ -280,7 +280,7 @@ func (l *Loader) run(ctx context.Context) {
 		<-ctx.Done()
 		l.refresh.Signal()
 	}()
-	defer close(l.updated)
+	// defer close(l.updated)
 
 	loader := &l.loader
 

@@ -1,6 +1,7 @@
 package list
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -26,8 +27,8 @@ func (u updateType) String() string {
 	}
 }
 
-// stateUpdate contains a new slice of element data and a mapping from all
-// the element serials to their respective indices. This data structure is designed
+// stateUpdate contains a new slice of element data and a mapping from all of
+// the element serials to their respective indicies. This data structure is designed
 // to allow the UI code to quickly find and update any offsets and locations
 // within the new data.
 type stateUpdate struct {
@@ -53,7 +54,7 @@ type viewport struct {
 // New elements are processed and compacted according to maxSize
 // on each loadRequest. Close the loadRequest channel to terminate
 // processing.
-func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, <-chan []stateUpdate) {
+func asyncProcess(ctx context.Context, maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, <-chan []stateUpdate) {
 	compact := NewCompact(maxSize, hooks.Comparator)
 	var synthesis Synthesis
 	reqChan := make(chan interface{})
@@ -72,67 +73,70 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 				updateOnly []Element
 				rmSerials  []Serial
 			)
-
-			req, more := <-reqChan
-			if !more {
+			select {
+			case <-ctx.Done():
 				return
-			}
-			switch req := req.(type) {
-			case modificationRequest:
-				su.Type = push
-				newElems = req.NewOrUpdate
-				rmSerials = req.Remove
-				updateOnly = req.UpdateOnly
-
-				/*
-					Remove any elements that sort outside the boundaries of the
-					current list.
-				*/
-				SliceFilter(&newElems, func(elem Element) bool {
-					if len(synthesis.Source) == 0 {
-						return true
-					}
-					sortsBefore := compact.Comparator(elem, synthesis.Source[0])
-					sortsAfter := compact.Comparator(synthesis.Source[len(synthesis.Source)-1], elem)
-					// If this element sorts before the beginning of the list or after
-					// the end of the list, it should not be inserted unless we are at
-					// the appropriate end of the list.
-					switch {
-					case sortsBefore && ignore == Before:
-						return true
-					case sortsAfter && ignore == After:
-						return true
-					case sortsBefore || sortsAfter:
-						return false
-					default:
-						return true
-					}
-				})
-				ignore = NoDirection
-			case loadRequest:
-				su.Type = pull
-				viewport = req.viewport
-				if ignore.Contains(req.Direction) {
-					continue
+			case req, more := <-reqChan:
+				if !more {
+					return
 				}
+				switch req := req.(type) {
+				case modificationRequest:
+					su.Type = push
+					newElems = req.NewOrUpdate
+					rmSerials = req.Remove
+					updateOnly = req.UpdateOnly
 
-				// Find the serial of the element at either end of the list.
-				var loadSerial Serial
-				switch req.Direction {
-				case Before:
-					loadSerial = synthesis.SerialAt(0)
-				case After:
-					loadSerial = synthesis.SerialAt(len(synthesis.Source) - 1)
-				}
-				// Load new elements.
-				var more bool
-				newElems, more = hooks.Loader(req.Direction, loadSerial)
-				// Track whether all new elements in a given direction have been
-				// exhausted.
-				if len(newElems) == 0 || !more {
-					ignore.Add(req.Direction)
-				} else {
+					/*
+						Remove any elements that sort outside the boundaries of the
+						current list.
+					*/
+					SliceFilter(&newElems, func(elem Element) bool {
+						if len(synthesis.Source) == 0 {
+							return true
+						}
+						sortsBefore := compact.Comparator(elem, synthesis.Source[0])
+						sortsAfter := compact.Comparator(synthesis.Source[len(synthesis.Source)-1], elem)
+						// If this element sorts before the beginning of the list or after
+						// the end of the list, it should not be inserted unless we are at
+						// the appropriate end of the list.
+						switch {
+						case sortsBefore && ignore == Before:
+							return true
+						case sortsAfter && ignore == After:
+							return true
+						case sortsBefore || sortsAfter:
+							return false
+						default:
+							return true
+						}
+					})
 					ignore = NoDirection
+				case loadRequest:
+					su.Type = pull
+					viewport = req.viewport
+					if ignore.Contains(req.Direction) {
+						continue
+					}
+
+					// Find the serial of the element at either end of the list.
+					var loadSerial Serial
+					switch req.Direction {
+					case Before:
+						loadSerial = synthesis.SerialAt(0)
+					case After:
+						loadSerial = synthesis.SerialAt(len(synthesis.Source) - 1)
+					}
+					// Load new elements.
+					var more bool
+					newElems, more = hooks.Loader(req.Direction, loadSerial)
+					// Track whether all new elements in a given direction have been
+					// exhausted.
+					if len(newElems) == 0 || !more {
+						ignore.Add(req.Direction)
+					} else {
+						ignore = NoDirection
+					}
 				}
 			}
 			// Apply state updates.

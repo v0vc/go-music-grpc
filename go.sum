@@ -1,7 +1,7 @@
 eliasnaur.com/font v0.0.0-20230308162249-dd43949cb42d h1:ARo7NCVvN2NdhLlJE9xAbKweuI9L6UgfTbYb0YwPacY=
 eliasnaur.com/font v0.0.0-20230308162249-dd43949cb42d/go.mod h1:OYVuxibdk9OSLX8vAqydtRPP87PyTFcT9uH3MlEGBQA=
-gioui.org v0.4.0 h1:Dsp2Z693xSokLt4axSCDdAiT6vvEY2I9gadIeZgFqxg=
-gioui.org v0.4.0/go.mod h1:2atiYR4upH71/6ehnh6XsUELa7JZOrOHHNMDxGBZF0Q=
+gioui.org v0.4.1 h1:sCTw5Fexg0xg9CxYmbrkKtHXcobf0JMbl5XpF2TC/zc=
+gioui.org v0.4.1/go.mod h1:2atiYR4upH71/6ehnh6XsUELa7JZOrOHHNMDxGBZF0Q=
 gioui.org/cpu v0.0.0-20210808092351-bfe733dd3334/go.mod h1:A8M0Cn5o+vY5LTMlnRoK3O5kG+rH0kWfJjeKd9QpBmQ=
 gioui.org/cpu v0.0.0-20220412190645-f1e9e8c3b1f7 h1:tNJdnP5CgM39PRc+KWmBRRYX/zJ+rd5XaYxY5d5veqA=
 gioui.org/cpu v0.0.0-20220412190645-f1e9e8c3b1f7/go.mod h1:A8M0Cn5o+vY5LTMlnRoK3O5kG+rH0kWfJjeKd9QpBmQ=
@@ -19,10 +19,10 @@ github.com/go-flac/flacvorbis v0.2.0 h1:KH0xjpkNTXFER4cszH4zeJxYcrHbUobz/RticWGO
 github.com/go-flac/flacvorbis v0.2.0/go.mod h1:uIysHOtuU7OLGoCRG92bvnkg7QEqHx19qKRV6K1pBrI=
 github.com/go-flac/go-flac v1.0.0 h1:6qI9XOVLcO50xpzm3nXvO31BgDgHhnr/p/rER/K/doY=
 github.com/go-flac/go-flac v1.0.0/go.mod h1:WnZhcpmq4u1UdZMNn9LYSoASpWOCMOoxXxcWEHSzkW8=
-github.com/go-text/typesetting v0.0.0-20231126133128-3b7c9205d99e h1:XYK2AGBUaDkE9yG8FMOWCm0v/fjmcbkccKm1t3IIK/M=
-github.com/go-text/typesetting v0.0.0-20231126133128-3b7c9205d99e/go.mod h1:evDBbvNR/KaVFZ2ZlDSOWWXIUKq0wCOEtzLxRM8SG3k=
-github.com/go-text/typesetting-utils v0.0.0-20230616150549-2a7df14b6a22 h1:LBQTFxP2MfsyEDqSKmUBZaDuDHN1vpqDyOZjcqS7MYI=
-github.com/go-text/typesetting-utils v0.0.0-20230616150549-2a7df14b6a22/go.mod h1:DDxDdQEnB70R8owOx3LVpEFvpMK9eeH1o2r0yZhFI9o=
+github.com/go-text/typesetting v0.0.0-20231202102523-0024ac628562 h1:p5ggfA4XKhXaPqh1rojILvoijLOEiKo5CheLVPcqwxw=
+github.com/go-text/typesetting v0.0.0-20231202102523-0024ac628562/go.mod h1:ZTBPu1Pp5k3Hc28GAYUUK0hH3Ou0Sz3nMBpWetRgibc=
+github.com/go-text/typesetting-utils v0.0.0-20231121125213-61dadda55b86 h1:PZEJHpJCgm6PTMCYQOhXWpW7RbJ/k+AAeyHtDQK9Txc=
+github.com/go-text/typesetting-utils v0.0.0-20231121125213-61dadda55b86/go.mod h1:DDxDdQEnB70R8owOx3LVpEFvpMK9eeH1o2r0yZhFI9o=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
 github.com/golang/protobuf v1.5.3 h1:KhyjKVUg7Usr/dYsdSqoFveMYd5ko72D+zANwlG1mmg=
 github.com/golang/protobuf v1.5.3/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=

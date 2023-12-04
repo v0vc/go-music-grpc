@@ -8,25 +8,20 @@ import (
 	"time"
 
 	"gioui.org/io/clipboard"
-
-	"github.com/v0vc/go-music-grpc/gio-gui/gen"
-
+	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-
-	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
-
-	"github.com/v0vc/go-music-grpc/gio-gui/icon"
-
-	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/v0vc/go-music-grpc/gio-gui/async"
+	"github.com/v0vc/go-music-grpc/gio-gui/gen"
+	"github.com/v0vc/go-music-grpc/gio-gui/icon"
 	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
 	"github.com/v0vc/go-music-grpc/gio-gui/list"
 	"github.com/v0vc/go-music-grpc/gio-gui/model"
+	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 )
 
 const artistRegexString = `^https://zvuk.com/artist/(\d+)$`
@@ -278,41 +273,6 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return lay.Background(ui.th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				/*if ui.AddBtn.Clicked() {
-					active := ui.Rooms.Active()
-					active.SendLocal(active.Editor.Text())
-					active.Editor.SetText("")
-				}*/
-				if ui.DeleteBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
-					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
-					if ui.ChannelMenuTarget.Interact.Active {
-						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow, nil)
-					}
-					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
-				}
-				if ui.DownloadChannelBtn.Clicked(gtx) {
-					channel := ui.ChannelMenuTarget
-					if channel.Loaded {
-						var albumIds []string
-						for i := range channel.RowTracker.Rows {
-							alb := channel.RowTracker.Rows[i].(model.Message)
-							albumIds = append(albumIds, alb.Status)
-						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
-					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
-					}
-				}
-				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
-					switch ui.SiteId {
-					case 1:
-						clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
-					}
-				}
-				if ui.SyncBtn.Clicked(gtx) {
-					channel := ui.ChannelMenuTarget
-					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
-				}
 				// inset := layout.UniformInset(unit.Dp(8))
 				return layout.Inset{
 					Bottom: unit.Dp(8),
@@ -401,6 +361,36 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 			ui.RoomList.Axis = layout.Vertical
 			gtx.Constraints.Min = gtx.Constraints.Max
 			return material.List(ui.th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
+				if ui.SyncBtn.Clicked(gtx) {
+					channel := ui.ChannelMenuTarget
+					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
+				}
+				if ui.DownloadChannelBtn.Clicked(gtx) {
+					channel := ui.ChannelMenuTarget
+					if channel.Loaded {
+						var albumIds []string
+						for i := range channel.RowTracker.Rows {
+							alb := channel.RowTracker.Rows[i].(model.Message)
+							albumIds = append(albumIds, alb.Status)
+						}
+						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
+					} else {
+						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
+					}
+				}
+				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
+					switch ui.SiteId {
+					case 1:
+						clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
+					}
+				}
+				if ui.DeleteBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
+					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
+					if ui.ChannelMenuTarget.Interact.Active {
+						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow, nil)
+					}
+					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
+				}
 				r := ui.Rooms.Index(ii)
 				// latest := r.Latest()
 				if r.Interact.ContextArea.Active() {
@@ -449,17 +439,6 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 			return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 		}
 		return func(gtx layout.Context) layout.Dimensions {
-			/*			if state.Clicked() {
-						ui.Modal.Show(gtx.Now, func(gtx layout.Context) layout.Dimensions {
-							return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-								return widget.Image{
-									Src:      state.Avatar.Op(),
-									Fit:      widget.ScaleDown,
-									Position: layout.Center,
-								}.Layout(gtx)
-							})
-						})
-					}*/
 			if elemState.ContextArea.Active() {
 				// If the right-click context area for this message is activated,
 				// inform the UI that this message is the target of any action

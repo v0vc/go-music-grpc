@@ -4,11 +4,10 @@ import (
 	"image/color"
 	"unicode"
 
-	"gioui.org/unit"
-
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/text"
+	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"

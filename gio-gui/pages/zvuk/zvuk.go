@@ -5,14 +5,13 @@ import (
 	"sync"
 
 	"gioui.org/io/key"
+	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
-	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
-
-	"gioui.org/layout"
 	"gioui.org/x/component"
 	"github.com/v0vc/go-music-grpc/gio-gui/icon"
+	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 	"github.com/v0vc/go-music-grpc/gio-gui/ui"
 )

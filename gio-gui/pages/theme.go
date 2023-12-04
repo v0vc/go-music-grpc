@@ -5,7 +5,6 @@ import (
 
 	"gioui.org/font/gofont"
 	"gioui.org/text"
-
 	"gioui.org/widget/material"
 )
 
