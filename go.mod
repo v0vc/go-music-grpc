@@ -3,7 +3,7 @@ module github.com/v0vc/go-music-grpc
 go 1.21
 
 require (
-	gioui.org v0.4.1
+	gioui.org v0.4.2
 	gioui.org/x v0.4.0
 	github.com/bogem/id3v2/v2 v2.1.4
 	github.com/dustin/go-humanize v1.0.1
@@ -12,11 +12,11 @@ require (
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/machinebox/graphql v0.2.2
-	github.com/mattn/go-sqlite3 v1.14.18
-	golang.org/x/exp/shiny v0.0.0-20231127185646-65229373498e
-	golang.org/x/image v0.14.0
-	google.golang.org/grpc v1.59.0
-	google.golang.org/protobuf v1.31.0
+	github.com/mattn/go-sqlite3 v1.14.20
+	golang.org/x/exp/shiny v0.0.0-20240119083558-1b970713d09a
+	golang.org/x/image v0.15.0
+	google.golang.org/grpc v1.61.0
+	google.golang.org/protobuf v1.32.0
 )
 
 require (
@@ -26,9 +26,9 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/matryer/is v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/exp v0.0.0-20231127185646-65229373498e // indirect
-	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
+	golang.org/x/net v0.20.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231127180814-3a041ad873d4 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe // indirect
 )
