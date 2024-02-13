@@ -304,7 +304,7 @@ func (r *Rooms) Index(index int) *Room {
 	if index < 0 {
 		index = 0
 	}
-	if index > len(r.List) {
+	if index == len(r.List) {
 		index = len(r.List) - 1
 	}
 	return r.List[index]
