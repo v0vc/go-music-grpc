@@ -1,6 +1,6 @@
 module github.com/v0vc/go-music-grpc
 
-go 1.21
+go 1.22
 
 require (
 	gioui.org v0.4.2
@@ -12,8 +12,8 @@ require (
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/machinebox/graphql v0.2.2
-	github.com/mattn/go-sqlite3 v1.14.20
-	golang.org/x/exp/shiny v0.0.0-20240119083558-1b970713d09a
+	github.com/mattn/go-sqlite3 v1.14.22
+	golang.org/x/exp/shiny v0.0.0-20240205201215-2c58cdc269a3
 	golang.org/x/image v0.15.0
 	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.32.0
@@ -26,9 +26,9 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/matryer/is v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
-	golang.org/x/net v0.20.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240205150955-31a09d347014 // indirect
 )
