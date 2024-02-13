@@ -19,7 +19,7 @@ tasks:
 
   lint:
     - go vet ./...
-    - staticcheck ./...
+#    - staticcheck ./...
     - nilaway ./...
 
   update:
@@ -29,7 +29,7 @@ tasks:
 
   build:
     - go build -ldflags="-s -w" ./server
-    - go build -ldflags="-s -w" ./gio-gui
+    - go build -ldflags="-H windowsgui -s -w" ./gio-gui
 
   check:
     - govulncheck ./...

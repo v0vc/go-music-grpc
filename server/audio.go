@@ -40,7 +40,7 @@ func writeFlacTags(decTrackPath string, tags map[string]string, imgData []byte) 
 		return err
 	}
 	tag, idx := extractFLACComment(decTrackPath)
-	if tag == nil && idx > 0 {
+	if tag == nil {
 		tag = flacvorbis.New()
 	}
 	for k, v := range tags {
@@ -100,7 +100,7 @@ func writeMp3Tags(decTrackPath string, tags map[string]string, imgData []byte) e
 }
 
 func extractFLACComment(fileName string) (*flacvorbis.MetaDataBlockVorbisComment, int) {
-	f, err := flac.ParseFile(fileName)
+	file, err := flac.ParseFile(fileName)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -109,8 +109,8 @@ func extractFLACComment(fileName string) (*flacvorbis.MetaDataBlockVorbisComment
 		cmt    *flacvorbis.MetaDataBlockVorbisComment
 		cmtIdx int
 	)
-	if f != nil {
-		for idx, meta := range f.Meta {
+	if file != nil {
+		for idx, meta := range file.Meta {
 			if meta.Type == flac.VorbisComment {
 				cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
 				cmtIdx = idx

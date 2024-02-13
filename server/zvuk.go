@@ -394,7 +394,7 @@ func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, strin
 	}
 }
 
-func getArtistReleases(ctx context.Context, artistId, token, email, password string) (*ArtistReleases, string, bool) {
+func getArtistReleases(ctx context.Context, artistId, token, email, password string) (*ArtistReleases, string, bool, error) {
 	var obj ArtistReleases
 	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
 	graphqlRequest := graphql.NewRequest(`query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { __typename artists { __typename id title image { __typename ...ImageInfoGqlFragment } } date id image { __typename ...ImageInfoGqlFragment } title type } fragment ImageInfoGqlFragment on ImageInfo { __typename src }`)
@@ -424,9 +424,9 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 			log.Fatalln("can't get new token: " + err.Error())
 		}
 	}
-	jsonString, _ := json.Marshal(graphqlResponse)
+	jsonString, er := json.Marshal(graphqlResponse)
 	json.Unmarshal(jsonString, &obj)
-	return &obj, token, needTokenUpd
+	return &obj, token, needTokenUpd, er
 }
 
 func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd bool) ([]*artist.Artist, error) {
@@ -442,7 +442,10 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	}
 
 	login, pass, token := getTokenDb(tx, ctx, siteId)
-	item, token, needTokenUpd := getArtistReleases(ctx, artistId, token, login, pass)
+	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId, token, login, pass)
+	if item == nil || err != nil {
+		log.Fatal(err)
+	}
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
 	}
