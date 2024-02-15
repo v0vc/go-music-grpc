@@ -139,6 +139,7 @@ func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
 			log.Fatal(err)
 		}
 		defer stDelete.Close()
+
 		for _, id := range ids {
 			_, _ = stDelete.ExecContext(ctx, id)
 		}
@@ -449,16 +450,170 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
 	}
-	artRawId, userAddedDb := GetArtistIdDb(tx, ctx, siteId, artistId)
+
+	artRawId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
+	mArtist := make(map[string]int)
+	mArtist[artistId] = artRawId
 
-	stArtistMaster, err := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, thumbnail, userAdded) values (?, ?, ?, ?, ?) on conflict (siteId, artistId) do update set userAdded = 1, thumbnail = ? returning art_id;")
-	if err != nil {
-		log.Fatal(err)
+	var (
+		netAlbumIds  []string
+		netArtistIds []string
+	)
+
+	for _, data := range item.GetArtists {
+		for _, release := range data.Releases {
+			if release.ID == "" {
+				continue
+			}
+			if !Contains(netAlbumIds, release.ID) {
+				netAlbumIds = append(netAlbumIds, release.ID)
+			}
+			for _, author := range release.Artists {
+				if author.ID == "" {
+					continue
+				}
+				if !Contains(netArtistIds, author.ID) {
+					netArtistIds = append(netArtistIds, author.ID)
+				}
+			}
+		}
 	}
-	defer stArtistMaster.Close()
 
-	stArtistSlave, err := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, thumbnail) values (?, ?, ?, ?) on conflict (siteId, artistId) do update set syncState = 0 returning art_id;")
+	deletedAlbumIds := FindDifference(existAlbumIds, netAlbumIds)
+	deletedArtistIds := FindDifference(existArtistIds, netArtistIds)
+	runExec(tx, ctx, deletedAlbumIds, "delete from main.album where albumId = ?;")
+	runExec(tx, ctx, deletedArtistIds, "delete from main.artist where artistId = ?;")
+
+	newAlbumIds := FindDifference(netAlbumIds, existAlbumIds)
+	newArtistIds := FindDifference(netArtistIds, existArtistIds)
+
+	type artAlb struct {
+		art int
+		alb int
+	}
+
+	var albums []*artist.Album
+	var artists []*artist.Artist
+	var thumb []byte
+	var (
+		processedAlbumIds  []string
+		processedArtistIds []string
+	)
+
+	for _, data := range item.GetArtists {
+		for _, release := range data.Releases {
+			if release.ID == "" {
+				continue
+			}
+			alb := &artist.Album{}
+			if Contains(newAlbumIds, release.ID) && !Contains(processedAlbumIds, release.ID) {
+				alb.AlbumId = release.ID
+				alb.Title = strings.TrimSpace(release.Title)
+				alb.ReleaseDate = release.Date
+				alb.ReleaseType = release.Type
+				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
+				alb.SyncState = 1
+				albums = append(albums, alb)
+				processedAlbumIds = append(processedArtistIds, release.ID)
+			}
+
+			for _, author := range release.Artists {
+				if author.ID == "" {
+					continue
+				}
+				if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
+					art := &artist.Artist{
+						ArtistId: author.ID,
+						Title:    strings.TrimSpace(author.Title),
+					}
+					if alb.AlbumId == "" {
+						art.NewAlbs = int32(getAlbumIdDb(tx, ctx, siteId, release.ID))
+					}
+					if isAdd && author.ID == artistId {
+						art.Thumbnail = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
+						art.UserAdded = true
+					}
+					artists = append(artists, art)
+					processedArtistIds = append(processedArtistIds, author.ID)
+				} else if artRawId != 0 && author.ID == artistId && thumb == nil {
+					thumb = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
+				}
+			}
+		}
+	}
+	var artAlbs []*artAlb
+	var albId int
+
+	if albums != nil {
+		stAlbum, _ := tx.PrepareContext(ctx, "insert into main.album(albumId, title, releaseDate, releaseType, thumbnail, syncState) values (?,?,?,?,?,?) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
+		defer stAlbum.Close()
+
+		for _, album := range albums {
+			err = stAlbum.QueryRowContext(ctx, album.AlbumId, album.Title, album.ReleaseDate, album.ReleaseType, album.Thumbnail, album.SyncState).Scan(&albId)
+			if err != nil {
+				fmt.Printf(err.Error())
+			} else {
+				fmt.Printf("processed album: %v, id: %v \n", album.Title, albId)
+			}
+			artAlbs = append(artAlbs, &artAlb{
+				art: artRawId,
+				alb: albId,
+			})
+		}
+	}
+
+	if artists != nil {
+		stArtist, _ := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title) values (?,?,?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
+		defer stArtist.Close()
+		stArtistUser, _ := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, userAdded, thumbnail) values (?,?,?,?,?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
+		defer stArtistUser.Close()
+
+		for _, art := range artists {
+			artId, ok := mArtist[art.ArtistId]
+			if !ok {
+				var insErr error
+				if art.UserAdded {
+					insErr = stArtistUser.QueryRowContext(ctx, siteId, art.ArtistId, art.Title, 1, art.Thumbnail).Scan(&artId)
+				} else {
+					insErr = stArtist.QueryRowContext(ctx, siteId, art.ArtistId, art.Title).Scan(&artId)
+				}
+				if insErr != nil {
+					fmt.Printf(err.Error())
+				} else {
+					fmt.Printf("processed artist: %v, id: %v \n", art.Title, artId)
+				}
+				mArtist[art.ArtistId] = artId
+				artAl := &artAlb{
+					art: artId,
+					alb: albId,
+				}
+				if artAl.alb == 0 && art.NewAlbs != 0 {
+					artAl.alb = int(art.NewAlbs)
+				}
+				artAlbs = append(artAlbs, artAl)
+			}
+		}
+	}
+	if isAdd && artRawId != 0 {
+		stArtistUpd, _ := tx.PrepareContext(ctx, "update main.artist set userAdded = 1, thumbnail = ? where art_id = ?;")
+		defer stArtistUpd.Close()
+		_, _ = stArtistUpd.ExecContext(ctx, thumb, artRawId)
+	}
+
+	if artAlbs != nil {
+		sqlStr := fmt.Sprintf("insert into main.artistAlbum(artistId, albumId) values %v on conflict (artistId, albumId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(artAlbs)), ","))
+		stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
+		defer stArtAlb.Close()
+
+		var args []interface{}
+		for _, artAl := range artAlbs {
+			args = append(args, &artAl.art, &artAl.alb)
+		}
+		_, _ = stArtAlb.ExecContext(ctx, args...)
+	}
+
+	/*stArtistSlave, err := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, thumbnail) values (?, ?, ?, ?) on conflict (siteId, artistId) do update set syncState = 0 returning art_id;")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -571,19 +726,19 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 			// author.NewAlbs = int32(len(albums))
 			authors = append(authors, author)
 		}
-	}
+	}*/
 
-	var (
-		deletedAlbumIds  []string
-		deletedArtistIds []string
-	)
-	if artRawId != 0 {
-		deletedAlbumIds = FindDifference(existAlbumIds, albumIds)
-		runExec(tx, ctx, deletedAlbumIds, "delete from main.album where albumId = ?;")
-		deletedArtistIds = FindDifference(existArtistIds, artistIds)
-		runExec(tx, ctx, deletedArtistIds, "delete from main.artist where artistId = ?;")
-	}
-	return authors, tx.Commit()
+	/*	var (
+			deletedAlbumIds  []string
+			deletedArtistIds []string
+		)
+		if artRawId != 0 {
+			deletedAlbumIds = FindDifference(existAlbumIds, albumIds)
+			runExec(tx, ctx, deletedAlbumIds, "delete from main.album where albumId = ?;")
+			deletedArtistIds = FindDifference(existArtistIds, artistIds)
+			runExec(tx, ctx, deletedArtistIds, "delete from main.artist where artistId = ?;")
+		}*/
+	return nil, tx.Commit()
 }
 
 func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
