@@ -280,9 +280,9 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		// err = pool.Submit(func() {
 		switch siteId {
 		case 1:
-			arti, er := SyncArtistSb(ctx, siteId, artId, req.GetIsAdd())
+			art, er := SyncArtistSb(ctx, siteId, artId, req.GetIsAdd())
 			if er == nil {
-				artists = append(artists, arti...)
+				artists = append(artists, art)
 			} else {
 				fmt.Printf("Sync error: %v", er)
 			}
@@ -318,20 +318,20 @@ func (*server) SyncArtistStream(req *artist.SyncArtistRequest, stream artist.Art
 	/*pool, _ := ants.NewPool(1)
 	defer pool.Release()*/
 
-	artIds, err := getArtistIdsFromDb(stream.Context(), siteId)
+	//artIds, err := getArtistIdsFromDb(stream.Context(), siteId)
 	// artIds := []string{"175943", "31873616"}
 	// var err error
 
 	switch siteId {
 	case 1:
-		for _, artId := range artIds {
+		/*for _, artId := range artIds {
 			var (
-				artists []*artist.Artist
+				artist []*artist.Artist
 				er      error
 			)
 			//id := artId // Create a local copy of the artist id for goroutine safety
 			//_ = pool.Submit(func() {
-			artists, er = SyncArtistSb(context.Background(), siteId, artId, req.GetIsAdd())
+			artist, er = SyncArtistSb(context.Background(), siteId, artId, req.GetIsAdd())
 			if er == nil {
 				err = stream.Send(&artist.SyncArtistResponse{
 					Artists: artists,
@@ -341,14 +341,14 @@ func (*server) SyncArtistStream(req *artist.SyncArtistRequest, stream artist.Art
 				}
 			}
 			//})
-		}
+		}*/
 
 	case 2:
 		// "артист со спотика"
 	case 3:
 		// "артист с дизера"
 	}
-	return err
+	return nil
 }
 
 func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {

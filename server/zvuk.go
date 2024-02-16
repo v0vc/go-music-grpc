@@ -445,7 +445,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	return &obj, token, needTokenUpd, er
 }
 
-/*func SyncArtistSbOld(ctx context.Context, siteId uint32, artistId string, isAdd bool) ([]*artist.Artist, error) {
+/*func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd bool) ([]*artist.Artist, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -604,7 +604,9 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	return authors, tx.Commit()
 }*/
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd bool) ([]*artist.Artist, error) {
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd bool) (*artist.Artist, error) {
+	var resArtist *artist.Artist
+
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Fatal(err)
@@ -699,6 +701,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 					continue
 				}
 				alb.ArtistIds = append(alb.ArtistIds, author.ID)
+				if author.ID == artistId {
+					resArtist = &artist.Artist{
+						SiteId:   siteId,
+						ArtistId: author.ID,
+						Title:    author.Title,
+					}
+				}
 				if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
 					art := &artist.Artist{
 						ArtistId: author.ID,
@@ -707,7 +716,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 					if alb.AlbumId == "" {
 						art.NewAlbs = int32(getAlbumIdDb(tx, ctx, siteId, release.ID))
 					}
-					if isAdd && author.ID == artistId {
+					if isAdd && art.ArtistId == artistId {
 						art.Thumbnail = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
 						art.UserAdded = true
 					}
@@ -748,6 +757,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		}
 	}
 
+	for _, author := range artists {
+		if author.ArtistId == artistId {
+			resArtist = author
+			break
+		}
+	}
+
 	if albums != nil {
 		stAlbum, _ := tx.PrepareContext(ctx, "insert into main.album(albumId, title, releaseDate, releaseType, thumbnail, syncState) values (?,?,?,?,?,?) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
 		defer stAlbum.Close()
@@ -777,6 +793,9 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 						})
 					}
 				}
+			}
+			if resArtist != nil {
+				resArtist.Albums = append(resArtist.Albums, album)
 			}
 		}
 	} else if artists != nil {
@@ -839,7 +858,8 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 			_, _ = deleteArtistDb(ctx, siteId, id)
 		}
 	}
-	return artists, tx.Commit()
+
+	return resArtist, tx.Commit()
 }
 
 func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
