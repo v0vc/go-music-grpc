@@ -24,12 +24,11 @@ CREATE TABLE album (
     trackTotal INTEGER default 0,
     syncState INTEGER default 0,
     thumbnail BLOB,
-    thumbnailUrl TEXT,
     UNIQUE(albumId,title)
 );
 CREATE TABLE artistAlbum (
-    artistId INTEGER REFERENCES artist (art_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    albumId INTEGER REFERENCES album (alb_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    artistId INTEGER REFERENCES artist (art_id) ON DELETE CASCADE,
+    albumId INTEGER REFERENCES album (alb_id) ON DELETE CASCADE,
     UNIQUE(artistId,albumId)
 );
 CREATE TABLE track (
