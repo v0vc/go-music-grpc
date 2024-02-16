@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -27,37 +26,23 @@ func FindDifference(a, b []string) []string {
 	return diff
 }
 
-func Diff(a, b []string) []string {
-	a = sortIfNeeded(a)
-	b = sortIfNeeded(b)
-	var d []string
-	i, j := 0, 0
-	for i < len(a) && j < len(b) {
-		c := strings.Compare(a[i], b[j])
-		if c == 0 {
-			i++
-			j++
-		} else if c < 0 {
-			d = append(d, a[i])
-			i++
-		} else {
-			d = append(d, b[j])
-			j++
+/*func Diff(a, b []string) []string {
+	temp := map[string]int{}
+	for _, s := range a {
+		temp[s]++
+	}
+	for _, s := range b {
+		temp[s]--
+	}
+
+	var result []string
+	for s, v := range temp {
+		if v != 0 {
+			result = append(result, s)
 		}
 	}
-	d = append(d, a[i:]...)
-	d = append(d, b[j:]...)
-	return d
-}
-
-func sortIfNeeded(a []string) []string {
-	if sort.StringsAreSorted(a) {
-		return a
-	}
-	s := append(a[:0:0], a...)
-	sort.Strings(s)
-	return s
-}
+	return result
+}*/
 
 func Contains[T comparable](s []T, e T) bool {
 	for _, v := range s {
