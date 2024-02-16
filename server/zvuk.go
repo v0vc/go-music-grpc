@@ -685,7 +685,11 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				alb.ReleaseDate = release.Date
 				alb.ReleaseType = release.Type
 				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
-				alb.SyncState = 1
+				if isAdd {
+					alb.SyncState = 0
+				} else {
+					alb.SyncState = 1
+				}
 				albums = append(albums, alb)
 				processedAlbumIds = append(processedArtistIds, release.ID)
 			}
