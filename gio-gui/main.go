@@ -6,8 +6,6 @@ import (
 	"strconv"
 
 	"gioui.org/app"
-	"gioui.org/io/system"
-	"gioui.org/layout"
 	"gioui.org/op"
 	"github.com/joho/godotenv"
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
@@ -75,10 +73,10 @@ func loop(w *app.Window) error {
 	for {
 		// detect the type of the event.
 		switch e := w.NextEvent().(type) {
-		case system.DestroyEvent:
+		case app.DestroyEvent:
 			return e.Err
-		case system.FrameEvent:
-			gtx := layout.NewContext(&ops, e)
+		case app.FrameEvent:
+			gtx := app.NewContext(&ops, e)
 			router.Layout(gtx, th, conf.LoadSize)
 			e.Frame(gtx.Ops)
 		}

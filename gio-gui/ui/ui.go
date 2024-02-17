@@ -3,8 +3,10 @@ package ui
 import (
 	"fmt"
 	"image"
+	"io"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"gioui.org/io/clipboard"
@@ -381,7 +383,10 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
 					switch ui.SiteId {
 					case 1:
-						clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
+						// clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
+						gtx.Execute(clipboard.WriteCmd{
+							Data: io.NopCloser(strings.NewReader("https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id)),
+						})
 					}
 				}
 				if ui.DeleteBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
@@ -414,12 +419,12 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				active := ui.Rooms.Active()
 				editor := &active.Editor
-				for _, e := range editor.Events() {
+				/*for _, e := range editor.Events() {
 					if _, ok := e.(widget.ChangeEvent); ok {
 						active.RunSearch(editor.Text())
 						break
 					}
-				}
+				}*/
 				editor.Submit = true
 				editor.SingleLine = true
 				return material.Editor(ui.th.Theme, editor, "Search").Layout(gtx)
@@ -448,7 +453,10 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 			if ui.CopyAlbBtn.Clicked(gtx) {
 				switch ui.SiteId {
 				case 1:
-					clipboard.WriteOp{Text: "https://zvuk.com/release/" + ui.ContextMenuTarget.Status}.Add(gtx.Ops)
+					// clipboard.WriteOp{Text: "https://zvuk.com/release/" + ui.ContextMenuTarget.Status}.Add(gtx.Ops)
+					gtx.Execute(clipboard.WriteCmd{
+						Data: io.NopCloser(strings.NewReader("https://zvuk.com/release/" + ui.ContextMenuTarget.Status)),
+					})
 				}
 			}
 			if ui.DownloadBtn.Clicked(gtx) {

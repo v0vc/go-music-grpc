@@ -57,7 +57,7 @@ func (p *Page) addActions() []component.AppBarAction {
 					func(gtx layout.Context) layout.Dimensions {
 						p.editor.SingleLine = true
 						p.editor.MaxLen = 128
-						p.editor.Focus()
+						// p.editor.Focus()
 						p.editor.InputHint = key.HintURL
 						return material.Editor(thh, &p.editor, "url").Layout(gtx)
 					},

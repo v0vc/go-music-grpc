@@ -7,7 +7,6 @@ import (
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 
 	"gioui.org/gpu/headless"
-	"gioui.org/io/router"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -31,7 +30,6 @@ func BenchmarkKitchen(b *testing.B) {
 			PxPerSp: scale,
 		},
 		Constraints: layout.Exact(sz),
-		Queue:       new(router.Router),
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

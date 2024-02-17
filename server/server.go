@@ -318,7 +318,7 @@ func (*server) SyncArtistStream(req *artist.SyncArtistRequest, stream artist.Art
 	/*pool, _ := ants.NewPool(1)
 	defer pool.Release()*/
 
-	//artIds, err := getArtistIdsFromDb(stream.Context(), siteId)
+	// artIds, err := getArtistIdsFromDb(stream.Context(), siteId)
 	// artIds := []string{"175943", "31873616"}
 	// var err error
 
