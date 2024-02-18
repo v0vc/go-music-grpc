@@ -132,7 +132,7 @@ func downloadTrack(trackPath, url string) (string, error) {
 	return humanize.Bytes(uint64(res)), err
 }
 
-func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
+/*func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
 	if ids != nil {
 		stDelete, err := tx.PrepareContext(ctx, command)
 		if err != nil {
@@ -144,7 +144,7 @@ func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
 			_, _ = stDelete.ExecContext(ctx, id)
 		}
 	}
-}
+}*/
 
 func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string) int {
 	stmtAlb, err := tx.PrepareContext(ctx, "select aa.albumId from main.artistAlbum aa join album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? limit 1;")
@@ -701,13 +701,6 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 					continue
 				}
 				alb.ArtistIds = append(alb.ArtistIds, author.ID)
-				if author.ID == artistId {
-					resArtist = &artist.Artist{
-						SiteId:   siteId,
-						ArtistId: author.ID,
-						Title:    author.Title,
-					}
-				}
 				if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
 					art := &artist.Artist{
 						ArtistId: author.ID,
@@ -719,11 +712,19 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 					if isAdd && art.ArtistId == artistId {
 						art.Thumbnail = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
 						art.UserAdded = true
+						resArtist = art
 					}
 					artists = append(artists, art)
 					processedArtistIds = append(processedArtistIds, author.ID)
 				} else if artRawId != 0 && author.ID == artistId && thumb == nil {
 					thumb = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
+					resArtist = &artist.Artist{
+						SiteId:    siteId,
+						ArtistId:  artistId,
+						Title:     author.Title,
+						Thumbnail: thumb,
+						UserAdded: true,
+					}
 				}
 			}
 		}
@@ -754,13 +755,6 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				}
 				mArtist[art.ArtistId] = artId
 			}
-		}
-	}
-
-	for _, author := range artists {
-		if author.ArtistId == artistId {
-			resArtist = author
-			break
 		}
 	}
 

@@ -26,22 +26,14 @@ func FindDifference(a, b []string) []string {
 	return diff
 }
 
-/*func Diff(a, b []string) []string {
-	temp := map[string]int{}
-	for _, s := range a {
-		temp[s]++
-	}
-	for _, s := range b {
-		temp[s]--
-	}
-
-	var result []string
-	for s, v := range temp {
-		if v != 0 {
-			result = append(result, s)
+/*func FirstOrDefault[T any](slice []T, filter func(*T) bool) (element *T) {
+	for i := 0; i < len(slice); i++ {
+		if filter(&slice[i]) {
+			return &slice[i]
 		}
 	}
-	return result
+
+	return nil
 }*/
 
 func Contains[T comparable](s []T, e T) bool {

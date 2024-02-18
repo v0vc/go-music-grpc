@@ -1,13 +1,13 @@
 package list
 
 import (
+	"gioui.org/app"
 	"image"
 	"runtime"
 	"strconv"
 	"testing"
 	"time"
 
-	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -30,7 +30,7 @@ func mkStateUpdate(elements []Element, synth Synthesizer) stateUpdate {
 func TestManager(t *testing.T) {
 	// create a fake rendering context
 	var ops op.Ops
-	gtx := layout.NewContext(&ops, system.FrameEvent{
+	gtx := app.NewContext(&ops, app.FrameEvent{
 		Now: time.Now(),
 		Metric: unit.Metric{
 			PxPerDp: 1,
@@ -333,7 +333,7 @@ func TestManagerPrefetch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
 				ops op.Ops
-				gtx = layout.NewContext(&ops, system.FrameEvent{
+				gtx = app.NewContext(&ops, app.FrameEvent{
 					Now: time.Now(),
 					Metric: unit.Metric{
 						PxPerDp: 1,
@@ -405,7 +405,7 @@ func dupSlice(in []Element) []Element {
 func TestManagerViewportOnRemoval(t *testing.T) {
 	// create a fake rendering context
 	var ops op.Ops
-	gtx := layout.NewContext(&ops, system.FrameEvent{
+	gtx := app.NewContext(&ops, app.FrameEvent{
 		Now: time.Now(),
 		Metric: unit.Metric{
 			PxPerDp: 1,

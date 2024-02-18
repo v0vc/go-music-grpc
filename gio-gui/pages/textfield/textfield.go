@@ -132,7 +132,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 					default:
 						p.inputAlignment = text.Start
 					}
-					op.InvalidateOp{}.Add(gtx.Ops)
+					gtx.Execute(op.InvalidateCmd{})
 				}
 				return layout.UniformInset(unit.Dp(8)).Layout(
 					gtx,
