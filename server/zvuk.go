@@ -749,7 +749,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 					insErr = stArtist.QueryRowContext(ctx, siteId, art.ArtistId, art.Title).Scan(&artId)
 				}
 				if insErr != nil {
-					fmt.Printf(err.Error())
+					fmt.Println(err)
 				} else {
 					fmt.Printf("processed artist: %v, id: %v \n", art.Title, artId)
 				}
@@ -765,7 +765,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		for _, album := range albums {
 			err = stAlbum.QueryRowContext(ctx, album.AlbumId, album.Title, album.ReleaseDate, album.ReleaseType, album.Thumbnail, album.SyncState).Scan(&albId)
 			if err != nil {
-				fmt.Printf(err.Error())
+				fmt.Println(err)
 			} else {
 				fmt.Printf("processed album: %v, id: %v \n", album.Title, albId)
 			}
@@ -847,10 +847,8 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		_, _ = stArtAlb.ExecContext(ctx, args...)
 	}
 
-	if deletedArtistIds != nil {
-		for _, id := range deletedArtistIds {
-			_, _ = deleteArtistDb(ctx, siteId, id)
-		}
+	for _, id := range deletedArtistIds {
+		_, _ = deleteArtistDb(ctx, siteId, id)
 	}
 
 	return resArtist, tx.Commit()

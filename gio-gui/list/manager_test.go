@@ -1,12 +1,13 @@
 package list
 
 import (
-	"gioui.org/app"
 	"image"
 	"runtime"
 	"strconv"
 	"testing"
 	"time"
+
+	"gioui.org/app"
 
 	"gioui.org/layout"
 	"gioui.org/op"
