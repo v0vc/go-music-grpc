@@ -156,7 +156,7 @@ func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string
 	var albId int
 	err = stmtAlb.QueryRowContext(ctx, albumId, siteId).Scan(&albId)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	return albId
 }
@@ -171,7 +171,7 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId stri
 	var artId int
 	err = stmtAlb.QueryRowContext(ctx, artistId, siteId).Scan(&artId)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	return artId
 }
@@ -194,8 +194,8 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 				artisId string
 			)
 
-			if err := rows.Scan(&albId, &artisId); err != nil {
-				log.Fatal(err)
+			if er := rows.Scan(&albId, &artisId); er != nil {
+				fmt.Println(er)
 			}
 			if albId != "" && !Contains(existAlbumIds, albId) {
 				existAlbumIds = append(existAlbumIds, albId)
@@ -248,8 +248,8 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 			trackId string
 			alb     AlbumInfo
 		)
-		if err := rows.Scan(&alb.ArtistTitle, &alb.AlbumTitle, &alb.AlbumId, &alb.AlbumYear, &alb.AlbumCover, &trackId, &alb.TrackNum, &alb.TrackTotal, &alb.TrackTitle, &alb.TrackGenre); err != nil {
-			log.Fatal(err)
+		if er := rows.Scan(&alb.ArtistTitle, &alb.AlbumTitle, &alb.AlbumId, &alb.AlbumYear, &alb.AlbumCover, &trackId, &alb.TrackNum, &alb.TrackTotal, &alb.TrackTitle, &alb.TrackGenre); er != nil {
+			fmt.Println(er)
 		}
 		_, ok := mTracks[trackId]
 		if !ok {
@@ -280,7 +280,7 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 	case errors.Is(err, sql.ErrNoRows):
 		log.Fatalf("no token for sourceId: %d", siteId)
 	case err != nil:
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	return login, pass, token
 }
@@ -437,7 +437,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 				needTokenUpd = true
 			}
 		} else {
-			log.Fatalln("can't get new token: " + err.Error())
+			log.Println("can't get new token: " + err.Error())
 		}
 	}
 	jsonString, er := json.Marshal(graphqlResponse)
@@ -621,7 +621,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	login, pass, token := getTokenDb(tx, ctx, siteId)
 	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId, token, login, pass)
 	if item == nil || err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
@@ -675,6 +675,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		processedArtistIds []string
 	)
 
+	var sb []string
 	for _, data := range item.GetArtists {
 		for _, release := range data.Releases {
 			if release.ID == "" {
@@ -692,7 +693,6 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				} else {
 					alb.SyncState = 1
 				}
-				albums = append(albums, alb)
 				processedAlbumIds = append(processedArtistIds, release.ID)
 			}
 
@@ -700,6 +700,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				if author.ID == "" {
 					continue
 				}
+				sb = append(sb, author.Title)
 				alb.ArtistIds = append(alb.ArtistIds, author.ID)
 				if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
 					art := &artist.Artist{
@@ -726,6 +727,10 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 						UserAdded: true,
 					}
 				}
+			}
+			alb.SubTitle = strings.Join(sb, ", ")
+			if alb.AlbumId != "" {
+				albums = append(albums, alb)
 			}
 		}
 	}

@@ -72,7 +72,7 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 
 	rows, err := stRows.QueryContext(ctx, artistId, siteId)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	defer rows.Close()
 
@@ -103,7 +103,7 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 
 	rows, err := stRows.QueryContext(ctx, artistId, siteId)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	defer rows.Close()
 
@@ -111,7 +111,7 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	for rows.Next() {
 		var alb artist.Album
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &alb.Thumbnail, &alb.SyncState); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 		albs = append(albs, &alb)
 	}
@@ -134,7 +134,7 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 
 	rows, err := stRows.QueryContext(ctx, siteId)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	defer rows.Close()
 
@@ -142,7 +142,7 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 	for rows.Next() {
 		var alb artist.Album
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &alb.Thumbnail); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 		albs = append(albs, &alb)
 	}
@@ -166,6 +166,9 @@ func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]string, error) {
 	defer stmtArt.Close()
 
 	rows, err := stmtArt.QueryContext(ctx, siteId)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	for rows.Next() {
 		var artId string
@@ -193,7 +196,7 @@ func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]
 
 	rows, err := stRows.QueryContext(ctx, albumId, siteId)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 	defer rows.Close()
 
@@ -201,7 +204,7 @@ func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]
 	for rows.Next() {
 		var track artist.Track
 		if err = rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 		tracks = append(tracks, &track)
 	}
@@ -231,11 +234,6 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		{stmt: fmt.Sprintf("delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) and a.userAdded = 1 and a.art_id <> %d group by aa.artistId)) group by aa.artistId);", artId, artId, artId), res: 2},
 		{stmt: "delete from main.album where alb_id in (select albumId from _temp_album);", res: 3},
 		{stmt: "drop table _temp_album;", res: 4},
-		/*update main.artist set userAdded = 0 where artistId = 31873616 and siteId = 1;
-		create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) and a.userAdded = 0 group by aa.albumId having res > 1);
-		delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1)) and a.userAdded = 1 and a.art_id <> (select art_id from main.artist where artistId = 31873616 and siteId = 1 limit 1) group by aa.artistId)) group by aa.artistId);
-		delete from main.album where alb_id in (select albumId from _temp_album);
-		drop table _temp_album;*/
 	}
 
 	for _, exec := range execs {
@@ -245,7 +243,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		}
 		cc, er := stmt.ExecContext(ctx)
 		if er != nil {
-			log.Fatal(er)
+			fmt.Println(err)
 		}
 		if exec.res == 3 {
 			aff, _ = cc.RowsAffected()
