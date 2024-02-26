@@ -622,6 +622,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId, token, login, pass)
 	if item == nil || err != nil {
 		fmt.Println(err)
+		return resArtist, tx.Rollback()
 	}
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)

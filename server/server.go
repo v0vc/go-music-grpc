@@ -244,8 +244,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		cc, er := stmt.ExecContext(ctx)
 		if er != nil {
 			fmt.Println(err)
-		}
-		if exec.res == 3 {
+		} else if exec.res == 3 {
 			aff, _ = cc.RowsAffected()
 		}
 		stmt.Close()
