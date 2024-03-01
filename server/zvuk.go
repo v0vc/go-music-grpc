@@ -35,7 +35,7 @@ const (
 	albumTemplate         = "{{.year}} - {{.album}}"
 	releaseChunk          = 100
 	authHeader            = "x-auth-token"
-	thumbSize             = "10x10"
+	thumbSize             = "64x64"
 	coverSize             = "600x600"
 )
 
@@ -440,9 +440,13 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 			log.Println("can't get new token: " + err.Error())
 		}
 	}
-	jsonString, er := json.Marshal(graphqlResponse)
-	json.Unmarshal(jsonString, &obj)
-	return &obj, token, needTokenUpd, er
+	if err != nil {
+		return nil, "", false, err
+	} else {
+		jsonString, er := json.Marshal(graphqlResponse)
+		json.Unmarshal(jsonString, &obj)
+		return &obj, token, needTokenUpd, er
+	}
 }
 
 /*func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd bool) ([]*artist.Artist, error) {
@@ -676,19 +680,19 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		processedArtistIds []string
 	)
 
-	var sb []string
 	for _, data := range item.GetArtists {
 		for _, release := range data.Releases {
 			if release.ID == "" {
 				continue
 			}
-			alb := &artist.Album{}
+			alb := &artist.Album{
+				Title:       strings.TrimSpace(release.Title),
+				ReleaseDate: release.Date,
+				ReleaseType: release.Type,
+				Thumbnail:   getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1)),
+			}
 			if Contains(newAlbumIds, release.ID) && !Contains(processedAlbumIds, release.ID) {
 				alb.AlbumId = release.ID
-				alb.Title = strings.TrimSpace(release.Title)
-				alb.ReleaseDate = release.Date
-				alb.ReleaseType = release.Type
-				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
 				if isAdd {
 					alb.SyncState = 0
 				} else {
@@ -697,6 +701,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				processedAlbumIds = append(processedArtistIds, release.ID)
 			}
 
+			var sb []string
 			for _, author := range release.Artists {
 				if author.ID == "" {
 					continue
@@ -730,9 +735,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				}
 			}
 			alb.SubTitle = strings.Join(sb, ", ")
-			if alb.AlbumId != "" {
-				albums = append(albums, alb)
-			}
+			albums = append(albums, alb)
 		}
 	}
 
@@ -769,28 +772,30 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		defer stAlbum.Close()
 
 		for _, album := range albums {
-			err = stAlbum.QueryRowContext(ctx, album.AlbumId, album.Title, album.ReleaseDate, album.ReleaseType, album.Thumbnail, album.SyncState).Scan(&albId)
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				fmt.Printf("processed album: %v, id: %v \n", album.Title, albId)
-			}
-
-			for _, arId := range album.ArtistIds {
-				artId, ok := mArtist[arId]
-				if ok {
-					artAlbs = append(artAlbs, &artAlb{
-						art: artId,
-						alb: albId,
-					})
+			if album.AlbumId != "" {
+				err = stAlbum.QueryRowContext(ctx, album.AlbumId, album.Title, album.ReleaseDate, album.ReleaseType, album.Thumbnail, album.SyncState).Scan(&albId)
+				if err != nil {
+					fmt.Println(err)
 				} else {
-					artId = getArtistIdDb(tx, ctx, siteId, arId)
-					if artId != 0 {
-						mArtist[arId] = artId
+					fmt.Printf("processed album: %v, id: %v \n", album.Title, albId)
+				}
+
+				for _, arId := range album.ArtistIds {
+					artId, ok := mArtist[arId]
+					if ok {
 						artAlbs = append(artAlbs, &artAlb{
 							art: artId,
 							alb: albId,
 						})
+					} else {
+						artId = getArtistIdDb(tx, ctx, siteId, arId)
+						if artId != 0 {
+							mArtist[arId] = artId
+							artAlbs = append(artAlbs, &artAlb{
+								art: artId,
+								alb: albId,
+							})
+						}
 					}
 				}
 			}
