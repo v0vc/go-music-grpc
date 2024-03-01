@@ -60,7 +60,7 @@ type UI struct {
 	// room menu
 	SyncBtn, DownloadChannelBtn, CopyChannelBtn, DeleteBtn widget.Clickable
 	// message menu
-	CopyAlbBtn, DownloadBtn widget.Clickable
+	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
 	MessageMenu component.MenuState
 	// ChannelMenu is the context menu available on channel.
@@ -88,7 +88,12 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy")
+				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Album")
+				item.Icon = icon.CopyIcon
+				return item.Layout(gtx)
+			},
+			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbArtistBtn, "Copy Artist")
 				item.Icon = icon.CopyIcon
 				return item.Layout(gtx)
 			},
@@ -453,9 +458,20 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 			if ui.CopyAlbBtn.Clicked(gtx) {
 				switch ui.SiteId {
 				case 1:
-					// clipboard.WriteOp{Text: "https://zvuk.com/release/" + ui.ContextMenuTarget.Status}.Add(gtx.Ops)
 					gtx.Execute(clipboard.WriteCmd{
 						Data: io.NopCloser(strings.NewReader("https://zvuk.com/release/" + ui.ContextMenuTarget.Status)),
+					})
+				}
+			}
+			if ui.CopyAlbArtistBtn.Clicked(gtx) {
+				switch ui.SiteId {
+				case 1:
+					var sb []string
+					for _, artId := range ui.ContextMenuTarget.ParentId {
+						sb = append(sb, "https://zvuk.com/artist/"+artId)
+					}
+					gtx.Execute(clipboard.WriteCmd{
+						Data: io.NopCloser(strings.NewReader(strings.Join(sb, ", "))),
 					})
 				}
 			}
