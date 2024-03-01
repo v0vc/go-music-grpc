@@ -685,13 +685,17 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 			if release.ID == "" {
 				continue
 			}
-			alb := &artist.Album{
-				Title:       strings.TrimSpace(release.Title),
-				ReleaseDate: release.Date,
-				ReleaseType: release.Type,
-				Thumbnail:   getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1)),
-			}
-			if Contains(newAlbumIds, release.ID) && !Contains(processedAlbumIds, release.ID) {
+			alb := &artist.Album{}
+			if isAdd {
+				alb.Title = strings.TrimSpace(release.Title)
+				alb.ReleaseDate = release.Date
+				alb.ReleaseType = release.Type
+				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
+			} else if Contains(newAlbumIds, release.ID) && !Contains(processedAlbumIds, release.ID) {
+				alb.Title = strings.TrimSpace(release.Title)
+				alb.ReleaseDate = release.Date
+				alb.ReleaseType = release.Type
+				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
 				alb.AlbumId = release.ID
 				if isAdd {
 					alb.SyncState = 0
@@ -699,6 +703,8 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 					alb.SyncState = 1
 				}
 				processedAlbumIds = append(processedArtistIds, release.ID)
+			} else {
+				continue
 			}
 
 			var sb []string
@@ -735,7 +741,11 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				}
 			}
 			alb.SubTitle = strings.Join(sb, ", ")
-			albums = append(albums, alb)
+			if isAdd {
+				albums = append(albums, alb)
+			} else if alb.AlbumId != "" {
+				albums = append(albums, alb)
+			}
 		}
 	}
 
