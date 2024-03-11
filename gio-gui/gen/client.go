@@ -107,13 +107,14 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 	}
 }
 
-func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, error) {
+func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, string, error) {
 	var channels model.Rooms
 	var albums model.Messages
+	var artTitle string
 
 	client, err := GetClientInstance()
 	if client == nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	res, err := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 		SiteId:   siteId,
@@ -121,16 +122,17 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 		IsAdd:    true,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	for _, art := range res.GetArtists() {
+		artTitle = art.GetTitle()
 		thumb := art.GetThumbnail()
 		if thumb == nil {
 			thumb = GetNoAvatarInstance()
 		}
 		im, _, _ := image.Decode(bytes.NewReader(thumb))
 		channels.Add(model.Room{
-			Name:   art.GetTitle(),
+			Name:   artTitle,
 			Id:     art.GetArtistId(),
 			Image:  im,
 			IsBase: false,
@@ -141,7 +143,7 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 			albums.Add(al)
 		}
 	}
-	return &channels, &albums, nil
+	return &channels, &albums, artTitle, nil
 }
 
 func (g *Generator) DeleteArtist(siteId uint32, artistId string) int64 {

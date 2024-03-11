@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"math/rand"
 	"slices"
 	"strconv"
 	"strings"
@@ -82,7 +81,7 @@ type Room struct {
 	}()
 }*/
 
-func AddAlbums(rooms *Rooms, artMap map[string][]model.Message, chId string, start time.Time) {
+func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, chId string, start time.Time) {
 	go func() {
 		for artId, albums := range artMap {
 			ch := rooms.GetChannelById(artId)
@@ -212,7 +211,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	start := time.Now()
 	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, arts)
 	res := <-arts
-	AddAlbums(rooms, res, r.Id, start)
+	AddAlbumsToUi(rooms, res, r.Id, start)
 }
 
 // Select the room at the given index.
@@ -336,12 +335,6 @@ func (r *Rooms) GetBaseChannel() *Room {
 		}
 	}
 	return nil
-}
-
-func (r *Rooms) Random() *Room {
-	r.Lock()
-	defer r.Unlock()
-	return r.List[rand.Intn(len(r.List)-1)]
 }
 
 // synth inserts date separators and unread separators

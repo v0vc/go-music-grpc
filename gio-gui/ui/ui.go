@@ -193,12 +193,13 @@ func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	} else {
 		ch.Content = fmt.Sprintf("working: %v", artistId)
 	}
-	channels, albums, err := g.AddChannel(siteId, artistId)
+	start := time.Now()
+	channels, albums, artTitle, err := g.AddChannel(siteId, artistId)
 	if err != nil {
 		ch.Content = err.Error()
 		return
 	} else {
-		ch.Content = ""
+		ch.Content = fmt.Sprintf("added: %v(%v)", artTitle, time.Since(start))
 	}
 	MapDto(ui, channels, albums, g)
 	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow, nil)
