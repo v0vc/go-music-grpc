@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"gioui.org/layout"
 
@@ -81,7 +82,7 @@ type Room struct {
 	}()
 }*/
 
-func AddAlbums(rooms *Rooms, artMap map[string][]model.Message) {
+func AddAlbums(rooms *Rooms, artMap map[string][]model.Message, chId string, start time.Time) {
 	go func() {
 		for artId, albums := range artMap {
 			ch := rooms.GetChannelById(artId)
@@ -106,6 +107,10 @@ func AddAlbums(rooms *Rooms, artMap map[string][]model.Message) {
 				}
 				ch.Unlock()
 			}
+		}
+		channel := rooms.GetChannelById(chId)
+		if channel != nil {
+			channel.Content = fmt.Sprintf("last sync %s", time.Since(start))
 		}
 	}()
 }
@@ -204,9 +209,10 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	r.Lock()
 	defer r.Unlock()
 	arts := make(chan map[string][]model.Message, 1)
+	start := time.Now()
 	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, arts)
 	res := <-arts
-	AddAlbums(rooms, res)
+	AddAlbums(rooms, res, r.Id, start)
 }
 
 // Select the room at the given index.

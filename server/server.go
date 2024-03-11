@@ -276,15 +276,14 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		artIds = append(artIds, artistId)
 	}
 
-	/*pool, _ := ants.NewPool(1)
-	defer pool.Release()*/
 	for _, artId := range artIds {
-		// err = pool.Submit(func() {
 		switch siteId {
 		case 1:
 			art, er := SyncArtistSb(ctx, siteId, artId, req.GetIsAdd())
 			if er == nil {
-				artists = append(artists, art)
+				if art != nil {
+					artists = append(artists, art)
+				}
 			} else {
 				fmt.Printf("Sync error: %v", er)
 			}
@@ -293,10 +292,6 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		case 3:
 			// "артист с дизера"
 		}
-		//})
-		/*if err != nil {
-			fmt.Sprintf("Pool sync error: %v", err)
-		}*/
 	}
 
 	if err != nil {

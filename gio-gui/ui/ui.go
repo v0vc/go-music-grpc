@@ -370,6 +370,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 			return material.List(ui.th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
 				if ui.SyncBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
+					channel.Content = "In progress..."
 					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
 				}
 				if ui.DownloadChannelBtn.Clicked(gtx) {
