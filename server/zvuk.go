@@ -118,7 +118,7 @@ func downloadTrack(trackPath, url string) (string, error) {
 	}
 	defer do.Body.Close()
 	if do.StatusCode != http.StatusOK && do.StatusCode != http.StatusPartialContent {
-		fmt.Println(do.Status)
+		log.Println(do.Status)
 		return "", err
 	}
 	totalBytes := do.ContentLength
@@ -128,7 +128,7 @@ func downloadTrack(trackPath, url string) (string, error) {
 		StartTime: time.Now().UnixMilli(),
 	}
 	res, err := io.Copy(f, io.TeeReader(do.Body, counter))
-	fmt.Println("")
+	log.Println("")
 	return humanize.Bytes(uint64(res)), err
 }
 
@@ -156,7 +156,7 @@ func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string
 	var albId int
 	err = stmtAlb.QueryRowContext(ctx, albumId, siteId).Scan(&albId)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	return albId
 }
@@ -171,7 +171,7 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId stri
 	var artId int
 	err = stmtAlb.QueryRowContext(ctx, artistId, siteId).Scan(&artId)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	return artId
 }
@@ -195,7 +195,7 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 			)
 
 			if er := rows.Scan(&albId, &artisId); er != nil {
-				fmt.Println(er)
+				log.Println(er)
 			}
 			if albId != "" && !Contains(existAlbumIds, albId) {
 				existAlbumIds = append(existAlbumIds, albId)
@@ -249,7 +249,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 			alb     AlbumInfo
 		)
 		if er := rows.Scan(&alb.ArtistTitle, &alb.AlbumTitle, &alb.AlbumId, &alb.AlbumYear, &alb.AlbumCover, &trackId, &alb.TrackNum, &alb.TrackTotal, &alb.TrackTitle, &alb.TrackGenre); er != nil {
-			fmt.Println(er)
+			log.Println(er)
 		}
 		_, ok := mTracks[trackId]
 		if !ok {
@@ -280,7 +280,7 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 	case errors.Is(err, sql.ErrNoRows):
 		log.Fatalf("no token for sourceId: %d", siteId)
 	case err != nil:
-		fmt.Println(err)
+		log.Println(err)
 	}
 	return login, pass, token
 }
@@ -338,7 +338,7 @@ func getTrackStreamUrl(trackId, trackQuality, token string) (string, error) {
 		}
 		if do.StatusCode == http.StatusTeapot && i != 4 {
 			do.Body.Close()
-			fmt.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
+			log.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
 			continue
 		}
 		if do.StatusCode != http.StatusOK {
@@ -444,7 +444,10 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 		return nil, "", false, err
 	} else {
 		jsonString, er := json.Marshal(graphqlResponse)
-		json.Unmarshal(jsonString, &obj)
+		err = json.Unmarshal(jsonString, &obj)
+		if err != nil {
+			return nil, "", false, err
+		}
 		return &obj, token, needTokenUpd, er
 	}
 }
@@ -625,7 +628,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	login, pass, token := getTokenDb(tx, ctx, siteId)
 	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId, token, login, pass)
 	if item == nil || err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return resArtist, tx.Rollback()
 	}
 	if needTokenUpd {
@@ -758,9 +761,9 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 					insErr = stArtist.QueryRowContext(ctx, siteId, art.ArtistId, art.Title).Scan(&artId)
 				}
 				if insErr != nil {
-					fmt.Println(err)
+					log.Println(err)
 				} else {
-					fmt.Printf("processed artist: %v, id: %v \n", art.Title, artId)
+					log.Printf("processed artist: %v, id: %v \n", art.Title, artId)
 				}
 				mArtist[art.ArtistId] = artId
 			}
@@ -775,9 +778,9 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 			if album.AlbumId != "" {
 				err = stAlbum.QueryRowContext(ctx, album.AlbumId, album.Title, album.ReleaseDate, album.ReleaseType, album.Thumbnail, album.SyncState).Scan(&albId)
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 				} else {
-					fmt.Printf("processed album: %v, id: %v \n", album.Title, albId)
+					log.Printf("processed album: %v, id: %v \n", album.Title, albId)
 				}
 
 				for _, arId := range album.ArtistIds {
@@ -972,12 +975,12 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDownloaded map[string]string) {
 	cdnUrl, err := getTrackStreamUrl(trackId, trackQuality, token)
 	if err != nil {
-		fmt.Println("Failed to get track info from api.", err)
+		log.Println("Failed to get track info from api.", err)
 		return
 	}
 	curQuality := getCurrentTrackQuality(cdnUrl, &trackQualityMap)
 	if curQuality == nil {
-		fmt.Println("The API returned an unsupported format.")
+		log.Println("The API returned an unsupported format.")
 		return
 	}
 	mTrack := CreateTagsFromDb(albInfo)
@@ -997,7 +1000,7 @@ func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDow
 	if !exist {
 		albName := ParseTemplate(mTrack, albTemplate)
 		if len(albName) > 120 {
-			fmt.Println("Album folder was chopped as it exceeds 120 characters.")
+			log.Println("Album folder was chopped as it exceeds 120 characters.")
 			albName = albName[:120]
 		}
 		if trTotal == 1 {
@@ -1008,14 +1011,14 @@ func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDow
 
 		err = os.MkdirAll(absAlbName, 0o755)
 		if err != nil {
-			fmt.Println("Failed to create folder.", err)
+			log.Println("Failed to create folder.", err)
 			return
 		}
 
 		coverPath = filepath.Join(absAlbName, "cover.jpg")
 		err = downloadAlbumCover(albInfo.AlbumCover, coverPath)
 		if err != nil {
-			fmt.Println("Failed to download cover.", err)
+			log.Println("Failed to download cover.", err)
 			coverPath = ""
 		}
 		mAlbum[albInfo.AlbumId] = absAlbName
@@ -1024,32 +1027,32 @@ func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDow
 	trackPath := filepath.Join(absAlbName, trackName+curQuality.Extension)
 	exists, err := FileExists(trackPath)
 	if err != nil {
-		fmt.Println("Failed to check if track already exists locally.")
+		log.Println("Failed to check if track already exists locally.")
 		return
 	}
 	if exists {
-		fmt.Println("Track already exists locally.")
+		log.Println("Track already exists locally.")
 		return
 	}
 
-	fmt.Printf("Downloading track %s of %s: %s - %s\n", albInfo.TrackNum, albInfo.TrackTotal, albInfo.TrackTitle, curQuality.Specs)
+	log.Printf("Downloading track %s of %s: %s - %s\n", albInfo.TrackNum, albInfo.TrackTotal, albInfo.TrackTitle, curQuality.Specs)
 	resDown, err := downloadTrack(trackPath, cdnUrl)
 	if err != nil {
-		fmt.Println("Failed to download track.", err)
+		log.Println("Failed to download track.", err)
 		return
 	}
 	mDownloaded[trackId] = resDown
 
 	err = WriteTags(trackPath, coverPath, curQuality.IsFlac, mTrack)
 	if err != nil {
-		fmt.Println("Failed to write tags.", err)
+		log.Println("Failed to write tags.", err)
 		return
 	}
 
 	if trTotal == 1 && coverPath != "" {
 		err = os.Remove(coverPath)
 		if err != nil {
-			fmt.Println("Failed to delete cover.", err)
+			log.Println("Failed to delete cover.", err)
 		}
 	}
 }
@@ -1068,7 +1071,10 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 
 	mTracks, _ := getTrackFromDb(tx, ctx, siteId, trackIds, false)
 	_, _, token := getTokenDb(tx, ctx, siteId)
-	tx.Rollback()
+	err = tx.Rollback()
+	if err != nil {
+		log.Println(err)
+	}
 
 	mDownloaded := make(map[string]string)
 	for _, trackId := range trackIds {
@@ -1076,7 +1082,7 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 		if dbExist {
 			downloadFiles(trackId, token, trackQuality, albInfo, mDownloaded)
 		} else {
-			fmt.Println("Track not found in database, please sync")
+			log.Println("Track not found in database, please sync")
 			// нет в базе, можно продумать как формировать пути скачивания без данных в базе, типа лить в базовую папку без прохода по темплейтам альбома, хз
 		}
 		RandomPause(3, 7)
@@ -1108,7 +1114,10 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 		item, tokenNew, needTokenUpd := getAlbumTracks(albumId, token, login, pass)
 		if needTokenUpd {
 			updateTokenDb(tx, ctx, tokenNew, siteId)
-			tx.Commit()
+			err = tx.Commit()
+			if err != nil {
+				log.Println(err)
+			}
 		}
 		if item == nil {
 			tryCount += 1

@@ -44,7 +44,10 @@ func writeFlacTags(decTrackPath string, tags map[string]string, imgData []byte) 
 		tag = flacvorbis.New()
 	}
 	for k, v := range tags {
-		tag.Add(strings.ToUpper(k), v)
+		er := tag.Add(strings.ToUpper(k), v)
+		if er != nil {
+			return er
+		}
 	}
 	tagMeta := tag.Marshal()
 	if idx > 0 {
@@ -53,11 +56,11 @@ func writeFlacTags(decTrackPath string, tags map[string]string, imgData []byte) 
 		f.Meta = append(f.Meta, &tagMeta)
 	}
 	if imgData != nil {
-		picture, err := flacpicture.NewFromImageData(
+		picture, er := flacpicture.NewFromImageData(
 			flacpicture.PictureTypeFrontCover, "", imgData, "image/jpeg",
 		)
-		if err != nil {
-			fmt.Println("Tag picture error", err)
+		if er != nil {
+			fmt.Println("Tag picture error", er)
 		}
 		pictureMeta := picture.Marshal()
 		f.Meta = append(f.Meta, &pictureMeta)

@@ -596,7 +596,7 @@ func TestManagerGC(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
-	mgr = nil
+	// mgr = nil
 	// Garbage collect twice, once to run the finalizer and once to
 	// actually destroy the manager.
 	runtime.GC()
