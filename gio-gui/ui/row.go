@@ -6,13 +6,12 @@ import (
 	"strconv"
 	"time"
 
-	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
-
 	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
 )
 
 // Row holds persistent state for a single row of a chat.

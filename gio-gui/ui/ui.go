@@ -493,7 +493,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 	}
 }
 
-// row returns RowStyle
+// row returns RowStyle.
 func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 	msg := NewRow(ui.th.Theme, state, &ui.MessageMenu, &RowConfig{
 		Title:   data.Title,

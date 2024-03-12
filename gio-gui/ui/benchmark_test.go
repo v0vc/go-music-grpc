@@ -4,12 +4,11 @@ import (
 	"image"
 	"testing"
 
-	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
-
 	"gioui.org/gpu/headless"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
+	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 )
 
 func BenchmarkKitchen(b *testing.B) {

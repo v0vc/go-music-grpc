@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gioui.org/app"
-
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -451,7 +450,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 	}
 	for _, tc := range []testcase{
 		{
-			name:       "load inital elements",
+			name:       "load initial elements",
 			sendUpdate: true,
 			update: func() stateUpdate {
 				// Send an update to provide a few elements to work with.

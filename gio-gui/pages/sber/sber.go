@@ -3,9 +3,9 @@ package sber
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"image"
 	"image/color"
+	"log"
 	"time"
 
 	"gioui.org/gesture"
@@ -128,7 +128,7 @@ func (p *Page) Layout(gtx layout.Context, th *page.Theme, loadSize int) layout.D
 		go fetchArtists(p)
 		select {
 		case err := <-p.listChanErr:
-			fmt.Println(err.Error())
+			log.Println(err.Error())
 		case p.users = <-p.updateUsers:
 			defer close(p.updateUsers)
 			p.userHovers = make([]gesture.Hover, len(p.users))
@@ -259,7 +259,7 @@ func fetchArtists(p *Page) {
 		return
 	}
 
-	addToList(p, res.Artists)
+	addToList(p, res.GetArtists())
 }
 
 func userLayout(gtx layout.Context, index int, p *Page, th *material.Theme) layout.Dimensions {

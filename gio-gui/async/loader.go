@@ -47,10 +47,10 @@ type Loader struct {
 	// MaxLoaded specifies the maximum number of resources to load before
 	// de-allocating old resources.
 	MaxLoaded int
-	// active frame being layed out.
+	// active frame being laid out.
 	// Access must be synchronized with atomics.
 	active int64
-	// finished frames that have been layed out.
+	// finished frames that have been laid out.
 	// Access must be synchronized with atomics.
 	finished int64
 	// update chan reports that a resource's status has changed.

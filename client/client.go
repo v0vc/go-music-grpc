@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func main() {
-	fmt.Println("grpc-music client started")
+	log.Println("grpc-music client started")
 
 	/*	err := godotenv.Load(".env")
 		if err != nil {
@@ -35,7 +34,6 @@ func main() {
 	c := artist.NewArtistServiceClient(cc)
 	// c := getClientInstance()
 
-	// sync artist | 211850488 Мюслі UA | 212266807 Lely45
 	/*req := &artist.SyncArtistRequest{
 		SiteId:   1,
 		ArtistId: "211850488",
@@ -75,14 +73,14 @@ func main() {
 		log.Fatalf("error while calling ListArtist RPC: %v", err)
 	}
 	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
+		res, er := stream.Recv()
+		if er == io.EOF {
 			break
 		}
-		if err != nil {
+		if er != nil {
 			log.Fatalf("something happened: %v", err)
 		}
-		fmt.Println(res.GetArtist())
+		log.Println(res.GetArtist())
 	}
 
 	// delete Artist

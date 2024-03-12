@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"gioui.org/layout"
-
 	"gioui.org/widget"
 	"github.com/v0vc/go-music-grpc/gio-gui/list"
 	"github.com/v0vc/go-music-grpc/gio-gui/model"
@@ -131,11 +130,10 @@ func (r *Room) RunSearch(searchText string) {
 				// log.Println(e.SerialID)
 				resp = append(resp, e.Serial())
 			} // else {
-			//resp.indices = append(resp.indices, e.Serial())
+			// resp.indices = append(resp.indices, e.Serial())
 			// r.RowTracker.Delete(e.Serial())
 			// r.ListState.Modify(nil, nil, []list.Serial{e.Serial()})
 			//}
-
 		}
 	}()
 

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
+	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,10 +46,10 @@ func GetClientInstance() (artist.ArtistServiceClient, error) {
 	if singleInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
-		fmt.Println("Creating single instance now.")
+		log.Println("Creating single instance now.")
 		cc, err := grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			fmt.Printf("could not connect: %v\n", err)
+			log.Printf("could not connect: %v\n", err)
 			cc.Close()
 			return nil, err
 		}
@@ -89,7 +90,7 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 		return &rooms, err
 	} else {
 		rooms.Add(baseRoom)
-		for _, artist := range res.Artists {
+		for _, artist := range res.GetArtists() {
 			thumb := artist.GetThumbnail()
 			if thumb == nil {
 				thumb = GetNoAvatarInstance()
@@ -140,7 +141,7 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 			Image:  im,
 			IsBase: false,
 		})
-		for _, alb := range art.Albums {
+		for _, alb := range art.GetAlbums() {
 			serial := g.old.Increment()
 			al := MapAlbum(alb, serial, false)
 			albums.Add(al)
@@ -174,7 +175,7 @@ func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
 	if err != nil || res == nil {
 		return albums
 	}
-	for _, alb := range res.Releases {
+	for _, alb := range res.GetReleases() {
 		serial := g.old.Increment()
 		al := MapAlbum(alb, serial, false)
 		albums = append(albums, al)
@@ -195,10 +196,10 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) []model.Mess
 	if err != nil || res == nil {
 		return albums
 	}
-	for _, alb := range res.Releases {
+	for _, alb := range res.GetReleases() {
 		serial := g.old.Increment()
 		var isRead bool
-		if alb.SyncState > 0 {
+		if alb.GetSyncState() > 0 {
 			isRead = true
 		}
 		al := MapAlbum(alb, serial, isRead)
@@ -220,7 +221,7 @@ func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality 
 	if err != nil || res == nil {
 		return nil
 	}
-	return res.Downloaded
+	return res.GetDownloaded()
 }
 
 func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality string) map[string]string {
@@ -236,7 +237,7 @@ func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality 
 	if err != nil || res == nil {
 		return nil
 	}
-	return res.Downloaded
+	return res.GetDownloaded()
 }
 
 func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[string][]model.Message) {
@@ -253,8 +254,8 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 	if err != nil || res == nil {
 		return
 	}
-	for _, art := range res.Artists {
-		for _, alb := range art.Albums {
+	for _, art := range res.GetArtists() {
+		for _, alb := range art.GetAlbums() {
 			serial := g.new.Decrement()
 			al := MapAlbum(alb, serial, true)
 			artMap["-1"] = append(artMap["-1"], al)

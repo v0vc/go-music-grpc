@@ -3,9 +3,8 @@ package appbar
 import (
 	"image/color"
 
-	"gioui.org/unit"
-
 	"gioui.org/layout"
+	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"

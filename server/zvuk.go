@@ -719,7 +719,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 						ArtistId: author.ID,
 						Title:    strings.TrimSpace(author.Title),
 					}
-					if isAdd && art.ArtistId == artistId {
+					if isAdd && art.GetArtistId() == artistId {
 						art.Thumbnail = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
 						art.UserAdded = true
 						resArtist = art
@@ -752,20 +752,20 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		defer stArtistUser.Close()
 
 		for _, art := range artists {
-			artId, ok := mArtist[art.ArtistId]
+			artId, ok := mArtist[art.GetArtistId()]
 			if !ok {
 				var insErr error
-				if art.UserAdded {
-					insErr = stArtistUser.QueryRowContext(ctx, siteId, art.ArtistId, art.Title, 1, art.Thumbnail).Scan(&artId)
+				if art.GetUserAdded() {
+					insErr = stArtistUser.QueryRowContext(ctx, siteId, art.GetArtistId(), art.GetTitle(), 1, art.GetThumbnail()).Scan(&artId)
 				} else {
-					insErr = stArtist.QueryRowContext(ctx, siteId, art.ArtistId, art.Title).Scan(&artId)
+					insErr = stArtist.QueryRowContext(ctx, siteId, art.GetArtistId(), art.GetTitle()).Scan(&artId)
 				}
 				if insErr != nil {
 					log.Println(err)
 				} else {
-					log.Printf("processed artist: %v, id: %v \n", art.Title, artId)
+					log.Printf("processed artist: %v, id: %v \n", art.GetTitle(), artId)
 				}
-				mArtist[art.ArtistId] = artId
+				mArtist[art.GetArtistId()] = artId
 			}
 		}
 	}
@@ -775,15 +775,15 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		defer stAlbum.Close()
 
 		for _, album := range albums {
-			if album.AlbumId != "" {
-				err = stAlbum.QueryRowContext(ctx, album.AlbumId, album.Title, album.ReleaseDate, album.ReleaseType, album.Thumbnail, album.SyncState).Scan(&albId)
+			if album.GetAlbumId() != "" {
+				err = stAlbum.QueryRowContext(ctx, album.GetAlbumId(), album.GetTitle(), album.GetReleaseDate(), album.GetReleaseType(), album.GetThumbnail(), album.GetSyncState()).Scan(&albId)
 				if err != nil {
 					log.Println(err)
 				} else {
-					log.Printf("processed album: %v, id: %v \n", album.Title, albId)
+					log.Printf("processed album: %v, id: %v \n", album.GetTitle(), albId)
 				}
 
-				for _, arId := range album.ArtistIds {
+				for _, arId := range album.GetArtistIds() {
 					artId, ok := mArtist[arId]
 					if ok {
 						artAlbs = append(artAlbs, &artAlb{
@@ -815,12 +815,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 						continue
 					}
 					for _, art := range artists {
-						if ar.ID == art.ArtistId {
+						if ar.ID == art.GetArtistId() {
 							alId, ok := mAlbum[release.ID]
 							if !ok {
 								alId = getAlbumIdDb(tx, ctx, siteId, release.ID)
 								mAlbum[release.ID] = alId
-								artId, exist := mArtist[art.ArtistId]
+								artId, exist := mArtist[art.GetArtistId()]
 								if exist {
 									artAlbs = append(artAlbs, &artAlb{
 										art: artId,
@@ -828,7 +828,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 									})
 								}
 							} else {
-								artId, exist := mArtist[art.ArtistId]
+								artId, exist := mArtist[art.GetArtistId()]
 								if exist {
 									artAlbs = append(artAlbs, &artAlb{
 										art: artId,

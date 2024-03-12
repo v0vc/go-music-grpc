@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -60,7 +60,7 @@ func writeFlacTags(decTrackPath string, tags map[string]string, imgData []byte) 
 			flacpicture.PictureTypeFrontCover, "", imgData, "image/jpeg",
 		)
 		if er != nil {
-			fmt.Println("Tag picture error", er)
+			log.Println("Tag picture error", er)
 		}
 		pictureMeta := picture.Marshal()
 		f.Meta = append(f.Meta, &pictureMeta)
@@ -105,7 +105,7 @@ func writeMp3Tags(decTrackPath string, tags map[string]string, imgData []byte) e
 func extractFLACComment(fileName string) (*flacvorbis.MetaDataBlockVorbisComment, int) {
 	file, err := flac.ParseFile(fileName)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	var (
@@ -118,7 +118,7 @@ func extractFLACComment(fileName string) (*flacvorbis.MetaDataBlockVorbisComment
 				cmt, err = flacvorbis.ParseFromMetaDataBlock(*meta)
 				cmtIdx = idx
 				if err != nil {
-					fmt.Println(err)
+					log.Println(err)
 				}
 			}
 		}

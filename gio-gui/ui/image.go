@@ -6,10 +6,9 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
-
-	"gioui.org/op/paint"
 )
 
 // CachedImage is a cacheable image operation.

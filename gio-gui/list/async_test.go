@@ -364,7 +364,7 @@ func TestCanModifyWhenIdle(t *testing.T) {
 		t.Fatalf("updates channel: expected 1 queued value, got %d", len(updates))
 	}
 
-	// We should recieve update elements 1, 2, 3, 4.
+	// We should receive update elements 1, 2, 3, 4.
 	total := 0
 	var want []Element
 	for pending := range updates {

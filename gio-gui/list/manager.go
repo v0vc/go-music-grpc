@@ -392,7 +392,6 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 					list.ScrollToEnd = true
 					list.Position.BeforeEnd = false
 					list.Position.OffsetLast = 0
-
 				}
 			}
 			m.elements = su.Synthesis
