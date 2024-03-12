@@ -686,17 +686,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				continue
 			}
 			alb := &artist.Album{}
-			if isAdd {
-				alb.Title = strings.TrimSpace(release.Title)
-				alb.ReleaseDate = release.Date
-				alb.ReleaseType = release.Type
-				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
-			} else if Contains(newAlbumIds, release.ID) && !Contains(processedAlbumIds, release.ID) {
-				alb.Title = strings.TrimSpace(release.Title)
-				alb.ReleaseDate = release.Date
-				alb.ReleaseType = release.Type
-				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
+			if Contains(newAlbumIds, release.ID) && !Contains(processedAlbumIds, release.ID) {
 				alb.AlbumId = release.ID
+				alb.Title = strings.TrimSpace(release.Title)
+				alb.ReleaseDate = release.Date
+				alb.ReleaseType = release.Type
+				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
 				if isAdd {
 					alb.SyncState = 0
 				} else {
@@ -712,15 +707,14 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				if author.ID == "" {
 					continue
 				}
+
 				sb = append(sb, author.Title)
 				alb.ArtistIds = append(alb.ArtistIds, author.ID)
+
 				if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
 					art := &artist.Artist{
 						ArtistId: author.ID,
 						Title:    strings.TrimSpace(author.Title),
-					}
-					if alb.AlbumId == "" {
-						art.NewAlbs = int32(getAlbumIdDb(tx, ctx, siteId, release.ID))
 					}
 					if isAdd && art.ArtistId == artistId {
 						art.Thumbnail = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
@@ -741,11 +735,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				}
 			}
 			alb.SubTitle = strings.Join(sb, ", ")
-			if isAdd {
-				albums = append(albums, alb)
-			} else if alb.AlbumId != "" {
-				albums = append(albums, alb)
-			}
+			albums = append(albums, alb)
 		}
 	}
 
