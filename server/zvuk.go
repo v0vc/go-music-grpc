@@ -101,13 +101,13 @@ func downloadAlbumCover(url, path string) error {
 	return err
 }
 
-func downloadTrack(trackPath, url string) (string, error) {
+func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 	f, err := os.OpenFile(trackPath, os.O_CREATE|os.O_WRONLY, 0o755)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -294,11 +294,11 @@ func updateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32)
 	_, _ = stmtUpdToken.ExecContext(ctx, token, siteId)
 }
 
-func getTokenFromSite(email, password string) (string, error) {
+func getTokenFromSite(ctx context.Context, email, password string) (string, error) {
 	data := url.Values{}
 	data.Set("email", email)
 	data.Set("password", password)
-	req, err := http.NewRequest(http.MethodPost, apiBase+"api/tiny/login/email", strings.NewReader(data.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBase+"api/tiny/login/email", strings.NewReader(data.Encode()))
 	if err != nil {
 		return "", err
 	}
@@ -320,9 +320,9 @@ func getTokenFromSite(email, password string) (string, error) {
 	return obj.Result.Token, nil
 }
 
-func getTrackStreamUrl(trackId, trackQuality, token string) (string, error) {
+func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string) (string, error) {
 	var do *http.Response
-	req, err := http.NewRequest(http.MethodGet, apiBase+apiStream, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+apiStream, nil)
 	if err != nil {
 		return "", err
 	}
@@ -368,8 +368,8 @@ func getCurrentTrackQuality(streamUrl string, qualityMap *map[string]TrackQualit
 	return nil
 }
 
-func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, string, bool) {
-	req, err := http.NewRequest(http.MethodGet, apiBase+apiRelease, nil)
+func getAlbumTracks(ctx context.Context, albumId, token, email, password string) (*ReleaseInfo, string, bool) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+apiRelease, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -389,7 +389,7 @@ func getAlbumTracks(albumId, token, email, password string) (*ReleaseInfo, strin
 		return nil, "", false
 	case http.StatusUnauthorized:
 		log.Printf("Try to renew access token...")
-		token, err = getTokenFromSite(email, password)
+		token, err = getTokenFromSite(ctx, email, password)
 		if err == nil {
 			log.Printf("Token was updated successfully.")
 			needTokenUpd = true
@@ -426,7 +426,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	err := graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
 	if err != nil {
 		log.Printf("try to renew access token...")
-		token, err = getTokenFromSite(email, password)
+		token, err = getTokenFromSite(ctx, email, password)
 		if err == nil {
 			graphqlRequest.Header.Set(authHeader, token)
 			err = graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
@@ -881,7 +881,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 	}
 
 	login, pass, token := getTokenDb(tx, ctx, siteId)
-	item, token, needTokenUpd := getAlbumTracks(albumId, token, login, pass)
+	item, token, needTokenUpd := getAlbumTracks(ctx, albumId, token, login, pass)
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
 	}
@@ -972,8 +972,8 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 	return tracks, tx.Commit()
 }
 
-func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDownloaded map[string]string) {
-	cdnUrl, err := getTrackStreamUrl(trackId, trackQuality, token)
+func downloadFiles(ctx context.Context, trackId, token, trackQuality string, albInfo *AlbumInfo, mDownloaded map[string]string) {
+	cdnUrl, err := getTrackStreamUrl(ctx, trackId, trackQuality, token)
 	if err != nil {
 		log.Println("Failed to get track info from api.", err)
 		return
@@ -1036,7 +1036,7 @@ func downloadFiles(trackId, token, trackQuality string, albInfo *AlbumInfo, mDow
 	}
 
 	log.Printf("Downloading track %s of %s: %s - %s\n", albInfo.TrackNum, albInfo.TrackTotal, albInfo.TrackTitle, curQuality.Specs)
-	resDown, err := downloadTrack(trackPath, cdnUrl)
+	resDown, err := downloadTrack(ctx, trackPath, cdnUrl)
 	if err != nil {
 		log.Println("Failed to download track.", err)
 		return
@@ -1080,7 +1080,7 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 	for _, trackId := range trackIds {
 		albInfo, dbExist := mTracks[trackId]
 		if dbExist {
-			downloadFiles(trackId, token, trackQuality, albInfo, mDownloaded)
+			downloadFiles(ctx, trackId, token, trackQuality, albInfo, mDownloaded)
 		} else {
 			log.Println("Track not found in database, please sync")
 			// нет в базе, можно продумать как формировать пути скачивания без данных в базе, типа лить в базовую папку без прохода по темплейтам альбома, хз
@@ -1111,7 +1111,7 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	for _, albumId := range notDbAlbumIds {
 		var tryCount int
 	L1:
-		item, tokenNew, needTokenUpd := getAlbumTracks(albumId, token, login, pass)
+		item, tokenNew, needTokenUpd := getAlbumTracks(ctx, albumId, token, login, pass)
 		if needTokenUpd {
 			updateTokenDb(tx, ctx, tokenNew, siteId)
 			err = tx.Commit()
@@ -1148,7 +1148,7 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	}
 
 	for trackId, albInfo := range mTracks {
-		downloadFiles(trackId, token, trackQuality, albInfo, mDownloaded)
+		downloadFiles(ctx, trackId, token, trackQuality, albInfo, mDownloaded)
 		RandomPause(3, 7)
 	}
 	return mDownloaded, nil

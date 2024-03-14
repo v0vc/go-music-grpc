@@ -26,7 +26,11 @@ import (
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 )
 
-const artistRegexString = `^https://zvuk.com/artist/(\d+)$`
+const (
+	artistRegexString = `^https://zvuk.com/artist/(\d+)$`
+	artistUrl         = "https://zvuk.com/artist/"
+	releaseUrl        = "https://zvuk.com/release/"
+)
 
 var (
 	// SidebarMaxWidth specifies how large the sidebar should be on
@@ -369,9 +373,8 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
 					switch ui.SiteId {
 					case 1:
-						// clipboard.WriteOp{Text: "https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id}.Add(gtx.Ops)
 						gtx.Execute(clipboard.WriteCmd{
-							Data: io.NopCloser(strings.NewReader("https://zvuk.com/artist/" + ui.ChannelMenuTarget.Id)),
+							Data: io.NopCloser(strings.NewReader(artistUrl + ui.ChannelMenuTarget.Id)),
 						})
 					}
 				}
@@ -448,7 +451,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				switch ui.SiteId {
 				case 1:
 					gtx.Execute(clipboard.WriteCmd{
-						Data: io.NopCloser(strings.NewReader("https://zvuk.com/release/" + ui.ContextMenuTarget.Status)),
+						Data: io.NopCloser(strings.NewReader(releaseUrl + ui.ContextMenuTarget.Status)),
 					})
 				}
 			}
@@ -457,7 +460,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				case 1:
 					var sb []string
 					for _, artId := range ui.ContextMenuTarget.ParentId {
-						sb = append(sb, "https://zvuk.com/artist/"+artId)
+						sb = append(sb, artistUrl+artId)
 					}
 					gtx.Execute(clipboard.WriteCmd{
 						Data: io.NopCloser(strings.NewReader(strings.Join(sb, ", "))),

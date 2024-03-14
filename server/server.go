@@ -271,20 +271,22 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 	}
 
 	for _, exec := range execs {
-		stmt, er := tx.PrepareContext(ctx, exec.stmt)
-		if er != nil {
-			log.Fatal(er)
-		}
-		cc, er := stmt.ExecContext(ctx)
-		if er != nil {
-			log.Println(err)
-		} else if exec.res == 3 {
-			aff, err = cc.RowsAffected()
-			if err != nil {
-				log.Println(err)
+		func() {
+			stmt, er := tx.PrepareContext(ctx, exec.stmt)
+			if er != nil {
+				log.Fatal(er)
 			}
-		}
-		stmt.Close()
+			defer stmt.Close()
+			cc, er := stmt.ExecContext(ctx)
+			if er != nil {
+				log.Println(err)
+			} else if exec.res == 3 {
+				aff, err = cc.RowsAffected()
+				if err != nil {
+					log.Println(err)
+				}
+			}
+		}()
 	}
 
 	return aff, tx.Commit()
