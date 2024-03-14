@@ -53,7 +53,7 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 	case err != nil:
 		log.Fatal(err)
 	default:
-		log.Printf("artist db id is %d \n", artRawId)
+		log.Printf("siteId: %v, artist db id is %d \n", siteId, artRawId)
 	}
 	return artRawId, userAdded
 }
@@ -217,6 +217,35 @@ func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]
 	return tracks, nil
 }
 
+func clearSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.syncState = 1 and alb_id in (select distinct ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.siteId = ?));")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stRows.Close()
+
+	rows, err := stRows.ExecContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	aff, err := rows.RowsAffected()
+	if err != nil {
+		log.Println(err)
+	}
+	return aff, tx.Commit()
+}
+
 func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
@@ -250,7 +279,10 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		if er != nil {
 			log.Println(err)
 		} else if exec.res == 3 {
-			aff, _ = cc.RowsAffected()
+			aff, err = cc.RowsAffected()
+			if err != nil {
+				log.Println(err)
+			}
 		}
 		stmt.Close()
 	}
@@ -463,6 +495,24 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 	}
 
 	return &artist.DeleteArtistResponse{RowsAffected: res}, err
+}
+
+func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*artist.ClearSyncResponse, error) {
+	siteId := req.GetSiteId()
+	log.Printf("siteId: %v, clear sync state started \n", siteId)
+	start := time.Now()
+	res, err := clearSyncStateDb(ctx, siteId)
+
+	if err != nil {
+		return nil, status.Errorf(
+			codes.Internal,
+			fmt.Sprintf("Internal error: %v", err),
+		)
+	} else {
+		log.Printf("siteId: %v, clear sync state completed in %v \n", siteId, time.Since(start))
+	}
+
+	return &artist.ClearSyncResponse{RowsAffected: res}, err
 }
 
 func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsRequest) (*artist.DownloadAlbumsResponse, error) {

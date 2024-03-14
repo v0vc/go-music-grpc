@@ -51,36 +51,7 @@ type Room struct {
 	SearchResponses chan []list.Serial
 }
 
-// SetComposing sets the composing status for a user in this room.
-// Note: doesn't actually verify the user pertains to this room.
-/*func (r *Room) SetComposing(user string, isComposing bool) {
-	r.Room.SetComposing(user, isComposing)
-}*/
-
-// Send attempts to send arbitrary content as a message from the specified user.
-/*func (r *Room) Send(user, content string) {
-	row := r.RowTracker.Send(user, content)
-	r.Lock()
-	r.Room.Latest = &row
-	r.Unlock()
-	go r.ListState.Modify([]list.Element{row}, nil, nil)
-}*/
-
-// SendLocal attempts to send the contents of the edit buffer as a
-// to the model.
-// All the work of this method is dispatched in a new goroutine
-// so that it can safely be called from layout code without blocking.
-/*func (r *Room) SendLocal(msg string) {
-	go func() {
-		r.Lock()
-		row := r.RowTracker.Send("TEST", msg)
-		r.Room.Latest = &row
-		r.Unlock()
-		r.ListState.Modify([]list.Element{row}, nil, nil)
-	}()
-}*/
-
-func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, chId string, start time.Time) {
+func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Room, start time.Time) {
 	go func() {
 		for artId, albums := range artMap {
 			ch := rooms.GetChannelById(artId)
@@ -106,10 +77,7 @@ func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, chId string,
 				ch.Unlock()
 			}
 		}
-		channel := rooms.GetChannelById(chId)
-		if channel != nil {
-			channel.Content = fmt.Sprintf("last sync %s", time.Since(start))
-		}
+		channel.Content = fmt.Sprintf("last sync %s", time.Since(start))
 	}()
 }
 
@@ -180,16 +148,6 @@ func (r *Rooms) Active() *Room {
 	return r.List[r.active]
 }
 
-// Latest returns a copy of the latest message for the room.
-/*func (r *Room) Latest() model.Message {
-	r.Lock()
-	defer r.Unlock()
-	if r.Room.Latest == nil {
-		return model.Message{}
-	}
-	return *r.Room.Latest
-}*/
-
 func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) {
 	r.Lock()
 	defer r.Unlock()
@@ -202,6 +160,19 @@ func (r *Room) DownloadArtist(siteId uint32, artistId string, trackQuality strin
 	go r.RowTracker.Generator.DownloadArtist(siteId, artistId, trackQuality)
 }
 
+func (r *Room) ClearSync(siteId uint32) {
+	r.Lock()
+	defer r.Unlock()
+	res := r.RowTracker.Generator.ClearSync(siteId)
+	r.Content = fmt.Sprintf("sync cleared: %d", res)
+	deleted := make([]list.Serial, 0, len(r.RowTracker.Rows))
+	for _, i := range r.RowTracker.Rows {
+		r.RowTracker.Delete(i.Serial())
+		deleted = append(deleted, i.Serial())
+	}
+	go r.ListState.Modify(nil, nil, deleted)
+}
+
 func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	r.Lock()
 	defer r.Unlock()
@@ -209,25 +180,8 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	start := time.Now()
 	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, arts)
 	res := <-arts
-	AddAlbumsToUi(rooms, res, r.Id, start)
+	AddAlbumsToUi(rooms, res, r, start)
 }
-
-// Select the room at the given index.
-// Index is bounded by [0, len(rooms)).
-/*func (r *Rooms) Select(index int) {
-	r.Lock()
-	defer r.Unlock()
-	if index < 0 {
-		index = 0
-	}
-	if index > len(r.List) {
-		index = len(r.List) - 1
-	}
-	r.changed = true
-	r.List[r.active].Interact.Active = false
-	r.active = index
-	r.List[r.active].Interact.Active = true
-}*/
 
 func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget, err error) {
 	r.Lock()

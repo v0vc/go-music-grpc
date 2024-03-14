@@ -4,7 +4,7 @@ version: '3'
 
 tasks:
   default:
-    - task: update
+#    - task: update
     - task: fmt
     - task: build
     - task: lint
@@ -19,8 +19,6 @@ tasks:
 
   lint:
     - golangci-lint run -v
-#    - nilaway ./...
-#    - errcheck ./...
 
   update:
     - go get gioui.org@latest

@@ -133,29 +133,8 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 
 	// Generate most of the model data.
 	rooms, err := g.GetChannels(siteId)
-	/*for _, r := range rooms.List() {
-		mess := model.Messages{}
-		rt := &RowTracker{
-			SerialToIndex: make(map[list.Serial]int),
-			Generator:     g,
-			Messages:      &mess,
-			MaxLoads:      loadSize,
-			ScrollToEnd:   false,
-		}
-		room := &Room{
-			Room:            r,
-			RowTracker:      rt,
-			SearchResponses: make(chan []list.Serial),
-		}
-		room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
-		room.List.Axis = layout.Vertical
-		ui.Rooms.List = append(ui.Rooms.List, room)
-	}*/
-
 	MapDto(&ui, rooms, nil, g)
-
 	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentChatRow, err)
-
 	return &ui
 }
 
@@ -396,12 +375,20 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						})
 					}
 				}
-				if ui.DeleteBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
-					ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
-					if ui.ChannelMenuTarget.Interact.Active {
-						ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow, nil)
+				if ui.DeleteBtn.Clicked(gtx) {
+					if ui.ChannelMenuTarget.IsBase {
+						// Delete на -=NEW=- сделаем очистку статусу синка
+						for _, ch := range ui.Rooms.List {
+							ch.Room.Count = ""
+						}
+						go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
+					} else {
+						ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
+						if ui.ChannelMenuTarget.Interact.Active {
+							ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow, nil)
+						}
+						ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 					}
-					ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				}
 				r := ui.Rooms.Index(ii)
 				// latest := r.Latest()

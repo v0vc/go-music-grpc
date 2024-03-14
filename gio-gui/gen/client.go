@@ -267,6 +267,20 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 	arts <- artMap
 }
 
+func (g *Generator) ClearSync(siteId uint32) int64 {
+	client, _ := GetClientInstance()
+	if client == nil {
+		return -1
+	}
+	res, err := client.ClearSync(context.Background(), &artist.ClearSyncRequest{
+		SiteId: siteId,
+	})
+	if err != nil {
+		return -1
+	}
+	return res.GetRowsAffected()
+}
+
 func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 	at, _ := time.Parse("2006-01-02T00:00:00", alb.GetReleaseDate())
 	thumb := alb.GetThumbnail()

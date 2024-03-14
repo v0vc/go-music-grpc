@@ -30,6 +30,7 @@ type ArtistServiceClient interface {
 	SyncAlbum(ctx context.Context, in *SyncAlbumRequest, opts ...grpc.CallOption) (*SyncAlbumResponse, error)
 	ReadAlbumTracks(ctx context.Context, in *ReadAlbumTrackRequest, opts ...grpc.CallOption) (*ReadAlbumTrackResponse, error)
 	DeleteArtist(ctx context.Context, in *DeleteArtistRequest, opts ...grpc.CallOption) (*DeleteArtistResponse, error)
+	ClearSync(ctx context.Context, in *ClearSyncRequest, opts ...grpc.CallOption) (*ClearSyncResponse, error)
 	DownloadAlbums(ctx context.Context, in *DownloadAlbumsRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
 	DownloadArtist(ctx context.Context, in *DownloadArtistRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
 	DownloadTracks(ctx context.Context, in *DownloadTracksRequest, opts ...grpc.CallOption) (*DownloadTracksResponse, error)
@@ -131,6 +132,15 @@ func (c *artistServiceClient) DeleteArtist(ctx context.Context, in *DeleteArtist
 	return out, nil
 }
 
+func (c *artistServiceClient) ClearSync(ctx context.Context, in *ClearSyncRequest, opts ...grpc.CallOption) (*ClearSyncResponse, error) {
+	out := new(ClearSyncResponse)
+	err := c.cc.Invoke(ctx, "/artist.ArtistService/ClearSync", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *artistServiceClient) DownloadAlbums(ctx context.Context, in *DownloadAlbumsRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error) {
 	out := new(DownloadAlbumsResponse)
 	err := c.cc.Invoke(ctx, "/artist.ArtistService/DownloadAlbums", in, out, opts...)
@@ -210,6 +220,7 @@ type ArtistServiceServer interface {
 	SyncAlbum(context.Context, *SyncAlbumRequest) (*SyncAlbumResponse, error)
 	ReadAlbumTracks(context.Context, *ReadAlbumTrackRequest) (*ReadAlbumTrackResponse, error)
 	DeleteArtist(context.Context, *DeleteArtistRequest) (*DeleteArtistResponse, error)
+	ClearSync(context.Context, *ClearSyncRequest) (*ClearSyncResponse, error)
 	DownloadAlbums(context.Context, *DownloadAlbumsRequest) (*DownloadAlbumsResponse, error)
 	DownloadArtist(context.Context, *DownloadArtistRequest) (*DownloadAlbumsResponse, error)
 	DownloadTracks(context.Context, *DownloadTracksRequest) (*DownloadTracksResponse, error)
@@ -242,6 +253,9 @@ func (UnimplementedArtistServiceServer) ReadAlbumTracks(context.Context, *ReadAl
 }
 func (UnimplementedArtistServiceServer) DeleteArtist(context.Context, *DeleteArtistRequest) (*DeleteArtistResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteArtist not implemented")
+}
+func (UnimplementedArtistServiceServer) ClearSync(context.Context, *ClearSyncRequest) (*ClearSyncResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearSync not implemented")
 }
 func (UnimplementedArtistServiceServer) DownloadAlbums(context.Context, *DownloadAlbumsRequest) (*DownloadAlbumsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DownloadAlbums not implemented")
@@ -400,6 +414,24 @@ func _ArtistService_DeleteArtist_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArtistService_ClearSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearSyncRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArtistServiceServer).ClearSync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/artist.ArtistService/ClearSync",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArtistServiceServer).ClearSync(ctx, req.(*ClearSyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ArtistService_DownloadAlbums_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DownloadAlbumsRequest)
 	if err := dec(in); err != nil {
@@ -523,6 +555,10 @@ var ArtistService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteArtist",
 			Handler:    _ArtistService_DeleteArtist_Handler,
+		},
+		{
+			MethodName: "ClearSync",
+			Handler:    _ArtistService_ClearSync_Handler,
 		},
 		{
 			MethodName: "DownloadAlbums",
