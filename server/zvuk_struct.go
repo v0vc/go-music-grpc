@@ -158,7 +158,7 @@ type WriteCounter struct {
 }
 
 func (wc *WriteCounter) Write(p []byte) (int, error) {
-	var speed int64 = 0
+	var speed int64
 	n := len(p)
 	wc.Downloaded += int64(n)
 	percentage := float64(wc.Downloaded) / float64(wc.Total) * float64(100)

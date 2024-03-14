@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
-	"io"
 	"log"
 
-	"github.com/v0vc/go-music-grpc/artist"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -31,7 +28,7 @@ func main() {
 	}
 	defer cc.Close() // Maybe this should be in a separate function and the error handled?
 
-	c := artist.NewArtistServiceClient(cc)
+	// c := artist.NewArtistServiceClient(cc)
 	// c := getClientInstance()
 
 	/*req := &artist.SyncArtistRequest{
@@ -68,7 +65,7 @@ func main() {
 	fmt.Printf("artist releases was read: %v \n", listArtistRes.Artists)*/
 
 	// list Artists Stream
-	stream, err := c.ListArtistStream(context.Background(), &artist.ListArtistRequest{SiteId: 1})
+	/*stream, err := c.ListArtistStream(context.Background(), &artist.ListArtistRequest{SiteId: 1})
 	if err != nil {
 		log.Fatalf("error while calling ListArtist RPC: %v", err)
 	}
@@ -81,7 +78,7 @@ func main() {
 			log.Fatalf("something happened: %v", err)
 		}
 		log.Println(res.GetArtist())
-	}
+	}*/
 
 	// delete Artist
 	/*	res, err := c.DeleteArtist(context.Background(), &artist.DeleteArtistRequest{

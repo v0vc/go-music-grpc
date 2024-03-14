@@ -149,7 +149,7 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string) int {
 	stmtAlb, err := tx.PrepareContext(ctx, "select aa.albumId from main.artistAlbum aa join album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? limit 1;")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer stmtAlb.Close()
 
@@ -164,7 +164,7 @@ func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string
 func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId string) int {
 	stmtAlb, err := tx.PrepareContext(ctx, "select art_id from main.artist  where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer stmtAlb.Close()
 
@@ -185,7 +185,7 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 	if artId != 0 {
 		rows, err := tx.QueryContext(ctx, "select al.albumId, a.artistId res from main.artistAlbum aa join main.artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from main.artistAlbum where artistId = ?);", artId)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		defer rows.Close()
 		for rows.Next() {
@@ -226,7 +226,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 
 	stRows, err := tx.PrepareContext(ctx, sqlStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer stRows.Close()
 
@@ -237,7 +237,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 	args = append(args, siteId)
 	rows, err := stRows.QueryContext(ctx, args...)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer rows.Close()
 
@@ -266,7 +266,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string, string) {
 	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from main.site where site_id = ? limit 1;")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer stmt.Close()
 
@@ -278,7 +278,7 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 	err = stmt.QueryRowContext(ctx, siteId).Scan(&login, &pass, &token)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		log.Fatalf("no token for sourceId: %d", siteId)
+		log.Printf("no token for sourceId: %d", siteId)
 	case err != nil:
 		log.Println(err)
 	}
@@ -288,7 +288,7 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 func updateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32) {
 	stmtUpdToken, err := tx.PrepareContext(ctx, "update main.site set token = ? where site_id = ?;")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer stmtUpdToken.Close()
 	_, _ = stmtUpdToken.ExecContext(ctx, token, siteId)
@@ -371,7 +371,7 @@ func getCurrentTrackQuality(streamUrl string, qualityMap *map[string]TrackQualit
 func getAlbumTracks(ctx context.Context, albumId, token, email, password string) (*ReleaseInfo, string, bool) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+apiRelease, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	req.Header.Add(authHeader, token)
 	query := url.Values{}
@@ -380,7 +380,7 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 	req.URL.RawQuery = query.Encode()
 	do, err := client.Do(req)
 	if err != nil || do == nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer do.Body.Close()
 	needTokenUpd := false
@@ -431,13 +431,13 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 			graphqlRequest.Header.Set(authHeader, token)
 			err = graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
 			if err != nil {
-				log.Fatalln("can't get artist data from api: " + err.Error())
+				log.Printf("can't get artist data from api: %v\n", err)
 			} else {
 				log.Printf("token was updated successfully")
 				needTokenUpd = true
 			}
 		} else {
-			log.Println("can't get new token: " + err.Error())
+			log.Printf("can't get new token: %v\n", err)
 		}
 	}
 	if err != nil {
@@ -616,13 +616,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer db.Close()
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	login, pass, token := getTokenDb(tx, ctx, siteId)
@@ -700,7 +700,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				} else {
 					alb.SyncState = 1
 				}
-				processedAlbumIds = append(processedArtistIds, release.ID)
+				processedAlbumIds = append(processedAlbumIds, release.ID)
 			} else {
 				continue
 			}
@@ -871,13 +871,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer db.Close()
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	login, pass, token := getTokenDb(tx, ctx, siteId)
@@ -891,7 +891,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 
 	stTrack, err := tx.PrepareContext(ctx, "insert into main.track (trackId, trackNum, title, hasFlac, hasLyric, quality, condition, genre, duration) values (?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict (trackId, title) do nothing returning trk_id;")
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer stTrack.Close()
 
@@ -902,29 +902,29 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 
 	if trackTotal > 0 {
 		albId := getAlbumIdDb(tx, ctx, siteId, albumId)
-		stAlbumUpd, err := tx.PrepareContext(ctx, "update main.album set trackTotal = ? where alb_id = ?;")
+		stAlbumUpd, er := tx.PrepareContext(ctx, "update main.album set trackTotal = ? where alb_id = ?;")
 		if err != nil {
-			log.Fatal(err)
+			log.Println(er)
 		}
 		defer stAlbumUpd.Close()
 		_, _ = stAlbumUpd.ExecContext(ctx, trackTotal, albId)
 
-		stAlbumTrackRem, err := tx.PrepareContext(ctx, "delete from main.track where trk_id in (select trackId from albumTrack where albumId = ?)")
-		if err != nil {
-			log.Fatal(err)
+		stAlbumTrackRem, er := tx.PrepareContext(ctx, "delete from main.track where trk_id in (select trackId from albumTrack where albumId = ?)")
+		if er != nil {
+			log.Println(er)
 		}
 		defer stAlbumTrackRem.Close()
 		_, _ = stAlbumTrackRem.ExecContext(ctx, albId)
 
-		stAlbumTrack, err := tx.PrepareContext(ctx, "insert into main.albumTrack(albumId, trackId) values (?, ?) on conflict (albumId, trackId) do nothing;")
-		if err != nil {
-			log.Fatal(err)
+		stAlbumTrack, er := tx.PrepareContext(ctx, "insert into main.albumTrack(albumId, trackId) values (?, ?) on conflict (albumId, trackId) do nothing;")
+		if er != nil {
+			log.Println(er)
 		}
 		defer stAlbumTrack.Close()
 
-		stTrackArtist, err := tx.PrepareContext(ctx, "insert into main.trackArtist(trackId, artistId) values (?, ?) on conflict (trackId, artistId) do nothing;")
-		if err != nil {
-			log.Fatal(err)
+		stTrackArtist, er := tx.PrepareContext(ctx, "insert into main.trackArtist(trackId, artistId) values (?, ?) on conflict (trackId, artistId) do nothing;")
+		if er != nil {
+			log.Println(er)
 		}
 		defer stTrackArtist.Close()
 
@@ -934,7 +934,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 				var trackId int
 				err = stTrack.QueryRowContext(ctx, trId, track.Position, track.Title, track.HasFlac, track.Lyrics, track.HighestQuality, track.Condition, strings.Join(track.Genres, ", "), track.Duration).Scan(&trackId)
 				if err != nil {
-					log.Fatal(err)
+					log.Println(err)
 				}
 				if trackId != 0 {
 					_, _ = stAlbumTrack.ExecContext(ctx, albId, trackId)
@@ -1060,13 +1060,13 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=ro", dbFile))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer db.Close()
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	mTracks, _ := getTrackFromDb(tx, ctx, siteId, trackIds, false)
@@ -1093,13 +1093,13 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQuality string) (map[string]string, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	defer db.Close()
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	mTracks, dbAlbums := getTrackFromDb(tx, ctx, siteId, albIds, true)

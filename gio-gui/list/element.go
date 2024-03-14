@@ -147,9 +147,8 @@ func min(ints ...int) int {
 			}
 		}
 		return lowest
-	} else {
-		return 0
 	}
+	return 0
 }
 
 func max(a, b int) int {

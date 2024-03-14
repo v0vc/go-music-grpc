@@ -49,9 +49,8 @@ func GetClientInstance() (artist.ArtistServiceClient, error) {
 		log.Println("Creating single instance now.")
 		cc, err := grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			log.Printf("could not connect: %v\n", err)
 			cc.Close()
-			return nil, err
+			return nil, fmt.Errorf("could not connect: %v", err)
 		}
 		singleInstance = artist.NewArtistServiceClient(cc)
 	} // else {
@@ -88,27 +87,26 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 		baseRoom.Content = err.Error()
 		rooms.Add(baseRoom)
 		return &rooms, err
-	} else {
-		rooms.Add(baseRoom)
-		for _, artist := range res.GetArtists() {
-			thumb := artist.GetThumbnail()
-			if thumb == nil {
-				thumb = GetNoAvatarInstance()
-			}
-			im, _, _ := image.Decode(bytes.NewReader(thumb))
-			channel := model.Room{
-				Name:   artist.GetTitle(),
-				Id:     artist.GetArtistId(),
-				Image:  im,
-				IsBase: false,
-			}
-			if artist.GetNewAlbs() > 0 {
-				channel.Count = strconv.Itoa(int(artist.GetNewAlbs()))
-			}
-			rooms.Add(channel)
-		}
-		return &rooms, err
 	}
+	rooms.Add(baseRoom)
+	for _, artist := range res.GetArtists() {
+		thumb := artist.GetThumbnail()
+		if thumb == nil {
+			thumb = GetNoAvatarInstance()
+		}
+		im, _, _ := image.Decode(bytes.NewReader(thumb))
+		channel := model.Room{
+			Name:   artist.GetTitle(),
+			Id:     artist.GetArtistId(),
+			Image:  im,
+			IsBase: false,
+		}
+		if artist.GetNewAlbs() > 0 {
+			channel.Count = strconv.Itoa(int(artist.GetNewAlbs()))
+		}
+		rooms.Add(channel)
+	}
+	return &rooms, err
 }
 
 func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, string, error) {

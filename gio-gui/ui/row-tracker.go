@@ -99,15 +99,14 @@ func (rt *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded [
 
 		if rt.ScrollToEnd {
 			return rt.Rows[numRows-min(rt.MaxLoads, numRows):], numRows > rt.MaxLoads
-		} else {
-			var res int
-			if numRows < rt.MaxLoads {
-				res = numRows
-			} else {
-				res = rt.MaxLoads
-			}
-			return rt.Rows[:res], numRows > rt.MaxLoads
 		}
+		var res int
+		if numRows < rt.MaxLoads {
+			res = numRows
+		} else {
+			res = rt.MaxLoads
+		}
+		return rt.Rows[:res], numRows > rt.MaxLoads
 	}
 	idx := rt.SerialToIndex[relativeTo]
 	if dir == list.After {

@@ -40,11 +40,11 @@ func (p *Page) addActions() []component.AppBarAction {
 				Name: "AddLink",
 				Tag:  &p.editor,
 			},
-			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
+			Layout: func(gtx layout.Context, _, fg color.NRGBA) layout.Dimensions {
 				thh := material.NewTheme()
 				thh.Palette.Fg = p.th.Palette.BgSecondary
 				gutter := lay.Gutter()
-				gutter.RightWidth = gutter.RightWidth - unit.Dp(60)
+				gutter.RightWidth -= unit.Dp(60)
 				if p.insertBtn.Clicked(gtx) {
 					if p.editor.Text() != "" {
 						go p.Router.AppBar.StopContextual(gtx.Now)
