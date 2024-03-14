@@ -16,6 +16,7 @@ func (t testElement) Serial() Serial {
 
 func testSynthesizer(previous, current, next Element) []Element {
 	var out []Element
+
 	for i := 0; i < current.(testElement).synthCount; i++ {
 		out = append(out, current)
 	}
@@ -30,6 +31,7 @@ func elementsEqual(a, b []Element) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	for i := range a {
 		if !reflect.DeepEqual(a[i], b[i]) {
 			return false
@@ -42,6 +44,7 @@ func serialsEqual(a, b []Serial) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
 	for i := range a {
 		if !reflect.DeepEqual(a[i], b[i]) {
 			return false

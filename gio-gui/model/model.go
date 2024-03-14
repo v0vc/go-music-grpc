@@ -75,6 +75,7 @@ func (us *Messages) Add(u Message) {
 	us.once.Do(func() {
 		us.index = map[string]*Message{}
 	})
+
 	us.list = append(us.list, u)
 	us.index[u.Title] = &us.list[len(us.list)-1]
 }
@@ -115,6 +116,7 @@ func (r *Rooms) Add(room Room) {
 	r.once.Do(func() {
 		r.index = map[string]*Room{}
 	})
+
 	r.list = append(r.list, room)
 	r.index[room.Name] = &r.list[len(r.list)-1]
 }
@@ -125,6 +127,7 @@ func (r *Rooms) List() (list []*Room) {
 		return nil
 	}
 	list = make([]*Room, len(r.list))
+
 	for ii := range r.list {
 		list[ii] = &r.list[ii]
 	}

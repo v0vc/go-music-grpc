@@ -34,19 +34,17 @@ type server struct {
 	artist.ArtistServiceServer
 }
 
-func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
-	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded from main.artist where artistId = ? and siteId = ? limit 1;")
+func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) int {
+	stmtArt, err := tx.PrepareContext(ctx, "select art_id from main.artist where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
 		log.Println(err)
 	}
 	defer stmtArt.Close()
 
-	var (
-		artRawId  int
-		userAdded int
-	)
+	var artRawId int
 
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded)
+	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId)
+
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		log.Printf("no artist with id %v \n", artistId)
@@ -55,10 +53,11 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 	default:
 		log.Printf("siteId: %v, artist db id is %d \n", siteId, artRawId)
 	}
-	return artRawId, userAdded
+
+	return artRawId
 }
 
-func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string) ([]string, error) {
+func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string) []string {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -78,15 +77,17 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 	defer rows.Close()
 
 	var albIds []string
+
 	for rows.Next() {
 		var alb string
 		if err = rows.Scan(&alb); err != nil {
 			log.Println(err)
 		}
+
 		albIds = append(albIds, alb)
 	}
 
-	return albIds, nil
+	return albIds
 }
 
 func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
@@ -109,17 +110,22 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	defer rows.Close()
 
 	var albs []*artist.Album
+
 	for rows.Next() {
-		var alb artist.Album
-		var artIds string
+		var (
+			alb    artist.Album
+			artIds string
+		)
+
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail, &alb.SyncState); err != nil {
 			log.Println(err)
 		}
+
 		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
 		albs = append(albs, &alb)
 	}
 
-	return albs, nil
+	return albs, err
 }
 
 func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
@@ -142,17 +148,21 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 	defer rows.Close()
 
 	var albs []*artist.Album
+
 	for rows.Next() {
 		var alb artist.Album
+
 		var artIds string
+
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail); err != nil {
 			log.Println(err)
 		}
+
 		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
 		albs = append(albs, &alb)
 	}
 
-	return albs, nil
+	return albs, err
 }
 
 func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]string, error) {
@@ -180,10 +190,11 @@ func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]string, error) {
 		if er := rows.Scan(&artId); er != nil {
 			log.Println(err)
 		}
+
 		artistIds = append(artistIds, artId)
 	}
 
-	return artistIds, nil
+	return artistIds, err
 }
 
 func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
@@ -206,15 +217,17 @@ func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]
 	defer rows.Close()
 
 	var tracks []*artist.Track
+
 	for rows.Next() {
 		var track artist.Track
 		if err = rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
 			log.Println(err)
 		}
+
 		tracks = append(tracks, &track)
 	}
 
-	return tracks, nil
+	return tracks, err
 }
 
 func clearSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
@@ -257,8 +270,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 	if err != nil {
 		log.Println(err)
 	}
-	artId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
-	var aff int64
+	artId := GetArtistIdDb(tx, ctx, siteId, artistId)
 	execs := []struct {
 		stmt string
 		res  int
@@ -270,12 +282,15 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		{stmt: "drop table _temp_album;", res: 4},
 	}
 
+	var aff int64
+
 	for _, exec := range execs {
 		func() {
 			stmt, er := tx.PrepareContext(ctx, exec.stmt)
 			if er != nil {
 				log.Println(er)
 			}
+
 			defer stmt.Close()
 			cc, er := stmt.ExecContext(ctx)
 			if er != nil {
@@ -340,46 +355,6 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	return &artist.SyncArtistResponse{
 		Artists: artists,
 	}, nil
-}
-
-func (*server) SyncArtistStream(req *artist.SyncArtistRequest, stream artist.ArtistService_SyncArtistStreamServer) error {
-	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, sync artists stream started \n", siteId)
-
-	/*pool, _ := ants.NewPool(1)
-	defer pool.Release()*/
-
-	// artIds, err := getArtistIdsFromDb(stream.Context(), siteId)
-	// artIds := []string{"175943", "31873616"}
-	// var err error
-
-	switch siteId {
-	case 1:
-		/*for _, artId := range artIds {
-			var (
-				artist []*artist.Artist
-				er      error
-			)
-			//id := artId // Create a local copy of the artist id for goroutine safety
-			//_ = pool.Submit(func() {
-			artist, er = SyncArtistSb(context.Background(), siteId, artId, req.GetIsAdd())
-			if er == nil {
-				err = stream.Send(&artist.SyncArtistResponse{
-					Artists: artists,
-				})
-				if err != nil {
-					fmt.Printf("SyncArtistStream send error: %v\n", err)
-				}
-			}
-			//})
-		}*/
-
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
-	}
-	return nil
 }
 
 func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
@@ -563,7 +538,8 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 		resDown map[string]string
 	)
 
-	albIds, err := getArtistReleasesIdFromDb(ctx, siteId, artistId)
+	albIds := getArtistReleasesIdFromDb(ctx, siteId, artistId)
+
 	switch siteId {
 	case 1:
 		// mid, high, flac
@@ -634,6 +610,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}
+
 	defer db.Close()
 
 	stmtArt, err := db.PrepareContext(ctx, "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
@@ -655,6 +632,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	defer rows.Close()
 
 	var arts []*artist.Artist
+
 	for rows.Next() {
 		var art artist.Artist
 		if er := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); er != nil {
@@ -682,8 +660,8 @@ func (*server) ListArtistStream(req *artist.ListArtistRequest, stream artist.Art
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}
-	defer db.Close()
 
+	defer db.Close()
 	stmtArt, err := db.Prepare("select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
 	if err != nil {
 		return status.Errorf(
@@ -691,8 +669,8 @@ func (*server) ListArtistStream(req *artist.ListArtistRequest, stream artist.Art
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}
-	defer stmtArt.Close()
 
+	defer stmtArt.Close()
 	rows, err := stmtArt.Query(siteId)
 	if err != nil {
 		return status.Errorf(
@@ -700,6 +678,7 @@ func (*server) ListArtistStream(req *artist.ListArtistRequest, stream artist.Art
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}
+
 	defer rows.Close()
 
 	for rows.Next() {
@@ -781,6 +760,7 @@ func main() {
 	signal.Notify(sigCh, os.Interrupt)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
+
 	go func() {
 		s := <-sigCh
 		log.Printf("got signal %v, attempting graceful shutdown \n", s)

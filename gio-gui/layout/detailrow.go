@@ -22,6 +22,7 @@ func (d DetailRow) Layout(gtx layout.Context, primary, detail layout.Widget) lay
 	if d.PrimaryWidth == 0 {
 		d.PrimaryWidth = 0.3
 	}
+
 	if d.Inset == (layout.Inset{}) {
 		d.Inset = layout.UniformInset(unit.Dp(8))
 	}

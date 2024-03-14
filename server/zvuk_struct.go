@@ -167,6 +167,7 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	if toDivideBy != 0 {
 		speed = wc.Downloaded / toDivideBy * 1000
 	}
+
 	fmt.Printf("\r%d%% @ %s/s, %s/%s ", wc.Percentage, humanize.Bytes(uint64(speed)),
 		humanize.Bytes(uint64(wc.Downloaded)), wc.TotalStr)
 	return n, nil

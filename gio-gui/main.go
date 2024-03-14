@@ -24,6 +24,7 @@ func main() {
 		if err := loop(w); err != nil {
 			log.Fatal(err)
 		}
+
 		os.Exit(0)
 	}()
 	app.Main()
@@ -57,10 +58,10 @@ func parseConf() *page.Config {
 }
 
 func loop(w *app.Window) error {
-	conf := parseConf()
-	th := page.NewTheme(conf)
 	var ops op.Ops
 
+	conf := parseConf()
+	th := page.NewTheme(conf)
 	router := page.NewRouter(w)
 	router.Register(0, zvuk.New(&router))
 	// router.Register(1, sber.New(&router))

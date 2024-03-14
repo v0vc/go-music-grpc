@@ -2,7 +2,7 @@ package list
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"math"
 
 	"gioui.org/layout"
@@ -137,17 +137,17 @@ func (m *Manager) updateViewport(pos layout.Position) {
 func NewManager(maxSize int, hooks Hooks) *Manager {
 	switch {
 	case hooks.Allocator == nil:
-		panic(fmt.Errorf("must provide an implementation of Allocator"))
+		panic(errors.New("must provide an implementation of Allocator"))
 	case hooks.Presenter == nil:
-		panic(fmt.Errorf("must provide an implementation of Presenter"))
+		panic(errors.New("must provide an implementation of Presenter"))
 	case hooks.Comparator == nil:
-		panic(fmt.Errorf("must provide an implementation of Comparator"))
+		panic(errors.New("must provide an implementation of Comparator"))
 	case hooks.Synthesizer == nil:
-		panic(fmt.Errorf("must provide an implementation of Synthesizer"))
+		panic(errors.New("must provide an implementation of Synthesizer"))
 	case hooks.Loader == nil:
-		panic(fmt.Errorf("must provide an implementation of Loader"))
+		panic(errors.New("must provide an implementation of Loader"))
 	case hooks.Invalidator == nil:
-		panic(fmt.Errorf("must provide an implementation of Invalidator"))
+		panic(errors.New("must provide an implementation of Invalidator"))
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	rm := &Manager{
@@ -270,12 +270,15 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	if index < 0 {
 		index = 0
 	}
+
 	if m.Prefetch <= 0.0 {
 		m.Prefetch = DefaultPrefetch
 	}
+
 	if m.Prefetch > 1.0 {
 		m.Prefetch = 1.0
 	}
+
 	var canRequestBefore, canRequestAfter bool
 	// indexf is the percentage of the total list of elements that
 	// the index represents.
@@ -302,6 +305,7 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	if fewElements := len(m.elements.Elements) < int(math.Ceil(float64(1.0/m.Prefetch))); fewElements {
 		canRequestAfter = true
 	}
+
 	switch {
 	case canRequestAfter && canRequestBefore && m.lastRequest == After:
 		m.tryRequest(Before)
@@ -335,13 +339,13 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 	// Update the state of the manager in response to any loads.
 	select {
 	case pending := <-m.stateUpdates:
-
 		// Whether to force the viewport to stick to the end or beginning
 		// of the list. This value must be accumulated across all state
 		// updates for the frame, otherwise the first update may conclude
 		// that the end should stick, but a subsequent update will potentially
 		// cancel that operation.
 		var stickToEnd, stickToBeginning bool
+
 		for ii := range pending {
 			su := pending[ii]
 			m.ignoring = su.Ignore
@@ -405,6 +409,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 		}
 	default:
 	}
+
 	if len(m.elements.Elements) == 0 {
 		// Push an initial request to populate the first few messages.
 		m.tryRequest(After)

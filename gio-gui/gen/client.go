@@ -82,13 +82,16 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 		rooms.Add(baseRoom)
 		return &rooms, err
 	}
+
 	res, err := client.ListArtist(context.Background(), &artist.ListArtistRequest{SiteId: siteId})
 	if err != nil {
 		baseRoom.Content = err.Error()
 		rooms.Add(baseRoom)
 		return &rooms, err
 	}
+
 	rooms.Add(baseRoom)
+
 	for _, artist := range res.GetArtists() {
 		thumb := artist.GetThumbnail()
 		if thumb == nil {
@@ -104,16 +107,13 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 		if artist.GetNewAlbs() > 0 {
 			channel.Count = strconv.Itoa(int(artist.GetNewAlbs()))
 		}
+
 		rooms.Add(channel)
 	}
 	return &rooms, err
 }
 
 func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, string, error) {
-	var channels model.Rooms
-	var albums model.Messages
-	var artTitle string
-
 	client, err := GetClientInstance()
 	if client == nil {
 		return nil, nil, "", err
@@ -126,6 +126,13 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 	if err != nil {
 		return nil, nil, "", err
 	}
+
+	var (
+		artTitle string
+		channels model.Rooms
+		albums   model.Messages
+	)
+
 	for _, art := range res.GetArtists() {
 		artTitle = art.GetTitle()
 		thumb := art.GetThumbnail()
@@ -139,6 +146,7 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 			Image:  im,
 			IsBase: false,
 		})
+
 		for _, alb := range art.GetAlbums() {
 			serial := g.old.Increment()
 			al := MapAlbum(alb, serial, false)
@@ -166,17 +174,22 @@ func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
 	if client == nil {
 		return nil
 	}
-	var albums []model.Message
 	res, err := client.ReadNewAlbums(context.Background(), &artist.ListArtistRequest{
 		SiteId: siteId,
 	})
+	albums := make([]model.Message, len(res.GetReleases()))
 	if err != nil || res == nil {
 		return albums
 	}
-	for _, alb := range res.GetReleases() {
+	/*for _, alb := range res.GetReleases() {
 		serial := g.old.Increment()
 		al := MapAlbum(alb, serial, false)
 		albums = append(albums, al)
+	}*/
+	for i, alb := range res.GetReleases() {
+		serial := g.old.Increment()
+		al := MapAlbum(alb, serial, false)
+		albums[i] = al
 	}
 	return albums
 }
@@ -186,23 +199,24 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) []model.Mess
 	if client == nil {
 		return nil
 	}
-	var albums []model.Message
 	res, err := client.ReadArtistAlbums(context.Background(), &artist.ReadArtistAlbumRequest{
 		SiteId:   siteId,
 		ArtistId: artistId,
 	})
+	albums := make([]model.Message, len(res.GetReleases()))
 	if err != nil || res == nil {
 		return albums
 	}
-	for _, alb := range res.GetReleases() {
-		serial := g.old.Increment()
+	for i, alb := range res.GetReleases() {
 		var isRead bool
+		serial := g.old.Increment()
 		if alb.GetSyncState() > 0 {
 			isRead = true
 		}
 		al := MapAlbum(alb, serial, isRead)
-		albums = append(albums, al)
+		albums[i] = al
 	}
+
 	return albums
 }
 
@@ -252,6 +266,7 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 	if err != nil || res == nil {
 		return
 	}
+
 	for _, art := range res.GetArtists() {
 		for _, alb := range art.GetAlbums() {
 			serial := g.new.Decrement()

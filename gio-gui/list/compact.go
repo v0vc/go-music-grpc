@@ -53,19 +53,22 @@ func (c *Compact) Apply(insertOrUpdate []Element, updateOnly []Element, remove [
 	}
 
 	// Find the index of each element needing removal.
-	var targetIndicies []int
+	targetIndices := make([]int, len(remove))
+
 	for _, serial := range remove {
 		idx, ok := serialToRaw[serial]
 		if !ok {
 			continue
 		}
-		targetIndicies = append(targetIndicies, idx)
+
+		targetIndices = append(targetIndices, idx)
 	}
 	// Remove them by swapping and re-slicing, starting from the highest
 	// index to ensure that we do not move a removed element into the
 	// middle of the list as part of the swap.
-	sort.Sort(sort.Reverse(sort.IntSlice(targetIndicies)))
-	for _, target := range targetIndicies {
+	sort.Sort(sort.Reverse(sort.IntSlice(targetIndices)))
+
+	for _, target := range targetIndices {
 		SliceRemove(&c.elements, target)
 	}
 
@@ -109,6 +112,7 @@ func (c *Compact) Compact(keepStart, keepEnd Serial) (contents []Element, compac
 			// the end.
 			secondHalf += half - keepStartIdx
 		}
+
 		if newEnd := keepEndIdx + secondHalf; newEnd >= len(c.elements) {
 			// Donate any unused quota at the end of the list to
 			// the beginning.
@@ -122,6 +126,7 @@ func (c *Compact) Compact(keepStart, keepEnd Serial) (contents []Element, compac
 	for i := 0; i < keepStartIdx; i++ {
 		compacted = append(compacted, c.elements[i].Serial())
 	}
+
 	for i := keepEndIdx + 1; i < len(c.elements); i++ {
 		compacted = append(compacted, c.elements[i].Serial())
 	}

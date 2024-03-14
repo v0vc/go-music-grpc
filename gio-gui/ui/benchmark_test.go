@@ -30,7 +30,9 @@ func BenchmarkKitchen(b *testing.B) {
 		},
 		Constraints: layout.Exact(sz),
 	}
+
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		gtx.Ops.Reset()
 		ui.Layout(gtx)

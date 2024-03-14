@@ -38,8 +38,8 @@ func TestManager(t *testing.T) {
 		},
 		Size: image.Pt(1000, 1000),
 	})
-	var list layout.List
 
+	var list layout.List
 	allocationCounter := 0
 	presenterCounter := 0
 
@@ -96,6 +96,7 @@ func TestManager(t *testing.T) {
 		expectedPresentations int
 		stateSize             int
 	}
+
 	for _, tc := range []testcase{
 		{
 			name:       "load initial elements",
@@ -415,6 +416,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 		// fit on screen at a time.
 		Size: image.Pt(10, 10),
 	})
+
 	var list layout.List
 	synth := func(a, b, c Element) []Element { return []Element{b} }
 
@@ -448,6 +450,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 		update                         stateUpdate
 		startFirstIndex, endFirstIndex int
 	}
+
 	for _, tc := range []testcase{
 		{
 			name:       "load initial elements",
@@ -610,8 +613,7 @@ func TestManagerGC(t *testing.T) {
 func TestManagerModifyAfterShutdown(t *testing.T) {
 	mgr := NewManager(10, DefaultHooks(nil, nil))
 	mgr.Shutdown()
-	mgr.Modify(nil, nil, nil)
-	// Should not panic.
+	mgr.Modify(nil, nil, nil) // Should not panic.
 }
 
 // goroutineRunning returns whether a goroutine is currently executing
@@ -624,6 +626,7 @@ func goroutineRunning(name string) bool {
 	var grs [100]runtime.StackRecord
 	n, _ := runtime.GoroutineProfile(grs[:])
 	active := grs[:n]
+
 	for _, gr := range active {
 		frames := runtime.CallersFrames(gr.Stack())
 	frameLoop:

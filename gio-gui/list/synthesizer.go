@@ -14,11 +14,11 @@ type Synthesis struct {
 	// SerialToIndex maps the serial of an element to the index it
 	// occupies within the Elements slice.
 	SerialToIndex map[Serial]int
-	// ToSourceIndicies maps each index in Elements to the index of
+	// ToSourceIndices maps each index in Elements to the index of
 	// the element that generated it when given to the Synthesizer.
 	// It is always true that Elements[i] was synthesized from
-	// Source[ToSourceIndicies[i]].
-	ToSourceIndicies []int
+	// Source[ToSourceIndices[i]].
+	ToSourceIndices []int
 	// The source elements.
 	Source []Element
 }
@@ -40,19 +40,21 @@ func (s Synthesis) SerialAt(index int) Serial {
 // viewport into a pair of serials representing the range of elements
 // visible within that viewport.
 func (s Synthesis) ViewportToSerials(viewport layout.Position) (Serial, Serial) {
-	if len(s.ToSourceIndicies) < 1 {
+	if len(s.ToSourceIndices) < 1 {
 		return NoSerial, NoSerial
 	}
-	if viewport.First >= len(s.ToSourceIndicies) {
-		viewport.First = len(s.ToSourceIndicies) - 1
+
+	if viewport.First >= len(s.ToSourceIndices) {
+		viewport.First = len(s.ToSourceIndices) - 1
 	} else if viewport.First < 0 {
 		viewport.First = 0
 	}
-	startSrcIdx := s.ToSourceIndicies[viewport.First]
+
+	startSrcIdx := s.ToSourceIndices[viewport.First]
 	startSerial := SerialAtOrBefore(s.Source, startSrcIdx)
-	lastIndex := len(s.ToSourceIndicies) - 1
+	lastIndex := len(s.ToSourceIndices) - 1
 	vpLastIndex := max(0, viewport.First+viewport.Count-1)
-	endSrcIdx := s.ToSourceIndicies[min(vpLastIndex, lastIndex)]
+	endSrcIdx := s.ToSourceIndices[min(vpLastIndex, lastIndex)]
 	endSerial := SerialAtOrAfter(s.Source, endSrcIdx)
 	return startSerial, endSerial
 }
@@ -63,30 +65,36 @@ func (s Synthesis) ViewportToSerials(viewport layout.Position) (Serial, Serial) 
 func Synthesize(elements []Element, synth Synthesizer) Synthesis {
 	var s Synthesis
 	s.Source = elements
+
 	for i, elem := range elements {
 		var (
 			previous Element
 			next     Element
 		)
+
 		if i > 0 {
 			previous = elements[i-1]
 		} else {
 			previous = Start{}
 		}
+
 		if i < len(elements)-1 {
 			next = elements[i+1]
 		} else {
 			next = End{}
 		}
+
 		synthesized := synth(previous, elem, next)
 		// Mark that each of these synthesized elements came from the
 		// raw element at index i.
 		for range synthesized {
-			s.ToSourceIndicies = append(s.ToSourceIndicies, i)
+			s.ToSourceIndices = append(s.ToSourceIndices, i)
 		}
+
 		s.Elements = append(s.Elements, synthesized...)
 	}
 	s.SerialToIndex = make(map[Serial]int)
+
 	for i, e := range s.Elements {
 		if e.Serial() != NoSerial {
 			s.SerialToIndex[e.Serial()] = i

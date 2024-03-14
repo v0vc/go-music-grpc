@@ -70,8 +70,10 @@ func (r Row) Layout(gtx layout.Context, w ...RowChild) layout.Dimensions {
 			return w[ii].Content(gtx)
 		}
 	}
+
 	for ii := range w {
 		ii := ii
+
 		slice = append(slice, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return r.InternalMargin.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				if w[ii].Unified {

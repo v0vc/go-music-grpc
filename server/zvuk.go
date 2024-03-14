@@ -69,11 +69,16 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return http.DefaultTransport.RoundTrip(req)
 }
 
-func getThumb(url string) []byte {
-	response, err := http.Get(url)
+func getThumb(ctx context.Context, url string) []byte {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil
+	}
+	response, err := http.DefaultClient.Do(req)
 	if err != nil || response == nil || response.StatusCode != http.StatusOK {
 		return []byte{}
 	}
+
 	defer response.Body.Close()
 	res, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -82,22 +87,32 @@ func getThumb(url string) []byte {
 	return res
 }
 
-func downloadAlbumCover(url, path string) error {
+func downloadAlbumCover(ctx context.Context, url, path string) error {
 	url = strings.Replace(url, "{size}", coverSize, 1)
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
 	if err != nil {
 		return err
 	}
+
 	defer f.Close()
-	req, err := client.Get(url)
-	if err != nil || req == nil {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
 		return err
 	}
-	defer req.Body.Close()
-	if req.StatusCode != http.StatusOK {
+
+	if err != nil || response == nil {
 		return err
 	}
-	_, err = io.Copy(f, req.Body)
+
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return err
+	}
+	_, err = io.Copy(f, response.Body)
 	return err
 }
 
@@ -106,16 +121,19 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	defer f.Close()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
+
 	req.Header.Add("Range", "bytes=0-")
 	do, err := client.Do(req)
 	if err != nil || do == nil {
 		return "", err
 	}
+
 	defer do.Body.Close()
 	if do.StatusCode != http.StatusOK && do.StatusCode != http.StatusPartialContent {
 		log.Println(do.Status)
@@ -128,7 +146,9 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 		StartTime: time.Now().UnixMilli(),
 	}
 	res, err := io.Copy(f, io.TeeReader(do.Body, counter))
+
 	log.Println("")
+
 	return humanize.Bytes(uint64(res)), err
 }
 
@@ -187,7 +207,9 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 		if err != nil {
 			log.Println(err)
 		}
+
 		defer rows.Close()
+
 		for rows.Next() {
 			var (
 				albId   string
@@ -197,9 +219,11 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 			if er := rows.Scan(&albId, &artisId); er != nil {
 				log.Println(er)
 			}
+
 			if albId != "" && !Contains(existAlbumIds, albId) {
 				existAlbumIds = append(existAlbumIds, albId)
 			}
+
 			if artisId != "" && !Contains(existArtistIds, artisId) {
 				existArtistIds = append(existArtistIds, artisId)
 			}
@@ -210,6 +234,7 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 
 func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string, isAlbum bool) (map[string]*AlbumInfo, []string) {
 	var sqlStr string
+
 	if len(ids) == 1 {
 		if isAlbum {
 			sqlStr = "select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.albumId in (select alb_id from album where albumId = ? limit 1) and ar.siteId = ? group by at.trackId;"
@@ -230,19 +255,22 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 	}
 	defer stRows.Close()
 
-	var args []interface{}
-	for _, trackId := range ids {
-		args = append(args, trackId)
+	args := make([]interface{}, len(ids))
+	for i, trackId := range ids {
+		args[i] = trackId
 	}
+
 	args = append(args, siteId)
 	rows, err := stRows.QueryContext(ctx, args...)
 	if err != nil {
 		log.Println(err)
 	}
-	defer rows.Close()
 
+	defer rows.Close()
 	mTracks := make(map[string]*AlbumInfo)
+
 	var mAlbum []string
+
 	for rows.Next() {
 		var (
 			trackId string
@@ -276,12 +304,14 @@ func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 		pass  string
 	)
 	err = stmt.QueryRowContext(ctx, siteId).Scan(&login, &pass, &token)
+
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		log.Printf("no token for sourceId: %d", siteId)
 	case err != nil:
 		log.Println(err)
 	}
+
 	return login, pass, token
 }
 
@@ -290,6 +320,7 @@ func updateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32)
 	if err != nil {
 		log.Println(err)
 	}
+
 	defer stmtUpdToken.Close()
 	_, _ = stmtUpdToken.ExecContext(ctx, token, siteId)
 }
@@ -302,17 +333,19 @@ func getTokenFromSite(ctx context.Context, email, password string) (string, erro
 	if err != nil {
 		return "", err
 	}
+
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	do, err := client.Do(req)
 	if err != nil || do == nil {
 		return "", err
 	}
+
 	defer do.Body.Close()
 	if do.StatusCode != http.StatusOK {
 		return "", err
 	}
-	var obj *Auth
 
+	var obj *Auth
 	err = json.NewDecoder(do.Body).Decode(&obj)
 	if err != nil || obj == nil {
 		return "", err
@@ -326,11 +359,13 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 	if err != nil {
 		return "", err
 	}
+
 	req.Header.Add(authHeader, token)
 	query := url.Values{}
 	query.Set("id", trackId)
 	query.Set("quality", trackQuality)
 	req.URL.RawQuery = query.Encode()
+
 	for i := 0; i < 5; i++ {
 		do, err = client.Do(req)
 		if err != nil || do == nil {
@@ -339,18 +374,22 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 		if do.StatusCode == http.StatusTeapot && i != 4 {
 			do.Body.Close()
 			log.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
+
 			continue
 		}
 		if do.StatusCode != http.StatusOK {
 			do.Body.Close()
 			return "", err
 		}
+
 		break
 	}
 	if do == nil {
 		return "", err
 	}
+
 	defer do.Body.Close()
+
 	var obj *TrackStreamInfo
 	err = json.NewDecoder(do.Body).Decode(&obj)
 	if err != nil || obj == nil {
@@ -373,6 +412,7 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 	if err != nil {
 		log.Println(err)
 	}
+
 	req.Header.Add(authHeader, token)
 	query := url.Values{}
 	query.Set("ids", albumId)
@@ -382,8 +422,10 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 	if err != nil || do == nil {
 		log.Println(err)
 	}
+
 	defer do.Body.Close()
 	needTokenUpd := false
+
 	switch do.StatusCode {
 	case http.StatusTeapot:
 		return nil, "", false
@@ -635,7 +677,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		updateTokenDb(tx, ctx, token, siteId)
 	}
 
-	artRawId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
+	artRawId := GetArtistIdDb(tx, ctx, siteId, artistId)
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
 	mArtist := make(map[string]int)
 	if artRawId != 0 {
@@ -655,6 +697,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 			if !Contains(netAlbumIds, release.ID) {
 				netAlbumIds = append(netAlbumIds, release.ID)
 			}
+
 			for _, author := range release.Artists {
 				if author.ID == "" {
 					continue
@@ -675,12 +718,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		alb int
 	}
 
-	var albums []*artist.Album
-	var artists []*artist.Artist
-	var thumb []byte
 	var (
 		processedAlbumIds  []string
 		processedArtistIds []string
+		thumb              []byte
+		artists            []*artist.Artist
+		albums             []*artist.Album
 	)
 
 	for _, data := range item.GetArtists {
@@ -694,24 +737,25 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				alb.Title = strings.TrimSpace(release.Title)
 				alb.ReleaseDate = release.Date
 				alb.ReleaseType = release.Type
-				alb.Thumbnail = getThumb(strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
+				alb.Thumbnail = getThumb(ctx, strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
 				if isAdd {
 					alb.SyncState = 0
 				} else {
 					alb.SyncState = 1
 				}
+
 				processedAlbumIds = append(processedAlbumIds, release.ID)
 			} else {
 				continue
 			}
 
-			var sb []string
-			for _, author := range release.Artists {
+			sb := make([]string, len(release.Artists))
+
+			for i, author := range release.Artists {
 				if author.ID == "" {
 					continue
 				}
-
-				sb = append(sb, author.Title)
+				sb[i] = author.Title
 				alb.ArtistIds = append(alb.ArtistIds, author.ID)
 
 				if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
@@ -720,14 +764,15 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 						Title:    strings.TrimSpace(author.Title),
 					}
 					if isAdd && art.GetArtistId() == artistId {
-						art.Thumbnail = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
+						art.Thumbnail = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
 						art.UserAdded = true
 						resArtist = art
 					}
+
 					artists = append(artists, art)
 					processedArtistIds = append(processedArtistIds, author.ID)
 				} else if artRawId != 0 && author.ID == artistId && thumb == nil {
-					thumb = getThumb(strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
+					thumb = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
 					resArtist = &artist.Artist{
 						SiteId:    siteId,
 						ArtistId:  artistId,
@@ -742,12 +787,14 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		}
 	}
 
-	var artAlbs []*artAlb
-	var albId int
-
+	var (
+		artAlbs []*artAlb
+		albId   int
+	)
 	if artists != nil {
 		stArtist, _ := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title) values (?,?,?) on conflict (siteId, artistId) do update set syncState = 1 returning art_id;")
 		defer stArtist.Close()
+
 		stArtistUser, _ := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, userAdded, thumbnail) values (?,?,?,?,?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
 		defer stArtistUser.Close()
 
@@ -808,12 +855,14 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		}
 	} else if artists != nil {
 		mAlbum := make(map[string]int)
+
 		for _, data := range item.GetArtists {
 			for _, release := range data.Releases {
 				for _, ar := range release.Artists {
 					if release.ID == "" {
 						continue
 					}
+
 					for _, art := range artists {
 						if ar.ID == art.GetArtistId() {
 							alId, ok := mAlbum[release.ID]
@@ -845,6 +894,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 
 	if isAdd && artRawId != 0 {
 		stArtistUpd, _ := tx.PrepareContext(ctx, "update main.artist set userAdded = 1, thumbnail = ? where art_id = ?;")
+
 		defer stArtistUpd.Close()
 		_, _ = stArtistUpd.ExecContext(ctx, thumb, artRawId)
 	}
@@ -852,6 +902,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	if artAlbs != nil {
 		sqlStr := fmt.Sprintf("insert into main.artistAlbum(artistId, albumId) values %v on conflict (artistId, albumId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(artAlbs)), ","))
 		stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
+
 		defer stArtAlb.Close()
 
 		var args []interface{}
@@ -906,6 +957,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 		if err != nil {
 			log.Println(er)
 		}
+
 		defer stAlbumUpd.Close()
 		_, _ = stAlbumUpd.ExecContext(ctx, trackTotal, albId)
 
@@ -913,6 +965,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 		if er != nil {
 			log.Println(er)
 		}
+
 		defer stAlbumTrackRem.Close()
 		_, _ = stAlbumTrackRem.ExecContext(ctx, albId)
 
@@ -920,15 +973,16 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 		if er != nil {
 			log.Println(er)
 		}
-		defer stAlbumTrack.Close()
 
+		defer stAlbumTrack.Close()
 		stTrackArtist, er := tx.PrepareContext(ctx, "insert into main.trackArtist(trackId, artistId) values (?, ?) on conflict (trackId, artistId) do nothing;")
 		if er != nil {
 			log.Println(er)
 		}
-		defer stTrackArtist.Close()
 
+		defer stTrackArtist.Close()
 		mArtist := make(map[int]int)
+
 		for trId, track := range item.Result.Tracks {
 			if trId != "" {
 				var trackId int
@@ -942,7 +996,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 					for _, artistId := range track.ArtistIds {
 						artId, ok := mArtist[artistId]
 						if !ok {
-							artRawId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
+							artRawId := GetArtistIdDb(tx, ctx, siteId, artistId)
 							if artRawId > 0 {
 								mArtist[artistId] = artRawId
 								artId = artRawId
@@ -973,6 +1027,8 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 }
 
 func downloadFiles(ctx context.Context, trackId, token, trackQuality string, albInfo *AlbumInfo, mDownloaded map[string]string) {
+	var coverPath string
+
 	cdnUrl, err := getTrackStreamUrl(ctx, trackId, trackQuality, token)
 	if err != nil {
 		log.Println("Failed to get track info from api.", err)
@@ -993,8 +1049,6 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 	}
 
 	trackName := ParseTemplate(mTrack, trackTemplate)
-	var coverPath string
-
 	mAlbum := make(map[string]string)
 	absAlbName, exist := mAlbum[albInfo.AlbumId]
 	if !exist {
@@ -1016,7 +1070,7 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 		}
 
 		coverPath = filepath.Join(absAlbName, "cover.jpg")
-		err = downloadAlbumCover(albInfo.AlbumCover, coverPath)
+		err = downloadAlbumCover(ctx, albInfo.AlbumCover, coverPath)
 		if err != nil {
 			log.Println("Failed to download cover.", err)
 			coverPath = ""
@@ -1030,6 +1084,7 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 		log.Println("Failed to check if track already exists locally.")
 		return
 	}
+
 	if exists {
 		log.Println("Track already exists locally.")
 		return
@@ -1075,8 +1130,8 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 	if err != nil {
 		log.Println(err)
 	}
-
 	mDownloaded := make(map[string]string)
+
 	for _, trackId := range trackIds {
 		albInfo, dbExist := mTracks[trackId]
 		if dbExist {
@@ -1085,9 +1140,11 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 			log.Println("Track not found in database, please sync")
 			// нет в базе, можно продумать как формировать пути скачивания без данных в базе, типа лить в базовую папку без прохода по темплейтам альбома, хз
 		}
+
 		RandomPause(3, 7)
 	}
-	return mDownloaded, nil
+
+	return mDownloaded, err
 }
 
 func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQuality string) (map[string]string, error) {
@@ -1119,14 +1176,18 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 				log.Println(err)
 			}
 		}
+
 		if item == nil {
 			tryCount += 1
 			if tryCount == 4 {
 				continue
 			}
+
 			RandomPause(3, 7)
+
 			goto L1
 		}
+
 		for trId, track := range item.Result.Tracks {
 			if trId != "" {
 				_, ok := mTracks[trId]
@@ -1151,5 +1212,5 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 		downloadFiles(ctx, trackId, token, trackQuality, albInfo, mDownloaded)
 		RandomPause(3, 7)
 	}
-	return mDownloaded, nil
+	return mDownloaded, err
 }

@@ -116,6 +116,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 						)
 						p.Router.AppBar.ToggleContextual(gtx.Now, "Contextual Title")
 					}
+
 					return material.Button(th, &p.contextBtn, "Trigger").Layout(gtx)
 				})
 			}),
@@ -131,6 +132,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 								p.Router.ModalNavDrawer.Anchor = component.Top
 								p.Router.AppBar.Anchor = component.Top
 							}
+
 							p.Router.BottomBar = p.bottomBar.Value
 						}
 
@@ -148,6 +150,7 @@ func (p *Page) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions 
 								p.Router.AppBar.NavigationIcon = icon.MenuIcon
 							}
 						}
+
 						return material.Switch(th, &p.customNavIcon, "Use Custom Navigation Icon").Layout(gtx)
 					})
 			}),

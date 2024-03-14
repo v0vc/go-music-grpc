@@ -9,6 +9,7 @@ func TestSliceRemove(t *testing.T) {
 		index  int
 		result []Element
 	}
+
 	for _, tc := range []testcase{
 		{
 			name:   "empty slice",
@@ -118,6 +119,7 @@ func TestSliceFilter(t *testing.T) {
 		predicate func(Element) bool
 		result    []Element
 	}
+
 	for _, tc := range []testcase{
 		{
 			name:      "empty slice",

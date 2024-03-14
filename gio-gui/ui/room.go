@@ -72,6 +72,7 @@ func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Roo
 						el = append(el, alb)
 						ch.RowTracker.Add(alb)
 					}
+
 					ch.ListState.Modify(el, nil, nil)
 				}
 				ch.Unlock()
@@ -105,25 +106,18 @@ func (r *Room) RunSearch(searchText string) {
 		}
 	}()
 
-	pending := <-r.SearchResponses
+	/*pending := <-r.SearchResponses
 	for _, ind := range pending {
-		// r.RowTracker.Delete(ind)
-		fmt.Println(ind)
+		r.RowTracker.Delete(ind)
 	}
-	// go r.ListState.Modify(nil, nil, pending)
+	go r.ListState.Modify(nil, nil, pending)*/
 }
-
-// NewRow generates a new row in the Room's RowTracker and inserts it
-// into the list manager for the room.
-/*func (r *Room) NewRow() {
-	row := r.RowTracker.NewRow()
-	go r.ListState.Modify([]list.Element{row}, nil, nil)
-}*/
 
 // DeleteRow removes the row with the provided serial from both the
 // row tracker and the list manager for the room.
 func (r *Room) DeleteRow(serial list.Serial) {
 	r.RowTracker.Delete(serial)
+
 	go r.ListState.Modify(nil, nil, []list.Serial{serial})
 }
 
@@ -131,10 +125,12 @@ func (r *Rooms) DeleteChannel(index int, siteId uint32) []*Room {
 	channel := r.Index(index)
 	r.Lock()
 	defer r.Unlock()
+
 	if len(r.List) != 0 {
 		go channel.RowTracker.Generator.DeleteArtist(siteId, channel.Id)
 		return slices.Delete(r.List, index, index+1)
 	}
+
 	return make([]*Room, 0)
 }
 
@@ -142,6 +138,7 @@ func (r *Rooms) DeleteChannel(index int, siteId uint32) []*Room {
 func (r *Rooms) Active() *Room {
 	r.Lock()
 	defer r.Unlock()
+
 	if len(r.List) == 0 {
 		return &Room{}
 	}
@@ -151,34 +148,42 @@ func (r *Rooms) Active() *Room {
 func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) {
 	r.Lock()
 	defer r.Unlock()
+
 	go r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality)
 }
 
 func (r *Room) DownloadArtist(siteId uint32, artistId string, trackQuality string) {
 	r.Lock()
 	defer r.Unlock()
+
 	go r.RowTracker.Generator.DownloadArtist(siteId, artistId, trackQuality)
 }
 
 func (r *Room) ClearSync(siteId uint32) {
 	r.Lock()
 	defer r.Unlock()
+
 	res := r.RowTracker.Generator.ClearSync(siteId)
 	r.Content = fmt.Sprintf("sync cleared: %d", res)
 	deleted := make([]list.Serial, 0, len(r.RowTracker.Rows))
+
 	for _, i := range r.RowTracker.Rows {
 		r.RowTracker.Delete(i.Serial())
 		deleted = append(deleted, i.Serial())
 	}
+
 	go r.ListState.Modify(nil, nil, deleted)
 }
 
 func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	r.Lock()
 	defer r.Unlock()
+
 	arts := make(chan map[string][]model.Message, 1)
 	start := time.Now()
+
 	go r.RowTracker.Generator.SyncArtist(siteId, r.Id, arts)
+
 	res := <-arts
 	AddAlbumsToUi(rooms, res, r, start)
 }
@@ -186,6 +191,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget, err error) {
 	r.Lock()
 	defer r.Unlock()
+
 	if index < 0 {
 		index = 0
 	}
@@ -200,6 +206,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 
 	if r.List[r.active].RowTracker.Rows == nil && !r.List[r.active].Loaded {
 		channel := r.List[r.active]
+
 		if err == nil {
 			if albs == nil {
 				if channel.Room.IsBase {
@@ -212,6 +219,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 					albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
 				}
 			}
+
 			for _, alb := range albs {
 				channel.RowTracker.Add(alb)
 			}
@@ -249,7 +257,9 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 func (r *Rooms) Changed() bool {
 	r.Lock()
 	defer r.Unlock()
+
 	defer func() { r.changed = false }()
+
 	return r.changed
 }
 
@@ -258,18 +268,22 @@ func (r *Rooms) Changed() bool {
 func (r *Rooms) Index(index int) *Room {
 	r.Lock()
 	defer r.Unlock()
+
 	if index < 0 {
 		index = 0
 	}
+
 	if index == len(r.List) {
 		index = len(r.List) - 1
 	}
+
 	return r.List[index]
 }
 
 func (r *Rooms) GetChannelById(artistId string) *Room {
 	r.Lock()
 	defer r.Unlock()
+
 	for _, channel := range r.List {
 		if channel.Id == artistId {
 			return channel
@@ -281,6 +295,7 @@ func (r *Rooms) GetChannelById(artistId string) *Room {
 func (r *Rooms) GetBaseChannel() *Room {
 	r.Lock()
 	defer r.Unlock()
+
 	for _, channel := range r.List {
 		if channel.IsBase {
 			return channel
@@ -298,27 +313,33 @@ func synth(previous, row, _ list.Element) []list.Element {
 		out = append(out, row)
 		return out
 	}
+
 	if previous == nil {
 		if !asMessage.Read {
 			out = append(out, model.UnreadBoundary{})
 		}
+
 		out = append(out, row)
 		return out
 	}
+
 	lastMessage, ok := previous.(model.Message)
 	if !ok {
 		out = append(out, row)
 		return out
 	}
+
 	if !asMessage.Read && lastMessage.Read {
 		out = append(out, model.UnreadBoundary{})
 	}
+
 	y, m, d := asMessage.SentAt.Local().Date()
 	yy, mm, dd := lastMessage.SentAt.Local().Date()
 	if y == yy && m == mm && d == dd {
 		out = append(out, row)
 		return out
 	}
+
 	out = append(out, model.DateBoundary{Date: asMessage.SentAt}, row)
 	return out
 }

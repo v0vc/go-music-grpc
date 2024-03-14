@@ -70,6 +70,7 @@ func (r *Router) Register(tag interface{}, p Page) {
 		r.AppBar.Title = navItem.Name
 		r.AppBar.SetActions(p.Actions(), p.Overflow())
 	}
+
 	r.ModalNavDrawer.AddNavItem(navItem)
 }
 
@@ -78,9 +79,8 @@ func (r *Router) SwitchTo(tag interface{}) {
 	if !ok {
 		return
 	}
-	navItem := p.NavItem()
 	r.current = tag
-	r.AppBar.Title = navItem.Name
+	r.AppBar.Title = p.NavItem().Name
 	r.AppBar.SetActions(p.Actions(), p.Overflow())
 }
 
@@ -111,6 +111,7 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dime
 				// gtx.Constraints.Max.X /= 3
 				gtx.Constraints.Max.X = 375
 				th.Theme.Bg = th.Palette.Surface
+
 				return r.NavDrawer.Layout(gtx, th.Theme, &r.NavAnim)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -128,6 +129,7 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dime
 	} else {
 		flex.Layout(gtx, bar, content)
 	}
+
 	r.ModalLayer.Layout(gtx, th.Theme)
 	return layout.Dimensions{Size: gtx.Constraints.Max}
 }

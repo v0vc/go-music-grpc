@@ -71,14 +71,14 @@ func NewTheme(conf *Config) *Theme {
 		Theme: base,
 	}
 	theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
+
 	switch conf.Theme {
 	case "light":
 		theme.UsePalette(Light)
 	case "dark":
 		theme.UsePalette(Dark)
 	}
-	// theme.UsePalette(Light)
-	// theme.UsePalette(Dark)
+
 	return &theme
 }
 

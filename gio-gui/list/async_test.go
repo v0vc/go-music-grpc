@@ -2,6 +2,7 @@ package list
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 
 // define a set of elements that can be used across tests.
 var testElements = func() []Element {
-	testElements := []Element{}
+	var testElements []Element
 	for i := 0; i < 10; i++ {
 		testElements = append(testElements, testElement{
 			serial:     fmt.Sprintf("%03d", i),
@@ -23,8 +24,11 @@ var testElements = func() []Element {
 
 func TestAsyncProcess(t *testing.T) {
 	var nextLoad []Element
+
 	var more bool
+
 	var loadInvoked bool
+
 	hooks := Hooks{
 		Invalidator: func() {},
 		Comparator:  testComparator,
@@ -113,7 +117,7 @@ func TestAsyncProcess(t *testing.T) {
 			skipUpdate: true,
 			extraChecks: func() error {
 				if loadInvoked {
-					return fmt.Errorf("should not have invoked load after a load in the same direction returned nothing")
+					return errors.New("should not have invoked load after a load in the same direction returned nothing")
 				}
 				return nil
 			},
@@ -167,7 +171,7 @@ func TestAsyncProcess(t *testing.T) {
 			},
 			extraChecks: func() error {
 				if !loadInvoked {
-					return fmt.Errorf("should have invoked load")
+					return errors.New("should have invoked load")
 				}
 				return nil
 			},
@@ -268,7 +272,7 @@ func TestAsyncProcess(t *testing.T) {
 			skipUpdate: true,
 			extraChecks: func() error {
 				if loadInvoked {
-					return fmt.Errorf("should not have invoked load after a load in the same direction returned nothing")
+					return errors.New("should not have invoked load after a load in the same direction returned nothing")
 				}
 				return nil
 			},
@@ -366,9 +370,12 @@ func TestCanModifyWhenIdle(t *testing.T) {
 
 	// We should receive update elements 1, 2, 3, 4.
 	total := 0
+
 	var want []Element
+
 	for pending := range updates {
 		t.Log(pending)
+
 		for ii := range pending {
 			su := pending[ii]
 			total++
@@ -376,6 +383,7 @@ func TestCanModifyWhenIdle(t *testing.T) {
 				t.Errorf("expected push update, got %v", su.Type)
 			}
 			got := su.Synthesis.Source
+
 			want = append(want, testElement{
 				serial:     strconv.Itoa(total),
 				synthCount: 0,
@@ -385,6 +393,7 @@ func TestCanModifyWhenIdle(t *testing.T) {
 			}
 		}
 	}
+
 	if total != 4 {
 		t.Fatalf("expected 4 pending updates, got %d", total)
 	}

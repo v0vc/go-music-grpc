@@ -73,6 +73,7 @@ func (img Image) Layout(gtx layout.Context) layout.Dimensions {
 	dims := img.Image.Layout(gtx)
 	call := macro.Stop()
 	r := gtx.Dp(img.Radii)
+
 	defer clip.RRect{
 		Rect: image.Rectangle{Max: dims.Size},
 		NE:   r, NW: r, SE: r, SW: r,

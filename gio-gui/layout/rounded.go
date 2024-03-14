@@ -17,6 +17,7 @@ func (r Rounded) Layout(gtx layout.Context, w layout.Widget) layout.Dimensions {
 	dims := w(gtx)
 	call := macro.Stop()
 	radii := gtx.Dp(unit.Dp(r))
+
 	defer clip.RRect{
 		Rect: image.Rectangle{Max: dims.Size},
 		NE:   radii,

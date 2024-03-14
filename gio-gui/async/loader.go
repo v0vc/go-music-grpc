@@ -97,6 +97,7 @@ func (p *FixedWorkerPool) Schedule(work func()) {
 		if p.Workers <= 0 {
 			p.Workers = runtime.NumCPU()
 		}
+
 		for ii := 0; ii < p.Workers; ii++ {
 			go func() {
 				for w := range p.queue {
@@ -145,9 +146,11 @@ func (p *DynamicWorkerPool) Schedule(work func()) {
 		}
 		p.queue = make(chan func())
 		p.count = make(chan struct{}, p.Workers)
+
 		for ii := 0; ii < int(p.Workers); ii++ {
 			p.count <- struct{}{}
 		}
+
 		go func() {
 			for w := range p.queue {
 				w := w
@@ -198,6 +201,7 @@ func (l *Loader) Updated() <-chan struct{} {
 func (l *Loader) Frame(gtx layout.Context, w layout.Widget) layout.Dimensions {
 	atomic.AddInt64(&l.active, 1)
 	dim := w(gtx)
+
 	atomic.StoreInt64(&l.finished, atomic.LoadInt64(&l.active))
 	l.refresh.Signal()
 	return dim
@@ -226,6 +230,7 @@ func (l *Loader) initialize() {
 	l.updated = make(chan struct{}, 1)
 	l.loader.lookup = make(map[Tag]*resource)
 	l.loader.refresh.L = &l.loader.mu
+
 	if l.Scheduler == nil {
 		l.Scheduler = &FixedWorkerPool{Workers: l.MaxLoaded}
 	}
@@ -236,6 +241,7 @@ func (l *Loader) initialize() {
 	// exposed, it's useless.
 	ctx, cancel := context.WithCancel(context.Background())
 	l.cancel = cancel
+
 	go l.run(ctx)
 }
 
@@ -249,6 +255,7 @@ type LoaderStats struct {
 func (l *loader) Stats() LoaderStats {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
 	return LoaderStats{
 		Lookup: len(l.lookup),
 		Queued: len(l.queue),
@@ -283,11 +290,11 @@ func (l *Loader) run(ctx context.Context) {
 	// defer close(l.updated)
 
 	loader := &l.loader
-
 	loader.mu.Lock()
-	defer loader.mu.Unlock()
 
+	defer loader.mu.Unlock()
 	firstIteration := true
+
 	for {
 		if !firstIteration {
 			// Wait to be woken up by a change. Three conditions which provoke this:
@@ -296,12 +303,15 @@ func (l *Loader) run(ctx context.Context) {
 			// 3. context cancellation
 			// Each iteration synchronizes access to the map and queue.
 			loader.refresh.Wait()
+
 			if ctx.Err() != nil {
 				return
 			}
 		}
 		firstIteration = false
+
 		loader.purge(atomic.LoadInt64(&l.finished), l.MaxLoaded)
+
 		for r := loader.next(); r != nil; r = loader.next() {
 			r := r
 			if l.isOld(r) {
@@ -363,8 +373,10 @@ func (l *loader) next() *resource {
 	if len(l.queue) == 0 {
 		return nil
 	}
+
 	r := l.queue[0]
 	l.queue = l.queue[1:]
+
 	return r
 }
 
@@ -379,6 +391,7 @@ func (l *loader) purge(activeFrame int64, max int) {
 		if len(l.lookup) < max {
 			break
 		}
+
 		if isOld := atomic.LoadInt64(&r.frame) < activeFrame; isOld {
 			l.remove(r)
 		}
@@ -431,6 +444,7 @@ func (r *resource) Load(ctx context.Context, onChange func(State)) {
 func (r *resource) Get() (State, interface{}) {
 	r.Lock()
 	defer r.Unlock()
+
 	return r.state, r.value
 }
 

@@ -135,7 +135,6 @@ message ListArtistStreamResponse {
 
 service ArtistService {
   rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
-  rpc SyncArtistStream (SyncArtistRequest) returns (stream SyncArtistResponse);
   rpc ReadArtistAlbums (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
   rpc ReadNewAlbums (ListArtistRequest) returns (ReadArtistAlbumResponse);
   rpc SyncAlbum (SyncAlbumRequest) returns (SyncAlbumResponse);

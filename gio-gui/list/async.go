@@ -55,17 +55,21 @@ type viewport struct {
 // on each loadRequest. Close the loadRequest channel to terminate
 // processing.
 func asyncProcess(ctx context.Context, maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, <-chan []stateUpdate) {
-	compact := NewCompact(maxSize, hooks.Comparator)
 	var synthesis Synthesis
+
+	compact := NewCompact(maxSize, hooks.Comparator)
 	reqChan := make(chan interface{})
 	updateChan := make(chan []stateUpdate, 1)
 	viewports := make(chan viewport, 1)
+
 	go func() {
 		defer close(updateChan)
+
 		var (
 			viewport viewport
 			ignore   Direction
 		)
+
 		for {
 			var (
 				su         stateUpdate
@@ -80,6 +84,7 @@ func asyncProcess(ctx context.Context, maxSize int, hooks Hooks) (chan<- interfa
 				if !more {
 					return
 				}
+
 				switch req := req.(type) {
 				case modificationRequest:
 					su.Type = push
@@ -121,6 +126,7 @@ func asyncProcess(ctx context.Context, maxSize int, hooks Hooks) (chan<- interfa
 
 					// Find the serial of the element at either end of the list.
 					var loadSerial Serial
+
 					switch req.Direction {
 					case Before:
 						loadSerial = synthesis.SerialAt(0)

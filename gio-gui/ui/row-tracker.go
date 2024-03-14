@@ -91,6 +91,7 @@ func (rt *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded [
 		// RowTracker's slice, to avoid data races when the RowTracker sorts its storage.
 		loaded = dupSlice(loaded)
 	}()
+
 	numRows := len(rt.Rows)
 	if relativeTo == list.NoSerial {
 		// If loading relative to nothing, likely the chat interface is empty.
@@ -100,6 +101,7 @@ func (rt *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded [
 		if rt.ScrollToEnd {
 			return rt.Rows[numRows-min(rt.MaxLoads, numRows):], numRows > rt.MaxLoads
 		}
+
 		var res int
 		if numRows < rt.MaxLoads {
 			res = numRows
@@ -108,6 +110,7 @@ func (rt *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded [
 		}
 		return rt.Rows[:res], numRows > rt.MaxLoads
 	}
+
 	idx := rt.SerialToIndex[relativeTo]
 	if dir == list.After {
 		end := min(numRows, idx+rt.MaxLoads)

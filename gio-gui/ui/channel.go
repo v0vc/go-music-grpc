@@ -77,6 +77,7 @@ func (room ChannelStyle) Layout(gtx layout.Context) layout.Dimensions {
 	)
 	if room.Active {
 		surface = lay.Background(room.Overlay).Layout
+
 		defer func() {
 			// Close-over the dimensions and layout the indicator atop everything
 			// else.

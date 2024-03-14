@@ -184,6 +184,7 @@ func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	} else {
 		ch.Content = fmt.Sprintf("added: %v(%v)", artTitle, time.Since(start))
 	}
+
 	MapDto(ui, channels, albums, g)
 	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow, nil)
 }
@@ -195,19 +196,24 @@ func (ui *UI) Layout(gtx layout.Context) layout.Dimensions {
 
 func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 	small := gtx.Constraints.Max.X < gtx.Dp(Breakpoint)
+
 	for ii := range ui.Rooms.List {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
 			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentChatRow, nil)
 			ui.InsideRoom = true
+
 			break
 		}
 	}
+
 	if ui.Back.Clicked(gtx) {
 		ui.InsideRoom = false
 	}
+
 	paint.FillShape(gtx.Ops, ui.th.Palette.BgSecondary, clip.Rect(image.Rectangle{Max: gtx.Constraints.Max}).Op())
+
 	if small {
 		if !ui.InsideRoom {
 			return ui.layoutRoomList(gtx)
@@ -355,16 +361,19 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 				if ui.SyncBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
 					channel.Content = "In progress..."
+
 					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
 				}
 				if ui.DownloadChannelBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
 					if channel.Loaded {
 						var albumIds []string
+
 						for i := range channel.RowTracker.Rows {
 							alb := channel.RowTracker.Rows[i].(model.Message)
 							albumIds = append(albumIds, alb.Status)
 						}
+
 						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
 					} else {
 						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
@@ -384,6 +393,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						for _, ch := range ui.Rooms.List {
 							ch.Room.Count = ""
 						}
+
 						go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
 					} else {
 						ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
@@ -440,6 +450,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 		if !ok {
 			return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 		}
+
 		return func(gtx layout.Context) layout.Dimensions {
 			if elemState.ContextArea.Active() {
 				// If the right-click context area for this message is activated,
@@ -462,6 +473,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 					for _, artId := range ui.ContextMenuTarget.ParentId {
 						sb = append(sb, artistUrl+artId)
 					}
+
 					gtx.Execute(clipboard.WriteCmd{
 						Data: io.NopCloser(strings.NewReader(strings.Join(sb, ", "))),
 					})

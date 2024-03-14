@@ -78,6 +78,7 @@ func (row RowStyle) Layout(gtx layout.Context) layout.Dimensions {
 	)
 	if row.Active {
 		surface = lay.Background(row.Overlay).Layout
+
 		defer func() {
 			// Close-over the dimensions and layout the indicator atop everything
 			// else.
