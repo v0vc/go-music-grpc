@@ -1,17 +1,18 @@
 package zvuk
 
 import (
+	"image"
 	"image/color"
 	"sync"
 
+	"gioui.org/io/clipboard"
 	"gioui.org/io/key"
+
 	"gioui.org/layout"
-	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/v0vc/go-music-grpc/gio-gui/icon"
-	lay "github.com/v0vc/go-music-grpc/gio-gui/layout"
 	page "github.com/v0vc/go-music-grpc/gio-gui/pages"
 	"github.com/v0vc/go-music-grpc/gio-gui/ui"
 )
@@ -19,12 +20,17 @@ import (
 type Page struct {
 	// widget.List
 	*page.Router
-	addBtn, insertBtn widget.Clickable
-	editor            widget.Editor
-	th                *page.Theme
+	addBtn, insertBtn, pasteBtn widget.Clickable
+	editor                      widget.Editor
+	th                          *page.Theme
+	contextMenu                 component.MenuState
+	contextArea                 component.ContextArea
 }
 
-const siteId = 1
+const (
+	siteId = 1
+	newUrl = "...............url"
+)
 
 // New constructs a Page with the provided router.
 func New(router *page.Router) *Page {
@@ -40,28 +46,54 @@ func (p *Page) addActions() []component.AppBarAction {
 				Name: "AddLink",
 				Tag:  &p.editor,
 			},
-			Layout: func(gtx layout.Context, _, fg color.NRGBA) layout.Dimensions {
+			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
 				thh := material.NewTheme()
 				thh.Palette.Fg = p.th.Palette.BgSecondary
-				gutter := lay.Gutter()
-				gutter.RightWidth -= unit.Dp(60)
+				p.editor.SingleLine = true
+				p.editor.MaxLen = 128
+				// p.editor.Focus()
+				p.editor.InputHint = key.HintURL
+				p.contextMenu = component.MenuState{
+					Options: []func(gtx layout.Context) layout.Dimensions{
+						func(gtx layout.Context) layout.Dimensions {
+							item := component.MenuItem(p.th.Theme, &p.pasteBtn, "Paste")
+							item.Icon = icon.PasteIcon
+							return item.Layout(gtx)
+						},
+					},
+				}
 				if p.insertBtn.Clicked(gtx) {
 					if p.editor.Text() != "" {
 						go p.Router.AppBar.StopContextual(gtx.Now)
 						go singleInstance.AddChannel(siteId, p.editor.Text())
-						p.editor.SetText("")
+						p.editor.SetText(newUrl)
 					}
 				}
-				return gutter.Layout(gtx,
-					nil,
-					func(gtx layout.Context) layout.Dimensions {
-						p.editor.SingleLine = true
-						p.editor.MaxLen = 128
-						// p.editor.Focus()
-						p.editor.InputHint = key.HintURL
-						return material.Editor(thh, &p.editor, "url").Layout(gtx)
-					},
-					material.IconButton(thh, &p.insertBtn, icon.SaveIcon, "Save").Layout,
+				if p.pasteBtn.Clicked(gtx) {
+					gtx.Execute(clipboard.ReadCmd{
+						Tag: &p.editor,
+					})
+					// p.editor.SetText("LINK!!!")
+				}
+				return layout.Flex{
+					Alignment: layout.Middle,
+				}.Layout(gtx,
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return layout.Stack{}.Layout(gtx,
+							layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+								return material.Editor(thh, &p.editor, newUrl).Layout(gtx)
+							}),
+							layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+								return p.contextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									gtx.Constraints.Min = image.Point{}
+									return component.Menu(p.th.Theme, &p.contextMenu).Layout(gtx)
+								})
+							}),
+						)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return material.IconButton(thh, &p.insertBtn, icon.SaveIcon, "Save").Layout(gtx)
+					}),
 				)
 			},
 		},
@@ -81,7 +113,7 @@ func (p *Page) Actions() []component.AppBarAction {
 						p.addActions(),
 						[]component.OverflowAction{},
 					)
-					p.Router.AppBar.ToggleContextual(gtx.Now, "Add artist link:")
+					p.Router.AppBar.ToggleContextual(gtx.Now, "Add artist link: ")
 				}
 				return component.SimpleIconButton(bg, fg, &p.addBtn, icon.PlusIcon).Layout(gtx)
 			},

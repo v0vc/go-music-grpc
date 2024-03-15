@@ -55,6 +55,11 @@ var PlusIcon = func() *widget.Icon {
 	return icon
 }()
 
+var PasteIcon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ContentContentPaste)
+	return icon
+}()
+
 var EditIcon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ContentCreate)
 	return icon

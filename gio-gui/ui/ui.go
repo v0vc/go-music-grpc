@@ -54,8 +54,6 @@ type UI struct {
 	// RowTracker *model.Messages
 	// RoomList for the sidebar.
 	RoomList widget.List
-	// Modal can show widgets atop the rest of the gio-gui.
-	Modal component.ModalState
 	// Back button navigates out of a room.
 	Back widget.Clickable
 	// InsideRoom if we are currently in the room view.
@@ -87,7 +85,6 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	ui.Invalidator = invalidator
 	ui.SiteId = siteId
 	ui.LoadSize = loadSize
-	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
 
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
@@ -361,19 +358,16 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 				if ui.SyncBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
 					channel.Content = "In progress..."
-
 					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
 				}
 				if ui.DownloadChannelBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
 					if channel.Loaded {
 						var albumIds []string
-
 						for i := range channel.RowTracker.Rows {
 							alb := channel.RowTracker.Rows[i].(model.Message)
 							albumIds = append(albumIds, alb.Status)
 						}
-
 						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
 					} else {
 						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
