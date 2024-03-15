@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -47,11 +46,11 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		log.Printf("no artist with id %v \n", artistId)
+		log.Printf("no artist with id %v\n", artistId)
 	case err != nil:
 		log.Println(err)
 	default:
-		log.Printf("siteId: %v, artist db id is %d \n", siteId, artRawId)
+		log.Printf("siteId: %v, artist db id is %d\n", siteId, artRawId)
 	}
 
 	return artRawId
@@ -310,8 +309,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*artist.SyncArtistResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, sync artist: %v started \n", siteId, artistId)
-	start := time.Now()
+	log.Printf("siteId: %v, sync artist: %v started\n", siteId, artistId)
 
 	var (
 		artists []*artist.Artist
@@ -320,7 +318,6 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	)
 	if artistId == "-1" {
 		artIds, err = getArtistIdsFromDb(ctx, siteId)
-		// artIds = append(artIds, "175943", "31873616")
 	} else {
 		artIds = append(artIds, artistId)
 	}
@@ -349,7 +346,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, sync artist: %v completed in %v \n", siteId, artistId, time.Since(start))
+		log.Printf("siteId: %v, sync artist: %v completed\n", siteId, artistId)
 	}
 
 	return &artist.SyncArtistResponse{
@@ -360,8 +357,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, read artist releases: %v started \n", siteId, artistId)
-	start := time.Now()
+	log.Printf("siteId: %v, read artist releases: %v started\n", siteId, artistId)
 
 	albums, err := getArtistReleasesFromDb(ctx, siteId, artistId)
 
@@ -371,7 +367,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, read artist releases: %v completed in %v, total: %v \n", siteId, artistId, time.Since(start), len(albums))
+		log.Printf("siteId: %v, read artist releases: %v completed, total: %v\n", siteId, artistId, len(albums))
 	}
 
 	return &artist.ReadArtistAlbumResponse{
@@ -381,8 +377,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 
 func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest) (*artist.ReadArtistAlbumResponse, error) {
 	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, read new releases started \n", siteId)
-	start := time.Now()
+	log.Printf("siteId: %v, read new releases started\n", siteId)
 
 	albums, err := getNewReleasesFromDb(ctx, siteId)
 
@@ -392,7 +387,7 @@ func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest)
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, read new releases completed in %v, total: %v \n", siteId, time.Since(start), len(albums))
+		log.Printf("siteId: %v, read new releases completed, total: %v\n", siteId, len(albums))
 	}
 
 	return &artist.ReadArtistAlbumResponse{
@@ -403,8 +398,7 @@ func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest)
 func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*artist.SyncAlbumResponse, error) {
 	siteId := req.GetSiteId()
 	albumId := req.GetAlbumId()
-	log.Printf("siteId: %v, sync album %v started \n", siteId, albumId)
-	start := time.Now()
+	log.Printf("siteId: %v, sync album %v started\n", siteId, albumId)
 
 	var (
 		tracks []*artist.Track
@@ -426,7 +420,7 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, sync album %v completed in %v, total: %v \n", siteId, albumId, time.Since(start), len(tracks))
+		log.Printf("siteId: %v, sync album %v completed, total: %v\n", siteId, albumId, len(tracks))
 	}
 
 	return &artist.SyncAlbumResponse{
@@ -437,8 +431,8 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRequest) (*artist.ReadAlbumTrackResponse, error) {
 	siteId := req.GetSiteId()
 	albumId := req.GetAlbumId()
-	log.Printf("siteId: %v, read album %v tracks started \n", siteId, albumId)
-	start := time.Now()
+	log.Printf("siteId: %v, read album %v tracks started\n", siteId, albumId)
+
 	tracks, err := getAlbumTrackFromDb(ctx, siteId, albumId)
 
 	if err != nil {
@@ -447,7 +441,7 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, read album %v tracks completed in %v, total: %v \n", siteId, albumId, time.Since(start), len(tracks))
+		log.Printf("siteId: %v, read album %v tracks completed, total: %v\n", siteId, albumId, len(tracks))
 	}
 
 	return &artist.ReadAlbumTrackResponse{
@@ -458,8 +452,8 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, deleting artist %v started \n", siteId, artistId)
-	start := time.Now()
+	log.Printf("siteId: %v, deleting artist %v started\n", siteId, artistId)
+
 	res, err := deleteArtistDb(ctx, siteId, artistId)
 
 	if err != nil {
@@ -468,7 +462,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, deleting artist %v completed in %v \n", siteId, artistId, time.Since(start))
+		log.Printf("siteId: %v, deleting artist %v completed\n", siteId, artistId)
 	}
 
 	return &artist.DeleteArtistResponse{RowsAffected: res}, err
@@ -476,8 +470,8 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 
 func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*artist.ClearSyncResponse, error) {
 	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, clear sync state started \n", siteId)
-	start := time.Now()
+	log.Printf("siteId: %v, clear sync state started\n", siteId)
+
 	res, err := clearSyncStateDb(ctx, siteId)
 
 	if err != nil {
@@ -486,7 +480,7 @@ func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*ar
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, clear sync state completed in %v \n", siteId, time.Since(start))
+		log.Printf("siteId: %v, clear sync state completed\n", siteId)
 	}
 
 	return &artist.ClearSyncResponse{RowsAffected: res}, err
@@ -495,8 +489,7 @@ func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*ar
 func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsRequest) (*artist.DownloadAlbumsResponse, error) {
 	siteId := req.GetSiteId()
 	albIds := req.GetAlbumIds()
-	log.Printf("siteId: %v, download albums %v started \n", siteId, albIds)
-	start := time.Now()
+	log.Printf("siteId: %v, download albums %v started\n", siteId, albIds)
 
 	var (
 		err     error
@@ -519,7 +512,7 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, download albums %v completed in %v, total: %v \n", siteId, albIds, time.Since(start), len(resDown))
+		log.Printf("siteId: %v, download albums %v completed, total: %v\n", siteId, albIds, len(resDown))
 	}
 
 	return &artist.DownloadAlbumsResponse{
@@ -530,8 +523,7 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistRequest) (*artist.DownloadAlbumsResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, download artist %v started \n", siteId, artistId)
-	start := time.Now()
+	log.Printf("siteId: %v, download artist %v started\n", siteId, artistId)
 
 	var (
 		err     error
@@ -556,7 +548,7 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, download artist %v completed in %v, total: %v \n", siteId, artistId, time.Since(start), len(resDown))
+		log.Printf("siteId: %v, download artist %v completed, total: %v\n", siteId, artistId, len(resDown))
 	}
 
 	return &artist.DownloadAlbumsResponse{
@@ -567,8 +559,7 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksRequest) (*artist.DownloadTracksResponse, error) {
 	siteId := req.GetSiteId()
 	trackIds := req.GetTrackIds()
-	log.Printf("siteId: %v, download tracks %v started \n", siteId, trackIds)
-	start := time.Now()
+	log.Printf("siteId: %v, download tracks %v started\n", siteId, trackIds)
 
 	var (
 		err     error
@@ -591,7 +582,7 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, download tracks %v completed in %v, total: %v \n", siteId, trackIds, time.Since(start), len(resDown))
+		log.Printf("siteId: %v, download tracks %v completed, total: %v\n", siteId, trackIds, len(resDown))
 	}
 
 	return &artist.DownloadTracksResponse{
@@ -601,8 +592,8 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 
 func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*artist.ListArtistResponse, error) {
 	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, list artists started \n", siteId)
-	start := time.Now()
+	log.Printf("siteId: %v, list artists started\n", siteId)
+
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return nil, status.Errorf(
@@ -610,7 +601,6 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	}
-
 	defer db.Close()
 
 	stmtArt, err := db.PrepareContext(ctx, "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
@@ -644,7 +634,8 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 		art.SiteId = siteId
 		arts = append(arts, &art)
 	}
-	log.Printf("siteId: %v, list artists completed in %v, total: %v \n", siteId, time.Since(start), len(arts))
+	log.Printf("siteId: %v, list artists completed, total: %v\n", siteId, len(arts))
+
 	return &artist.ListArtistResponse{
 		Artists: arts,
 	}, err
@@ -652,7 +643,8 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 
 func (*server) ListArtistStream(req *artist.ListArtistRequest, stream artist.ArtistService_ListArtistStreamServer) error {
 	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, list artists stream started \n", siteId)
+	log.Printf("siteId: %v, list artists stream started\n", siteId)
+
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		return status.Errorf(
@@ -763,7 +755,7 @@ func main() {
 
 	go func() {
 		s := <-sigCh
-		log.Printf("got signal %v, attempting graceful shutdown \n", s)
+		log.Printf("got signal %v, attempting graceful shutdown\n", s)
 		newServer.GracefulStop()
 		wg.Done()
 	}()
