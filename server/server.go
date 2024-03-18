@@ -33,17 +33,19 @@ type server struct {
 	artist.ArtistServiceServer
 }
 
-func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) int {
-	stmtArt, err := tx.PrepareContext(ctx, "select art_id from main.artist where artistId = ? and siteId = ? limit 1;")
+func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
+	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded from main.artist where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
 		log.Println(err)
 	}
 	defer stmtArt.Close()
 
-	var artRawId int
+	var (
+		artRawId  int
+		userAdded int
+	)
 
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId)
-
+	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		log.Printf("no artist with id %v\n", artistId)
@@ -52,8 +54,7 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 	default:
 		log.Printf("siteId: %v, artist db id is %d\n", siteId, artRawId)
 	}
-
-	return artRawId
+	return artRawId, userAdded
 }
 
 func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string) []string {
@@ -269,7 +270,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 	if err != nil {
 		log.Println(err)
 	}
-	artId := GetArtistIdDb(tx, ctx, siteId, artistId)
+	artId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
 	execs := []struct {
 		stmt string
 		res  int

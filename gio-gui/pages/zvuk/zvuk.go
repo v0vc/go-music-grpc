@@ -3,6 +3,7 @@ package zvuk
 import (
 	"image"
 	"image/color"
+	"strings"
 	"sync"
 
 	"gioui.org/io/clipboard"
@@ -65,15 +66,15 @@ func (p *Page) addActions() []component.AppBarAction {
 				if p.insertBtn.Clicked(gtx) {
 					if p.editor.Text() != "" {
 						go p.Router.AppBar.StopContextual(gtx.Now)
-						go singleInstance.AddChannel(siteId, p.editor.Text())
+						go singleInstance.AddChannel(siteId, strings.TrimSpace(p.editor.Text()))
 						p.editor.SetText(newUrl)
 					}
 				}
 				if p.pasteBtn.Clicked(gtx) {
+					p.editor.SetText("")
 					gtx.Execute(clipboard.ReadCmd{
 						Tag: &p.editor,
 					})
-					// p.editor.SetText("LINK!!!")
 				}
 				return layout.Flex{
 					Alignment: layout.Middle,

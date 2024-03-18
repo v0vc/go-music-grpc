@@ -677,7 +677,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		updateTokenDb(tx, ctx, token, siteId)
 	}
 
-	artRawId := GetArtistIdDb(tx, ctx, siteId, artistId)
+	artRawId, uAdd := GetArtistIdDb(tx, ctx, siteId, artistId)
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
 	mArtist := make(map[string]int)
 	if artRawId != 0 {
@@ -892,7 +892,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		}
 	}
 
-	if isAdd && artRawId != 0 {
+	if isAdd && artRawId != 0 && uAdd != 1 {
 		stArtistUpd, _ := tx.PrepareContext(ctx, "update main.artist set userAdded = 1, thumbnail = ? where art_id = ?;")
 
 		defer stArtistUpd.Close()
@@ -996,7 +996,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 					for _, artistId := range track.ArtistIds {
 						artId, ok := mArtist[artistId]
 						if !ok {
-							artRawId := GetArtistIdDb(tx, ctx, siteId, artistId)
+							artRawId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
 							if artRawId > 0 {
 								mArtist[artistId] = artRawId
 								artId = artRawId
