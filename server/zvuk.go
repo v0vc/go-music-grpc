@@ -710,8 +710,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	}
 
 	deletedArtistIds := FindDifference(existArtistIds, netArtistIds)
+	log.Printf("siteId: %v, artistId: %d, deleted: %d\n", siteId, artRawId, len(deletedArtistIds))
+
 	newAlbumIds := FindDifference(netAlbumIds, existAlbumIds)
+	log.Printf("siteId: %v, artistId: %d, new albums: %d\n", siteId, artRawId, len(newAlbumIds))
+
 	newArtistIds := FindDifference(netArtistIds, existArtistIds)
+	log.Printf("siteId: %v, artistId: %d, new artists: %d\n", siteId, artRawId, len(newArtistIds))
 
 	type artAlb struct {
 		art int
@@ -738,15 +743,17 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				alb.ReleaseDate = release.Date
 				alb.ReleaseType = release.Type
 				alb.Thumbnail = getThumb(ctx, strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
-				if isAdd {
-					alb.SyncState = 0
-				} else {
+				if !isAdd {
 					alb.SyncState = 1
 				}
-
 				processedAlbumIds = append(processedAlbumIds, release.ID)
 			} else {
-				continue
+				if isAdd {
+					alb.Title = strings.TrimSpace(release.Title)
+					alb.ReleaseDate = release.Date
+					alb.ReleaseType = release.Type
+					alb.Thumbnail = getThumb(ctx, strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
+				}
 			}
 
 			sb := make([]string, len(release.Artists))
@@ -763,15 +770,14 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 						ArtistId: author.ID,
 						Title:    strings.TrimSpace(author.Title),
 					}
-					if isAdd && art.GetArtistId() == artistId {
+					if isAdd && art.GetArtistId() == artistId && art.Thumbnail == nil {
 						art.Thumbnail = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
 						art.UserAdded = true
 						resArtist = art
 					}
-
 					artists = append(artists, art)
 					processedArtistIds = append(processedArtistIds, author.ID)
-				} else if artRawId != 0 && author.ID == artistId && thumb == nil {
+				} else if artRawId != 0 && author.ID == artistId && thumb == nil && resArtist == nil {
 					thumb = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
 					resArtist = &artist.Artist{
 						SiteId:    siteId,
@@ -854,6 +860,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 			}
 		}
 	} else if artists != nil {
+		log.Printf("siteId: %v, artistId: %d, new relations found, processing..\n", siteId, artRawId)
 		mAlbum := make(map[string]int)
 
 		for _, data := range item.GetArtists {
@@ -892,7 +899,8 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		}
 	}
 
-	if isAdd && artRawId != 0 && uAdd != 1 {
+	if isAdd && artRawId != 0 && uAdd != 1 && thumb != nil {
+		log.Printf("siteId: %v, artistId: %d, avatar has been updated\n", siteId, artRawId)
 		stArtistUpd, _ := tx.PrepareContext(ctx, "update main.artist set userAdded = 1, thumbnail = ? where art_id = ?;")
 
 		defer stArtistUpd.Close()
@@ -900,6 +908,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	}
 
 	if artAlbs != nil {
+		log.Printf("siteId: %v, artistId: %d, relations: %d\n", siteId, artRawId, len(artAlbs))
 		sqlStr := fmt.Sprintf("insert into main.artistAlbum(artistId, albumId) values %v on conflict (artistId, albumId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(artAlbs)), ","))
 		stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
 
