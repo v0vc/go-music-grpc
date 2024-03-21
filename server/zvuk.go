@@ -688,17 +688,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		artRawId = artistId.RawId
 		uAdd = 1
 	}
-
-	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
+	var existArtistIds, existAlbumIds, netAlbumIds, netArtistIds []string
 	mArtist := make(map[string]int)
+
 	if artRawId != 0 {
+		existAlbumIds, existArtistIds = getExistIds(tx, ctx, artRawId)
 		mArtist[artistId.Id] = artRawId
 	}
-
-	var (
-		netAlbumIds  []string
-		netArtistIds []string
-	)
 
 	for _, data := range item.GetArtists {
 		for _, release := range data.Releases {
@@ -801,6 +797,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				}
 
 				alb.SubTitle = strings.Join(sb, ", ")
+				if !Contains(alb.ArtistIds, artistId.Id) {
+					// api bug
+					alb.ArtistIds = append(alb.ArtistIds, artistId.Id)
+					if resArtist != nil {
+						alb.SubTitle = fmt.Sprintf("%v, %v", alb.SubTitle, resArtist.Title)
+					}
+				}
 				albums = append(albums, alb)
 			}
 		}

@@ -308,7 +308,6 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 }
 
 func vacuumDb(ctx context.Context) {
-	log.Println("vacuum db")
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v", dbFile))
 	if err != nil {
 		log.Println(err)
