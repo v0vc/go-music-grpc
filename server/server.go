@@ -304,8 +304,29 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 			}
 		}()
 	}
-
 	return aff, tx.Commit()
+}
+
+func vacuumDb(ctx context.Context) {
+	log.Println("vacuum db")
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+
+	defer db.Close()
+	_, err = db.ExecContext(ctx, "VACUUM;")
+	if err != nil {
+		log.Println(err)
+	}
+	_, err = db.ExecContext(ctx, "PRAGMA analysis_limit=400;")
+	if err != nil {
+		log.Println(err)
+	}
+	_, err = db.ExecContext(ctx, "PRAGMA optimize;")
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*artist.SyncArtistResponse, error) {
@@ -758,6 +779,7 @@ func main() {
 	go func() {
 		s := <-sigCh
 		log.Printf("got signal %v, attempting graceful shutdown\n", s)
+		vacuumDb(context.Background())
 		newServer.GracefulStop()
 		wg.Done()
 	}()
