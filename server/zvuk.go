@@ -653,7 +653,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	return authors, tx.Commit()
 }*/
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd bool) (*artist.Artist, error) {
+func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
 	var resArtist *artist.Artist
 
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
@@ -668,7 +668,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 	}
 
 	login, pass, token := getTokenDb(tx, ctx, siteId)
-	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId, token, login, pass)
+	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId.Id, token, login, pass)
 	if item == nil || err != nil {
 		log.Println(err)
 		return resArtist, tx.Rollback()
@@ -677,11 +677,22 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 		updateTokenDb(tx, ctx, token, siteId)
 	}
 
-	artRawId, uAdd := GetArtistIdDb(tx, ctx, siteId, artistId)
+	var (
+		artRawId int
+		uAdd     int
+	)
+
+	if artistId.RawId == 0 {
+		artRawId, uAdd = GetArtistIdDb(tx, ctx, siteId, artistId.Id)
+	} else {
+		artRawId = artistId.RawId
+		uAdd = 1
+	}
+
 	existAlbumIds, existArtistIds := getExistIds(tx, ctx, artRawId)
 	mArtist := make(map[string]int)
 	if artRawId != 0 {
-		mArtist[artistId] = artRawId
+		mArtist[artistId.Id] = artRawId
 	}
 
 	var (
@@ -756,40 +767,42 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId string, isAdd boo
 				}
 			}
 
-			sb := make([]string, len(release.Artists))
+			if isAdd || alb.AlbumId != "" {
+				sb := make([]string, len(release.Artists))
+				for i, author := range release.Artists {
+					if author.ID == "" {
+						continue
+					}
+					sb[i] = author.Title
+					alb.ArtistIds = append(alb.ArtistIds, author.ID)
 
-			for i, author := range release.Artists {
-				if author.ID == "" {
-					continue
+					if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
+						art := &artist.Artist{
+							ArtistId: author.ID,
+							Title:    strings.TrimSpace(author.Title),
+						}
+						if isAdd && art.GetArtistId() == artistId.Id && art.Thumbnail == nil {
+							art.Thumbnail = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
+							art.UserAdded = true
+							resArtist = art
+						}
+						artists = append(artists, art)
+						processedArtistIds = append(processedArtistIds, author.ID)
+					} else if artRawId != 0 && author.ID == artistId.Id && thumb == nil && resArtist == nil {
+						thumb = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
+						resArtist = &artist.Artist{
+							SiteId:    siteId,
+							ArtistId:  artistId.Id,
+							Title:     author.Title,
+							Thumbnail: thumb,
+							UserAdded: true,
+						}
+					}
 				}
-				sb[i] = author.Title
-				alb.ArtistIds = append(alb.ArtistIds, author.ID)
 
-				if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
-					art := &artist.Artist{
-						ArtistId: author.ID,
-						Title:    strings.TrimSpace(author.Title),
-					}
-					if isAdd && art.GetArtistId() == artistId && art.Thumbnail == nil {
-						art.Thumbnail = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
-						art.UserAdded = true
-						resArtist = art
-					}
-					artists = append(artists, art)
-					processedArtistIds = append(processedArtistIds, author.ID)
-				} else if artRawId != 0 && author.ID == artistId && thumb == nil && resArtist == nil {
-					thumb = getThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
-					resArtist = &artist.Artist{
-						SiteId:    siteId,
-						ArtistId:  artistId,
-						Title:     author.Title,
-						Thumbnail: thumb,
-						UserAdded: true,
-					}
-				}
+				alb.SubTitle = strings.Join(sb, ", ")
+				albums = append(albums, alb)
 			}
-			alb.SubTitle = strings.Join(sb, ", ")
-			albums = append(albums, alb)
 		}
 	}
 

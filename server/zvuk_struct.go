@@ -172,3 +172,8 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 		humanize.Bytes(uint64(wc.Downloaded)), wc.TotalStr)
 	return n, nil
 }
+
+type ArtistRawId struct {
+	RawId int
+	Id    string
+}

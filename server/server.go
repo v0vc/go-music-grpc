@@ -165,16 +165,16 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 	return albs, err
 }
 
-func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]string, error) {
+func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
 	}
 	defer db.Close()
 
-	var artistIds []string
+	var artistIds []ArtistRawId
 
-	stmtArt, err := db.PrepareContext(ctx, "select a.artistId from main.artist a where a.siteId = ? and a.userAdded = 1;")
+	stmtArt, err := db.PrepareContext(ctx, "select a.art_id, a.artistId from main.artist a where a.siteId = ? and a.userAdded = 1;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -186,8 +186,9 @@ func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]string, error) {
 	}
 
 	for rows.Next() {
-		var artId string
-		if er := rows.Scan(&artId); er != nil {
+		var artId ArtistRawId
+
+		if er := rows.Scan(&artId.RawId, &artId.Id); er != nil {
 			log.Println(err)
 		}
 
@@ -314,13 +315,13 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 
 	var (
 		artists []*artist.Artist
-		artIds  []string
+		artIds  []ArtistRawId
 		err     error
 	)
 	if artistId == "-1" {
 		artIds, err = getArtistIdsFromDb(ctx, siteId)
 	} else {
-		artIds = append(artIds, artistId)
+		artIds = append(artIds, ArtistRawId{Id: artistId})
 	}
 
 	for _, artId := range artIds {
