@@ -11,6 +11,9 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/panjf2000/ants/v2"
 
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
@@ -27,7 +30,11 @@ const (
 	sqlite3          = "sqlite3"
 )
 
-var DownloadDir string
+var (
+	DownloadDir string
+	wgSync      sync.WaitGroup
+	pool        *ants.MultiPool
+)
 
 type server struct {
 	artist.ArtistServiceServer
@@ -345,23 +352,29 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	}
 
 	for _, artId := range artIds {
-		switch siteId {
-		case 1:
-			art, er := SyncArtistSb(ctx, siteId, artId, req.GetIsAdd())
-			if er == nil {
-				if art != nil {
-					artists = append(artists, art)
+		wgSync.Add(1)
+		_ = pool.Submit(func() {
+			switch siteId {
+			case 1:
+				// артист со сберзвука
+				art, er := SyncArtistSb(context.Background(), siteId, artId, req.GetIsAdd())
+				if er == nil {
+					if art != nil {
+						artists = append(artists, art)
+					}
+				} else {
+					log.Printf("Sync error: %v", er)
 				}
-			} else {
-				log.Printf("Sync error: %v", er)
+			case 2:
+				// артист со спотика
+			case 3:
+				// артист с дизера
 			}
-		case 2:
-			// "артист со спотика"
-		case 3:
-			// "артист с дизера"
-		}
+			wgSync.Done()
+		})
 	}
-
+	log.Printf("running goroutines: %d\n", ants.Running())
+	wgSync.Wait()
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -476,7 +489,15 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 	artistId := req.GetArtistId()
 	log.Printf("siteId: %v, deleting artist %v started\n", siteId, artistId)
 
-	res, err := deleteArtistDb(ctx, siteId, artistId)
+	var (
+		res int64
+		err error
+	)
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		res, err = deleteArtistDb(context.Background(), siteId, artistId)
+	})
+	wgSync.Done()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -734,6 +755,7 @@ func (*server) ListArtistStream(req *artist.ListArtistRequest, stream artist.Art
 }
 
 func main() {
+	defer ants.Release()
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Println("error loading .env file, use default values")
@@ -775,6 +797,14 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
+	pool, _ = ants.NewMultiPool(1, 1, ants.LeastTasks)
+	defer func(pool *ants.MultiPool, timeout time.Duration) {
+		er := pool.ReleaseTimeout(timeout)
+		if er != nil {
+			log.Printf("pool release : %v", er)
+		}
+	}(pool, 5*time.Second)
+
 	go func() {
 		s := <-sigCh
 		log.Printf("got signal %v, attempting graceful shutdown\n", s)
@@ -784,7 +814,7 @@ func main() {
 	}()
 
 	go func() {
-		// fmt.Println("waiting for connections...")
+		// log.Println("waiting for connections...")
 		if er := newServer.Serve(lis); er != nil {
 			log.Printf("failed to serve: %v", er)
 		}

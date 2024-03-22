@@ -13,6 +13,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/machinebox/graphql v0.2.2
 	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/panjf2000/ants/v2 v2.9.0
 	golang.org/x/exp/shiny v0.0.0-20240318143956-a85f2c67cd81
 	golang.org/x/image v0.15.0
 	google.golang.org/grpc v1.62.1
