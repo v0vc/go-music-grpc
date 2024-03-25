@@ -34,7 +34,6 @@ type ArtistServiceClient interface {
 	DownloadArtist(ctx context.Context, in *DownloadArtistRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
 	DownloadTracks(ctx context.Context, in *DownloadTracksRequest, opts ...grpc.CallOption) (*DownloadTracksResponse, error)
 	ListArtist(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (*ListArtistResponse, error)
-	ListArtistStream(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error)
 }
 
 type artistServiceClient struct {
@@ -144,38 +143,6 @@ func (c *artistServiceClient) ListArtist(ctx context.Context, in *ListArtistRequ
 	return out, nil
 }
 
-func (c *artistServiceClient) ListArtistStream(ctx context.Context, in *ListArtistRequest, opts ...grpc.CallOption) (ArtistService_ListArtistStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ArtistService_ServiceDesc.Streams[0], "/artist.ArtistService/ListArtistStream", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &artistServiceListArtistStreamClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type ArtistService_ListArtistStreamClient interface {
-	Recv() (*ListArtistStreamResponse, error)
-	grpc.ClientStream
-}
-
-type artistServiceListArtistStreamClient struct {
-	grpc.ClientStream
-}
-
-func (x *artistServiceListArtistStreamClient) Recv() (*ListArtistStreamResponse, error) {
-	m := new(ListArtistStreamResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 // ArtistServiceServer is the server API for ArtistService service.
 // All implementations must embed UnimplementedArtistServiceServer
 // for forward compatibility
@@ -191,7 +158,6 @@ type ArtistServiceServer interface {
 	DownloadArtist(context.Context, *DownloadArtistRequest) (*DownloadAlbumsResponse, error)
 	DownloadTracks(context.Context, *DownloadTracksRequest) (*DownloadTracksResponse, error)
 	ListArtist(context.Context, *ListArtistRequest) (*ListArtistResponse, error)
-	ListArtistStream(*ListArtistRequest, ArtistService_ListArtistStreamServer) error
 	mustEmbedUnimplementedArtistServiceServer()
 }
 
@@ -231,9 +197,6 @@ func (UnimplementedArtistServiceServer) DownloadTracks(context.Context, *Downloa
 }
 func (UnimplementedArtistServiceServer) ListArtist(context.Context, *ListArtistRequest) (*ListArtistResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListArtist not implemented")
-}
-func (UnimplementedArtistServiceServer) ListArtistStream(*ListArtistRequest, ArtistService_ListArtistStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method ListArtistStream not implemented")
 }
 func (UnimplementedArtistServiceServer) mustEmbedUnimplementedArtistServiceServer() {}
 
@@ -446,27 +409,6 @@ func _ArtistService_ListArtist_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ArtistService_ListArtistStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ListArtistRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(ArtistServiceServer).ListArtistStream(m, &artistServiceListArtistStreamServer{stream})
-}
-
-type ArtistService_ListArtistStreamServer interface {
-	Send(*ListArtistStreamResponse) error
-	grpc.ServerStream
-}
-
-type artistServiceListArtistStreamServer struct {
-	grpc.ServerStream
-}
-
-func (x *artistServiceListArtistStreamServer) Send(m *ListArtistStreamResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
 // ArtistService_ServiceDesc is the grpc.ServiceDesc for ArtistService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -519,12 +461,6 @@ var ArtistService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ArtistService_ListArtist_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "ListArtistStream",
-			Handler:       _ArtistService_ListArtistStream_Handler,
-			ServerStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "artist.proto",
 }

@@ -13,10 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/panjf2000/ants/v2"
-
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/panjf2000/ants/v2"
 	"github.com/v0vc/go-music-grpc/artist"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -357,7 +356,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			switch siteId {
 			case 1:
 				// артист со сберзвука
-				art, er := SyncArtistSb(context.Background(), siteId, artId, req.GetIsAdd())
+				art, er := SyncArtistSb(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
 				if er == nil {
 					if art != nil {
 						artists = append(artists, art)
@@ -373,7 +372,6 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			wgSync.Done()
 		})
 	}
-	log.Printf("running goroutines: %d\n", ants.Running())
 	wgSync.Wait()
 	if err != nil {
 		return nil, status.Errorf(
@@ -394,7 +392,17 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	artistId := req.GetArtistId()
 	log.Printf("siteId: %v, read artist releases: %v started\n", siteId, artistId)
 
-	albums, err := getArtistReleasesFromDb(ctx, siteId, artistId)
+	var (
+		albums []*artist.Album
+		err    error
+	)
+
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		albums, err = getArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -414,7 +422,17 @@ func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest)
 	siteId := req.GetSiteId()
 	log.Printf("siteId: %v, read new releases started\n", siteId)
 
-	albums, err := getNewReleasesFromDb(ctx, siteId)
+	var (
+		albums []*artist.Album
+		err    error
+	)
+
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		albums, err = getNewReleasesFromDb(context.WithoutCancel(ctx), siteId)
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -440,14 +458,19 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 		err    error
 	)
 
-	switch siteId {
-	case 1:
-		tracks, err = SyncAlbumSb(ctx, siteId, albumId)
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
-	}
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		switch siteId {
+		case 1:
+			tracks, err = SyncAlbumSb(context.WithoutCancel(ctx), siteId, albumId)
+		case 2:
+			// "артист со спотика"
+		case 3:
+			// "артист с дизера"
+		}
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -468,7 +491,17 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 	albumId := req.GetAlbumId()
 	log.Printf("siteId: %v, read album %v tracks started\n", siteId, albumId)
 
-	tracks, err := getAlbumTrackFromDb(ctx, siteId, albumId)
+	var (
+		tracks []*artist.Track
+		err    error
+	)
+
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		tracks, err = getAlbumTrackFromDb(context.WithoutCancel(ctx), siteId, albumId)
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -493,11 +526,13 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 		res int64
 		err error
 	)
+
 	wgSync.Add(1)
 	_ = pool.Submit(func() {
-		res, err = deleteArtistDb(context.Background(), siteId, artistId)
+		res, err = deleteArtistDb(context.WithoutCancel(ctx), siteId, artistId)
+		wgSync.Done()
 	})
-	wgSync.Done()
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -515,7 +550,17 @@ func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*ar
 	siteId := req.GetSiteId()
 	log.Printf("siteId: %v, clear sync state started\n", siteId)
 
-	res, err := clearSyncStateDb(ctx, siteId)
+	var (
+		res int64
+		err error
+	)
+
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		res, err = clearSyncStateDb(context.WithoutCancel(ctx), siteId)
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -539,15 +584,20 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 		resDown map[string]string
 	)
 
-	switch siteId {
-	case 1:
-		// mid, high, flac
-		resDown, err = DownloadAlbumSb(ctx, siteId, albIds, req.GetTrackQuality())
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
-	}
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		switch siteId {
+		case 1:
+			// mid, high, flac
+			resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+		case 2:
+			// "артист со спотика"
+		case 3:
+			// "артист с дизера"
+		}
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -575,15 +625,20 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 
 	albIds := getArtistReleasesIdFromDb(ctx, siteId, artistId)
 
-	switch siteId {
-	case 1:
-		// mid, high, flac
-		resDown, err = DownloadAlbumSb(ctx, siteId, albIds, req.GetTrackQuality())
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
-	}
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		switch siteId {
+		case 1:
+			// mid, high, flac
+			resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+		case 2:
+			// "артист со спотика"
+		case 3:
+			// "артист с дизера"
+		}
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -609,15 +664,20 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 		resDown map[string]string
 	)
 
-	switch siteId {
-	case 1:
-		// mid, high, flac
-		resDown, err = DownloadTracksSb(ctx, siteId, trackIds, req.GetTrackQuality())
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
-	}
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		switch siteId {
+		case 1:
+			// mid, high, flac
+			resDown, err = DownloadTracksSb(context.WithoutCancel(ctx), siteId, trackIds, req.GetTrackQuality())
+		case 2:
+			// "артист со спотика"
+		case 3:
+			// "артист с дизера"
+		}
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -646,112 +706,41 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	}
 	defer db.Close()
 
-	stmtArt, err := db.PrepareContext(ctx, "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-	defer stmtArt.Close()
-
-	rows, err := stmtArt.QueryContext(ctx, siteId)
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-	defer rows.Close()
-
 	var arts []*artist.Artist
 
-	for rows.Next() {
-		var art artist.Artist
-		if er := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); er != nil {
-			return nil, status.Errorf(
-				codes.Internal,
-				fmt.Sprintf("Internal error: %v", er),
-			)
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		stmtArt, er := db.PrepareContext(context.WithoutCancel(ctx), "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
+		if er != nil {
+			log.Println(er)
 		}
-		art.SiteId = siteId
-		arts = append(arts, &art)
-	}
+		defer stmtArt.Close()
+
+		rows, er := stmtArt.QueryContext(context.WithoutCancel(ctx), siteId)
+		if er != nil {
+			log.Println(er)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var art artist.Artist
+			if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
+				if e != nil {
+					log.Println(e)
+				}
+			}
+			art.SiteId = siteId
+			arts = append(arts, &art)
+		}
+		wgSync.Done()
+	})
+	wgSync.Wait()
+
 	log.Printf("siteId: %v, list artists completed, total: %v\n", siteId, len(arts))
 
 	return &artist.ListArtistResponse{
 		Artists: arts,
 	}, err
-}
-
-func (*server) ListArtistStream(req *artist.ListArtistRequest, stream artist.ArtistService_ListArtistStreamServer) error {
-	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, list artists stream started\n", siteId)
-
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		return status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-
-	defer db.Close()
-	stmtArt, err := db.Prepare("select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
-	if err != nil {
-		return status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-
-	defer stmtArt.Close()
-	rows, err := stmtArt.Query(siteId)
-	if err != nil {
-		return status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var art artist.Artist
-		if er := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); er != nil {
-			return status.Errorf(
-				codes.Internal,
-				fmt.Sprintf("error while getting data from DB: %v", er),
-			)
-		}
-		art.SiteId = siteId
-		err = stream.Send(&artist.ListArtistStreamResponse{Artist: &art})
-		if err != nil {
-			return status.Errorf(
-				codes.Internal,
-				fmt.Sprintf("error while getting data from DB: %v", err),
-			)
-		}
-	}
-	// Check for errors during rows "Close".
-	// This may be more important if multiple statements are executed
-	// in a single batch and rows were written as well as read.
-	if closeErr := rows.Close(); closeErr != nil {
-		return status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-
-	// Check for row scan error.
-	if err != nil {
-		return status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	}
-
-	return nil
 }
 
 func main() {

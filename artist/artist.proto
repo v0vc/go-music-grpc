@@ -129,10 +129,6 @@ message ListArtistResponse {
   repeated Artist artists = 1;
 }
 
-message ListArtistStreamResponse {
-  Artist artist = 1;
-}
-
 service ArtistService {
   rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
   rpc ReadArtistAlbums (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
@@ -145,5 +141,4 @@ service ArtistService {
   rpc DownloadArtist (DownloadArtistRequest) returns (DownloadAlbumsResponse);
   rpc DownloadTracks(DownloadTracksRequest) returns (DownloadTracksResponse);
   rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
-  rpc ListArtistStream (ListArtistRequest) returns (stream ListArtistStreamResponse);
 }
