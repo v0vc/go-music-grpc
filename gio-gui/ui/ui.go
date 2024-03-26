@@ -89,6 +89,11 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
 			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
+				item.Icon = icon.DownloadIcon
+				return item.Layout(gtx)
+			},
+			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Album")
 				item.Icon = icon.CopyIcon
 				return item.Layout(gtx)
@@ -96,11 +101,6 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbArtistBtn, "Copy Artist")
 				item.Icon = icon.CopyIcon
-				return item.Layout(gtx)
-			},
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
-				item.Icon = icon.DownloadIcon
 				return item.Layout(gtx)
 			},
 		},
