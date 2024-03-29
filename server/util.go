@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
 	"html"
 	"html/template"
-	"math/rand"
+	"math"
+	"math/big"
 	"os"
 	"regexp"
 	"strings"
@@ -84,6 +87,14 @@ func ParseTemplate(tags map[string]string, defTemplate string) string {
 	return sanitize(resPath, false)
 }
 
-func RandomPause(minPause, duration int) {
-	time.Sleep(time.Duration(minPause+rand.Intn(duration)) * time.Second)
+func RandomPause(minPause, duration int64) {
+	nBig, _ := rand.Int(rand.Reader, big.NewInt(duration))
+	time.Sleep(time.Duration(minPause+nBig.Int64()) * time.Second)
+}
+
+func GenerateRandomStr(l int) string {
+	buff := make([]byte, int(math.Ceil(float64(l)/1.33333333333)))
+	rand.Read(buff)
+	str := base64.RawURLEncoding.EncodeToString(buff)
+	return str[:l] // strip 1 extra character we get from odd length results
 }

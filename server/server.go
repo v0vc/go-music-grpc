@@ -278,15 +278,17 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		log.Println(err)
 	}
 	artId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
+
+	var rnd = GenerateRandomStr(4)
 	execs := []struct {
 		stmt string
 		res  int
 	}{
 		{stmt: fmt.Sprintf("update main.artist set userAdded = 0 where art_id = %d", artId), res: 0},
-		{stmt: fmt.Sprintf("create temporary table _temp_album as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res > 1) except select aa.albumId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = %v and siteId = 1 limit 1)) and a.userAdded = 1 group by aa.albumId;", artId, artId, artistId), res: 1},
+		{stmt: fmt.Sprintf("create temporary table _temp_album_%v as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res > 1) except select aa.albumId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = %v and siteId = 1 limit 1)) and a.userAdded = 1 group by aa.albumId;", rnd, artId, artId, artistId), res: 1},
 		{stmt: fmt.Sprintf("delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) and a.userAdded = 1 and a.art_id <> %d group by aa.artistId)) group by aa.artistId);", artId, artId, artId), res: 2},
-		{stmt: "delete from main.album where alb_id in (select albumId from _temp_album);", res: 3},
-		{stmt: "drop table _temp_album;", res: 4},
+		{stmt: fmt.Sprintf("delete from main.album where alb_id in (select albumId from _temp_album_%v);", rnd), res: 3},
+		{stmt: fmt.Sprintf("drop table _temp_album_%v;", rnd), res: 4},
 	}
 
 	var aff int64
@@ -301,7 +303,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 			defer stmt.Close()
 			cc, er := stmt.ExecContext(ctx)
 			if er != nil {
-				log.Println(err)
+				log.Println(er)
 			} else if exec.res == 3 {
 				aff, err = cc.RowsAffected()
 				if err != nil {

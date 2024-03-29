@@ -830,7 +830,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 					insErr = stArtist.QueryRowContext(ctx, siteId, art.GetArtistId(), art.GetTitle()).Scan(&artId)
 				}
 				if insErr != nil {
-					log.Println(err)
+					log.Println(insErr)
 				} else {
 					log.Printf("processed artist: %v, id: %v \n", art.GetTitle(), artId)
 				}
@@ -1196,10 +1196,6 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 		item, tokenNew, needTokenUpd := getAlbumTracks(ctx, albumId, token, login, pass)
 		if needTokenUpd {
 			updateTokenDb(tx, ctx, tokenNew, siteId)
-			err = tx.Commit()
-			if err != nil {
-				log.Println(err)
-			}
 		}
 
 		if item == nil {
@@ -1231,6 +1227,10 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 				}
 			}
 		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		log.Println(err)
 	}
 
 	for trackId, albInfo := range mTracks {
