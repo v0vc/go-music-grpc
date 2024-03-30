@@ -113,6 +113,11 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
+				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
+				item.Icon = icon.DeleteIcon
+				return item.Layout(gtx)
+			},
+			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelBtn, "Download")
 				item.Icon = icon.DownloadIcon
 				return item.Layout(gtx)
@@ -120,11 +125,6 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 			func(gtx layout.Context) layout.Dimensions {
 				item := component.MenuItem(ui.th.Theme, &ui.CopyChannelBtn, "Copy")
 				item.Icon = icon.CopyIcon
-				return item.Layout(gtx)
-			},
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
-				item.Icon = icon.DeleteIcon
 				return item.Layout(gtx)
 			},
 		},

@@ -920,7 +920,10 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		stArtistUpd, _ := tx.PrepareContext(ctx, "update main.artist set userAdded = 1, thumbnail = ? where art_id = ?;")
 
 		defer stArtistUpd.Close()
-		_, _ = stArtistUpd.ExecContext(ctx, thumb, artRawId)
+		_, err = stArtistUpd.ExecContext(ctx, thumb, artRawId)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	if artAlbs != nil {
@@ -934,11 +937,20 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		for _, artAl := range artAlbs {
 			args = append(args, &artAl.art, &artAl.alb)
 		}
-		_, _ = stArtAlb.ExecContext(ctx, args...)
+
+		_, err = stArtAlb.ExecContext(ctx, args...)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
-	for _, id := range deletedArtistIds {
-		_, _ = deleteArtistDb(ctx, siteId, id)
+	for _, aid := range deletedArtistIds {
+		aff, er := DeleteBase(ctx, tx, aid, siteId, false)
+		if er != nil {
+			log.Println(er)
+		} else {
+			log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
+		}
 	}
 
 	return resArtist, tx.Commit()

@@ -277,9 +277,14 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 	if err != nil {
 		log.Println(err)
 	}
-	artId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
 
-	var rnd = GenerateRandomStr(4)
+	return DeleteBase(ctx, tx, artistId, siteId, true)
+}
+
+func DeleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32, isCommit bool) (int64, error) {
+	artId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
+	rnd := GenerateRandomStr(4)
+
 	execs := []struct {
 		stmt string
 		res  int
@@ -291,7 +296,10 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		{stmt: fmt.Sprintf("drop table _temp_album_%v;", rnd), res: 4},
 	}
 
-	var aff int64
+	var (
+		aff int64
+		err error
+	)
 
 	for _, exec := range execs {
 		func() {
@@ -312,7 +320,10 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 			}
 		}()
 	}
-	return aff, tx.Commit()
+	if isCommit {
+		return aff, tx.Commit()
+	}
+	return aff, err
 }
 
 func vacuumDb(ctx context.Context) {

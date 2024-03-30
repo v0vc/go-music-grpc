@@ -94,7 +94,10 @@ func RandomPause(minPause, duration int64) {
 
 func GenerateRandomStr(l int) string {
 	buff := make([]byte, int(math.Ceil(float64(l)/1.33333333333)))
-	rand.Read(buff)
+	_, err := rand.Read(buff)
+	if err != nil {
+		return "tmp"
+	}
 	str := base64.RawURLEncoding.EncodeToString(buff)
 	return str[:l] // strip 1 extra character we get from odd length results
 }
