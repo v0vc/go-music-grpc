@@ -283,7 +283,7 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 
 func DeleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32, isCommit bool) (int64, error) {
 	artId, _ := GetArtistIdDb(tx, ctx, siteId, artistId)
-	rnd := GenerateRandomStr(4)
+	rnd := RandStringBytesMask(4)
 
 	execs := []struct {
 		stmt string
