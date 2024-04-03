@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -141,22 +142,30 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 
 func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Generator) {
 	for _, r := range channels.List() {
-		rt := &RowTracker{
-			SerialToIndex: make(map[list.Serial]int),
-			Generator:     g,
-			Messages:      albums,
-			MaxLoads:      ui.LoadSize,
-			ScrollToEnd:   false,
-		}
-		room := &Room{
-			Room:            r,
-			RowTracker:      rt,
-			SearchResponses: make(chan []list.Serial),
-		}
+		ch := ui.Rooms.GetChannelById(r.Id)
+		if ch != nil {
+			ch.Lock()
+			curCount, _ := strconv.Atoi(ch.Room.Count)
+			ch.Room.Count = strconv.Itoa(curCount + len(albums.GetList()))
+			ch.Unlock()
+		} else {
+			rt := &RowTracker{
+				SerialToIndex: make(map[list.Serial]int),
+				Generator:     g,
+				Messages:      albums,
+				MaxLoads:      ui.LoadSize,
+				ScrollToEnd:   false,
+			}
+			room := &Room{
+				Room:            r,
+				RowTracker:      rt,
+				SearchResponses: make(chan []list.Serial),
+			}
 
-		room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
-		room.List.Axis = layout.Vertical
-		ui.Rooms.List = append(ui.Rooms.List, room)
+			room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
+			room.List.Axis = layout.Vertical
+			ui.Rooms.List = append(ui.Rooms.List, room)
+		}
 	}
 }
 

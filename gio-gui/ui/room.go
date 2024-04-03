@@ -59,12 +59,6 @@ func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Roo
 				ch.Lock()
 				curCount, _ := strconv.Atoi(ch.Room.Count)
 				ch.Room.Count = strconv.Itoa(curCount + len(albums))
-				/*if ch.IsBase {
-					curCount, _ := strconv.Atoi(ch.Room.Count)
-					ch.Room.Count = strconv.Itoa(curCount + len(albs))
-				} else {
-					ch.Room.Count = strconv.Itoa(len(albums))
-				}*/
 
 				if ch.IsBase || ch.RowTracker.Rows != nil {
 					el := make([]list.Element, 0, len(albums))

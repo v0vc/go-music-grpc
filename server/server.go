@@ -410,12 +410,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 		err    error
 	)
 
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		albums, err = getArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
-		wgSync.Done()
-	})
-	wgSync.Wait()
+	albums, err = getArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -440,12 +435,7 @@ func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest)
 		err    error
 	)
 
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		albums, err = getNewReleasesFromDb(context.WithoutCancel(ctx), siteId)
-		wgSync.Done()
-	})
-	wgSync.Wait()
+	albums, err = getNewReleasesFromDb(context.WithoutCancel(ctx), siteId)
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -509,12 +499,7 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 		err    error
 	)
 
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		tracks, err = getAlbumTrackFromDb(context.WithoutCancel(ctx), siteId, albumId)
-		wgSync.Done()
-	})
-	wgSync.Wait()
+	tracks, err = getAlbumTrackFromDb(context.WithoutCancel(ctx), siteId, albumId)
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -597,20 +582,15 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 		resDown map[string]string
 	)
 
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		switch siteId {
-		case 1:
-			// mid, high, flac
-			resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
-		case 2:
-			// "артист со спотика"
-		case 3:
-			// "артист с дизера"
-		}
-		wgSync.Done()
-	})
-	wgSync.Wait()
+	switch siteId {
+	case 1:
+		// mid, high, flac
+		resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+	case 2:
+		// "артист со спотика"
+	case 3:
+		// "артист с дизера"
+	}
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -638,20 +618,15 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 
 	albIds := getArtistReleasesIdFromDb(ctx, siteId, artistId)
 
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		switch siteId {
-		case 1:
-			// mid, high, flac
-			resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
-		case 2:
-			// "артист со спотика"
-		case 3:
-			// "артист с дизера"
-		}
-		wgSync.Done()
-	})
-	wgSync.Wait()
+	switch siteId {
+	case 1:
+		// mid, high, flac
+		resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+	case 2:
+		// "артист со спотика"
+	case 3:
+		// "артист с дизера"
+	}
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -677,20 +652,15 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 		resDown map[string]string
 	)
 
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		switch siteId {
-		case 1:
-			// mid, high, flac
-			resDown, err = DownloadTracksSb(context.WithoutCancel(ctx), siteId, trackIds, req.GetTrackQuality())
-		case 2:
-			// "артист со спотика"
-		case 3:
-			// "артист с дизера"
-		}
-		wgSync.Done()
-	})
-	wgSync.Wait()
+	switch siteId {
+	case 1:
+		// mid, high, flac
+		resDown, err = DownloadTracksSb(context.WithoutCancel(ctx), siteId, trackIds, req.GetTrackQuality())
+	case 2:
+		// "артист со спотика"
+	case 3:
+		// "артист с дизера"
+	}
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -721,33 +691,28 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 
 	var arts []*artist.Artist
 
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		stmtArt, er := db.PrepareContext(context.WithoutCancel(ctx), "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
-		if er != nil {
-			log.Println(er)
-		}
-		defer stmtArt.Close()
+	stmtArt, er := db.PrepareContext(context.WithoutCancel(ctx), "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
+	if er != nil {
+		log.Println(er)
+	}
+	defer stmtArt.Close()
 
-		rows, er := stmtArt.QueryContext(context.WithoutCancel(ctx), siteId)
-		if er != nil {
-			log.Println(er)
-		}
-		defer rows.Close()
+	rows, er := stmtArt.QueryContext(context.WithoutCancel(ctx), siteId)
+	if er != nil {
+		log.Println(er)
+	}
+	defer rows.Close()
 
-		for rows.Next() {
-			var art artist.Artist
-			if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
-				if e != nil {
-					log.Println(e)
-				}
+	for rows.Next() {
+		var art artist.Artist
+		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
+			if e != nil {
+				log.Println(e)
 			}
-			art.SiteId = siteId
-			arts = append(arts, &art)
 		}
-		wgSync.Done()
-	})
-	wgSync.Wait()
+		art.SiteId = siteId
+		arts = append(arts, &art)
+	}
 
 	log.Printf("siteId: %v, list artists completed, total: %v\n", siteId, len(arts))
 

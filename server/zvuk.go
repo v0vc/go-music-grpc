@@ -688,6 +688,11 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		artRawId = artistId.RawId
 		uAdd = 1
 	}
+	if uAdd == 1 && isAdd {
+		// пытались добавить существующего, сделаем просто синк
+		isAdd = false
+	}
+
 	var existArtistIds, existAlbumIds, netAlbumIds, netArtistIds []string
 	mArtist := make(map[string]int)
 
