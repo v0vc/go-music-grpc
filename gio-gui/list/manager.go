@@ -426,9 +426,9 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 //
 // This method is useful for checking the relative positions of managed
 // elements during layout. Many applications will never need this functionality.
-func (m *Manager) ManagedElements(gtx layout.Context) []Element {
+/*func (m *Manager) ManagedElements(gtx layout.Context) []Element {
 	return m.elements.Elements
-}
+}*/
 
 // ManagedState returns the map of widget state managed by the manager
 // during the current frame. This MUST be called from the layout goroutine,
@@ -438,6 +438,6 @@ func (m *Manager) ManagedElements(gtx layout.Context) []Element {
 // a single loop ahead of laying each element out, rather than checking
 // each element during layout. Many applications will never need this
 // functionality.
-func (m *Manager) ManagedState(gtx layout.Context) map[Serial]interface{} {
+/*func (m *Manager) ManagedState(gtx layout.Context) map[Serial]interface{} {
 	return m.elementState
-}
+}*/

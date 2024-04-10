@@ -53,6 +53,13 @@ type Room struct {
 
 func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Room, start time.Time) {
 	go func() {
+		if channel.IsBase {
+			for _, c := range rooms.List {
+				if !c.IsBase {
+					c.Loaded = false
+				}
+			}
+		}
 		for artId, albums := range artMap {
 			ch := rooms.GetChannelById(artId)
 			if ch != nil {
@@ -67,7 +74,7 @@ func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Roo
 						ch.RowTracker.Add(alb)
 					}
 
-					ch.ListState.Modify(el, nil, nil)
+					ch.ListState.InPlace(el)
 				}
 				ch.Unlock()
 			}
@@ -198,53 +205,54 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 	r.active = index
 	r.List[r.active].Interact.Active = true
 
-	if r.List[r.active].RowTracker.Rows == nil && !r.List[r.active].Loaded {
-		channel := r.List[r.active]
+	if r.List[r.active].Loaded {
+		return
+	}
 
-		if err == nil {
-			if albs == nil {
-				if channel.Room.IsBase {
-					albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
-					count := len(albs)
-					if count > 0 {
-						channel.Count = strconv.Itoa(count)
-					}
-				} else {
-					albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
+	channel := r.List[r.active]
+	if err == nil {
+		if albs == nil {
+			if channel.Room.IsBase {
+				albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
+				count := len(albs)
+				if count > 0 {
+					channel.Count = strconv.Itoa(count)
 				}
-			}
-
-			for _, alb := range albs {
-				channel.RowTracker.Add(alb)
+			} else {
+				albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
 			}
 		}
-		lm := list.NewManager(len(albs),
-			list.Hooks{
-				// Define an allocator function that can instantiate the appropriate
-				// state type for each kind of row data in our list.
-				Allocator: func(data list.Element) interface{} {
-					switch data.(type) {
-					case model.Message:
-						return &Row{}
-					default:
-						return nil
-					}
-				},
-				// Define a presenter that can transform each kind of row data
-				// and state into a widget.
-				Presenter: presentChatRow,
-				// NOTE(jfm): award coupling between message data and `list.Manager`.
-				Loader:      channel.RowTracker.Load,
-				Synthesizer: synth,
-				Comparator:  rowLessThan,
-				Invalidator: invalidator,
-			},
-		)
-		// lm.Stickiness = list.After
-		lm.Stickiness = list.Before
-		channel.ListState = lm
-		channel.Room.Loaded = true
+
+		for _, alb := range albs {
+			channel.RowTracker.Add(alb)
+		}
 	}
+	lm := list.NewManager(len(albs),
+		list.Hooks{
+			// Define an allocator function that can instantiate the appropriate
+			// state type for each kind of row data in our list.
+			Allocator: func(data list.Element) interface{} {
+				switch data.(type) {
+				case model.Message:
+					return &Row{}
+				default:
+					return nil
+				}
+			},
+			// Define a presenter that can transform each kind of row data
+			// and state into a widget.
+			Presenter: presentChatRow,
+			// NOTE(jfm): award coupling between message data and `list.Manager`.
+			Loader:      channel.RowTracker.Load,
+			Synthesizer: synth,
+			Comparator:  rowLessThan,
+			Invalidator: invalidator,
+		},
+	)
+	// lm.Stickiness = list.After
+	lm.Stickiness = list.Before
+	channel.ListState = lm
+	channel.Room.Loaded = true
 }
 
 // Changed if the active room has changed since last call.

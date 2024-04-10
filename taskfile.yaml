@@ -18,7 +18,7 @@ tasks:
     - gofumpt -w -l .
 
   lint:
-    - golangci-lint run -v
+    - golangci-lint run -v --timeout 10m
 
   update:
     - go get gioui.org@latest
