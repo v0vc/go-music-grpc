@@ -22,7 +22,7 @@ message Album {
   string title = 3;
   string subTitle = 4;
   string releaseDate = 5;
-  string releaseType = 6;
+  int32 releaseType = 6;
   bytes thumbnail = 7;
   int32 syncState = 8;
   repeated string artistIds = 9;

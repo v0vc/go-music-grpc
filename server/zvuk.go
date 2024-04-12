@@ -753,7 +753,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				alb.AlbumId = release.ID
 				alb.Title = strings.TrimSpace(release.Title)
 				alb.ReleaseDate = release.Date
-				alb.ReleaseType = release.Type
+				alb.ReleaseType = MapReleaseType(release.Type)
 				alb.Thumbnail = getThumb(ctx, strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
 				if !isAdd {
 					alb.SyncState = 1
@@ -763,7 +763,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				if isAdd {
 					alb.Title = strings.TrimSpace(release.Title)
 					alb.ReleaseDate = release.Date
-					alb.ReleaseType = release.Type
+					alb.ReleaseType = MapReleaseType(release.Type)
 					alb.Thumbnail = getThumb(ctx, strings.Replace(release.Image.Src, "{size}", thumbSize, 1))
 				}
 			}

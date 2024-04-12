@@ -4,7 +4,7 @@ version: '3'
 
 tasks:
   default:
-#    - task: update
+    - task: update
     - task: fmt
     - task: build
     - task: lint

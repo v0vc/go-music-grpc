@@ -20,11 +20,13 @@ const (
 func main() {
 	/*flag.Parse()*/
 	go func() {
-		w := app.NewWindow( /*app.Title("Gio content client")*/ )
+		w := new(app.Window)
+		w.Option(
+			app.Title("Gio CMT v1.0.0"),
+		)
 		if err := loop(w); err != nil {
 			log.Fatal(err)
 		}
-
 		os.Exit(0)
 	}()
 	app.Main()
@@ -73,7 +75,7 @@ func loop(w *app.Window) error {
 
 	for {
 		// detect the type of the event.
-		switch e := w.NextEvent().(type) {
+		switch e := w.Event().(type) {
 		case app.DestroyEvent:
 			return e.Err
 		case app.FrameEvent:

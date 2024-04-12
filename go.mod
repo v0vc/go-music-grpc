@@ -3,8 +3,8 @@ module github.com/v0vc/go-music-grpc
 go 1.22
 
 require (
-	gioui.org v0.5.0
-	gioui.org/x v0.5.0
+	gioui.org v0.6.0
+	gioui.org/x v0.6.1
 	github.com/bogem/id3v2/v2 v2.1.4
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-flac/flacpicture v0.3.0
@@ -23,7 +23,7 @@ require (
 require (
 	gioui.org/cpu v0.0.0-20220412190645-f1e9e8c3b1f7 // indirect
 	gioui.org/shader v1.0.8 // indirect
-	github.com/go-text/typesetting v0.0.0-20231202102523-0024ac628562 // indirect
+	github.com/go-text/typesetting v0.1.1 // indirect
 	github.com/matryer/is v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/exp v0.0.0-20240409090435-93d18d7e34b8 // indirect

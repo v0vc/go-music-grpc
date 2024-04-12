@@ -104,3 +104,14 @@ func RandStringBytesMask(n int) string {
 	}
 	return string(b)
 }
+
+func MapReleaseType(r string) int32 {
+	switch r {
+	case "album":
+		return 0
+	case "single":
+		return 0
+	default:
+		return 0
+	}
+}

@@ -20,7 +20,7 @@ CREATE TABLE album (
     albumId TEXT,
     title TEXT,
     releaseDate TEXT,
-    releaseType TEXT,
+    releaseType INTEGER default 0,
     trackTotal INTEGER default 0,
     syncState INTEGER default 0,
     thumbnail BLOB,
