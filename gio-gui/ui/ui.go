@@ -209,7 +209,6 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 			// ui.Rooms.Select(ii)
 			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentChatRow, nil)
 			ui.InsideRoom = true
-
 			break
 		}
 	}
@@ -396,7 +395,6 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						for _, ch := range ui.Rooms.List {
 							ch.Room.Count = ""
 						}
-
 						go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
 					} else {
 						ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
@@ -503,6 +501,7 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 	msg := NewRow(ui.th.Theme, state, &ui.MessageMenu, &RowConfig{
 		Title:   data.Title,
 		Content: data.Content,
+		Type:    data.Type,
 		SentAt:  data.SentAt,
 		Avatar:  data.Avatar,
 	})

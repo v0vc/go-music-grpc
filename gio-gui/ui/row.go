@@ -32,6 +32,7 @@ type RowStyle struct {
 	Name      material.LabelStyle
 	Summary   material.LabelStyle
 	TimeStamp material.LabelStyle
+	Type      material.LabelStyle
 	Indicator color.NRGBA
 	Overlay   color.NRGBA
 	// Menu configures the right-click context menu for this message.
@@ -45,6 +46,7 @@ type RowConfig struct {
 	Avatar image.Image
 	// Content of the latest message as raw text.
 	Content string
+	Type    string
 	// SentAt timestamp of the latest message.
 	SentAt time.Time
 }
@@ -55,6 +57,7 @@ func NewRow(th *material.Theme, interact *Row, menu *component.MenuState, msg *R
 		Row:       interact,
 		Name:      material.Label(th, unit.Sp(14), msg.Title),
 		Summary:   material.Label(th, unit.Sp(12), msg.Content),
+		Type:      material.Label(th, unit.Sp(12), msg.Type),
 		TimeStamp: material.Label(th, unit.Sp(12), strconv.Itoa(msg.SentAt.Local().Year())),
 		Image: Image{
 			Image: widget.Image{
@@ -117,7 +120,10 @@ func (row RowStyle) Layout(gtx layout.Context) layout.Dimensions {
 							}),
 						)
 					}),
-					layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return row.Type.Layout(gtx)
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(15)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return row.TimeStamp.Layout(gtx)
 					}),

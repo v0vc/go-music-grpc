@@ -110,7 +110,7 @@ func MapReleaseType(r string) int32 {
 	case "album":
 		return 0
 	case "single":
-		return 0
+		return 1
 	default:
 		return 0
 	}

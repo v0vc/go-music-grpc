@@ -14,12 +14,12 @@ import (
 
 // Message represents a chat message.
 type Message struct {
-	SerialID               string
-	Title, Content, Status string
-	ParentId               []string
-	SentAt                 time.Time
-	Avatar                 image.Image
-	Read                   bool
+	SerialID                     string
+	Title, Content, Status, Type string
+	ParentId                     []string
+	SentAt                       time.Time
+	Avatar                       image.Image
+	Read                         bool
 }
 
 // Serial returns the unique identifier for this message.
