@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	slices2 "golang.org/x/exp/slices"
+
 	"github.com/dustin/go-humanize"
 	"github.com/machinebox/graphql"
 	"github.com/v0vc/go-music-grpc/artist"
@@ -220,11 +222,11 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 				log.Println(er)
 			}
 
-			if albId != "" && !Contains(existAlbumIds, albId) {
+			if albId != "" && !slices2.Contains(existAlbumIds, albId) {
 				existAlbumIds = append(existAlbumIds, albId)
 			}
 
-			if artisId != "" && !Contains(existArtistIds, artisId) {
+			if artisId != "" && !slices2.Contains(existArtistIds, artisId) {
 				existArtistIds = append(existArtistIds, artisId)
 			}
 		}
@@ -283,7 +285,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 		if !ok {
 			mTracks[trackId] = &alb
 		}
-		if isAlbum && !Contains(mAlbum, alb.AlbumId) {
+		if isAlbum && !slices2.Contains(mAlbum, alb.AlbumId) {
 			mAlbum = append(mAlbum, alb.AlbumId)
 		}
 	}
@@ -706,7 +708,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 			if release.ID == "" {
 				continue
 			}
-			if !Contains(netAlbumIds, release.ID) {
+			if !slices2.Contains(netAlbumIds, release.ID) {
 				netAlbumIds = append(netAlbumIds, release.ID)
 			}
 
@@ -714,7 +716,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				if author.ID == "" {
 					continue
 				}
-				if !Contains(netArtistIds, author.ID) {
+				if !slices2.Contains(netArtistIds, author.ID) {
 					netArtistIds = append(netArtistIds, author.ID)
 				}
 			}
@@ -749,7 +751,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				continue
 			}
 			alb := &artist.Album{}
-			if Contains(newAlbumIds, release.ID) && !Contains(processedAlbumIds, release.ID) {
+			if slices2.Contains(newAlbumIds, release.ID) && !slices2.Contains(processedAlbumIds, release.ID) {
 				alb.AlbumId = release.ID
 				alb.Title = strings.TrimSpace(release.Title)
 				alb.ReleaseDate = release.Date
@@ -777,7 +779,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 					sb[i] = author.Title
 					alb.ArtistIds = append(alb.ArtistIds, author.ID)
 
-					if Contains(newArtistIds, author.ID) && !Contains(processedArtistIds, author.ID) {
+					if slices2.Contains(newArtistIds, author.ID) && !slices2.Contains(processedArtistIds, author.ID) {
 						art := &artist.Artist{
 							ArtistId: author.ID,
 							Title:    strings.TrimSpace(author.Title),
@@ -802,7 +804,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				}
 
 				alb.SubTitle = strings.Join(sb, ", ")
-				if !Contains(alb.ArtistIds, artistId.Id) {
+				if !slices2.Contains(alb.ArtistIds, artistId.Id) {
 					// api bug
 					alb.ArtistIds = append(alb.ArtistIds, artistId.Id)
 					if resArtist != nil {
