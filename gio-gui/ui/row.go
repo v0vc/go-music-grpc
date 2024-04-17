@@ -23,7 +23,8 @@ type Row struct {
 	// Message
 	widget.Clickable
 
-	Active bool
+	Active   bool
+	Selected widget.Bool
 }
 
 type RowStyle struct {
@@ -33,6 +34,7 @@ type RowStyle struct {
 	Summary   material.LabelStyle
 	TimeStamp material.LabelStyle
 	Type      material.LabelStyle
+	Selected  material.CheckBoxStyle
 	Indicator color.NRGBA
 	Overlay   color.NRGBA
 	// Menu configures the right-click context menu for this message.
@@ -59,6 +61,7 @@ func NewRow(th *material.Theme, interact *Row, menu *component.MenuState, msg *R
 		Summary:   material.Label(th, unit.Sp(12), msg.Content),
 		Type:      material.Label(th, unit.Sp(12), msg.Type),
 		TimeStamp: material.Label(th, unit.Sp(12), strconv.Itoa(msg.SentAt.Local().Year())),
+		Selected:  material.CheckBox(th, &interact.Selected, ""),
 		Image: Image{
 			Image: widget.Image{
 				Src: interact.Avatar.Op(),
@@ -126,6 +129,9 @@ func (row RowStyle) Layout(gtx layout.Context) layout.Dimensions {
 					layout.Rigid(layout.Spacer{Width: unit.Dp(15)}.Layout),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return row.TimeStamp.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return row.Selected.Layout(gtx)
 					}),
 				)
 			})

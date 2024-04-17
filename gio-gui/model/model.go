@@ -5,7 +5,6 @@ package model
 
 import (
 	"image"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -14,12 +13,12 @@ import (
 
 // Message represents a chat message.
 type Message struct {
-	SerialID                     string
-	Title, Content, Status, Type string
-	ParentId                     []string
-	SentAt                       time.Time
-	Avatar                       image.Image
-	Read                         bool
+	SerialID                      string
+	Title, Content, AlbumId, Type string
+	ParentId                      []string
+	SentAt                        time.Time
+	Avatar                        image.Image
+	Read                          bool
 }
 
 // Serial returns the unique identifier for this message.
@@ -56,13 +55,12 @@ type Room struct {
 	// Name of the room.
 	Name string
 	// Channel id
-	Id string
-	// Latest message in the room, if any.
-	// Latest *Message
-	Count   string
-	Content string
-	IsBase  bool
-	Loaded  bool
+	Id       string
+	Count    string
+	Content  string
+	Selected []string
+	IsBase   bool
+	Loaded   bool
 }
 
 type Messages struct {
@@ -90,18 +88,6 @@ func (us *Messages) List() (list []*Message) {
 
 func (us *Messages) GetList() (list []Message) {
 	return us.list
-}
-
-func (us *Messages) Lookup(name string) (*Message, bool) {
-	v, ok := us.index[name]
-	return v, ok
-}
-
-func (us *Messages) Random() *Message {
-	if len(us.list) == 0 {
-		return nil
-	}
-	return &us.list[rand.Intn(len(us.list)-1)]
 }
 
 // Rooms structure manages a collection of rooms.
@@ -132,10 +118,4 @@ func (r *Rooms) List() (list []*Room) {
 		list[ii] = &r.list[ii]
 	}
 	return list
-}
-
-// Lookup room by name.
-func (r *Rooms) Lookup(name string) (*Room, bool) {
-	v, ok := r.index[name]
-	return v, ok
 }

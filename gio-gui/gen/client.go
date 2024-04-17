@@ -304,10 +304,10 @@ func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 	return model.Message{
 		// SerialID: fmt.Sprintf("%05d", cur-at.Unix()),
 		SerialID: fmt.Sprintf("%05d", serial),
-		//Title:    fmt.Sprintf("%v (%v)", alb.GetTitle(), mapReleaseType(alb.ReleaseType)),
+		// Title:    fmt.Sprintf("%v (%v)", alb.GetTitle(), mapReleaseType(alb.ReleaseType)),
 		Title:    alb.GetTitle(),
 		Content:  alb.GetSubTitle(),
-		Status:   alb.GetAlbumId(),
+		AlbumId:  alb.GetAlbumId(),
 		Type:     mapReleaseType(alb.ReleaseType),
 		ParentId: alb.GetArtistIds(),
 		SentAt:   at,

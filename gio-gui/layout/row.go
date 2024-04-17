@@ -31,26 +31,6 @@ type RowChild struct {
 	Unified bool
 }
 
-// FullRow returns a RowChild that lays out content with optional gutter widgets
-// either side.
-func FullRow(l, w, r layout.Widget) RowChild {
-	return RowChild{
-		Left:    l,
-		Content: w,
-		Right:   r,
-	}
-}
-
-// ContentRow returns a RowChild that lays out a content with no gutter widgets.
-func ContentRow(w layout.Widget) RowChild {
-	return RowChild{Content: w}
-}
-
-// UnifiedRow ignores gutters, taking up all available space.
-func UnifiedRow(w layout.Widget) RowChild {
-	return RowChild{Content: w, Unified: true}
-}
-
 // Layout the Row with any number of internal rows.
 func (r Row) Layout(gtx layout.Context, w ...RowChild) layout.Dimensions {
 	var (

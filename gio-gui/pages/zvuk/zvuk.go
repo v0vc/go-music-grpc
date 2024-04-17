@@ -21,11 +21,11 @@ import (
 type Page struct {
 	// widget.List
 	*page.Router
-	addBtn, insertBtn, pasteBtn widget.Clickable
-	editor                      widget.Editor
-	th                          *page.Theme
-	contextMenu                 component.MenuState
-	contextArea                 component.ContextArea
+	addBtn, insertBtn, pasteBtn, dBtn widget.Clickable
+	editor                            widget.Editor
+	th                                *page.Theme
+	contextMenu                       component.MenuState
+	contextArea                       component.ContextArea
 }
 
 const (
@@ -123,17 +123,16 @@ func (p *Page) Actions() []component.AppBarAction {
 }
 
 func (p *Page) Overflow() []component.OverflowAction {
-	return []component.OverflowAction{}
-	/*return []component.OverflowAction{
+	if singleInstance != nil {
+		go singleInstance.MassDownload(siteId, singleInstance.Rooms.Active())
+	}
+	// return []component.OverflowAction{}
+	return []component.OverflowAction{
 		{
-			Name: "Add",
-			Tag:  &p.addBtn,
+			Name: "Download",
+			Tag:  &p.dBtn,
 		},
-		{
-			Name: "Delete",
-			Tag:  &p.removeState,
-		},
-	}*/
+	}
 }
 
 func (p *Page) NavItem() component.NavItem {

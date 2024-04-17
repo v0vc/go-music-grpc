@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	slices2 "golang.org/x/exp/slices"
+
 	"gioui.org/io/clipboard"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -167,6 +169,14 @@ func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 			ui.Rooms.List = append(ui.Rooms.List, room)
 		}
 	}
+}
+
+func (ui *UI) MassDownload(siteId uint32, curChannel *Room) {
+	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
+		return
+	}
+
+	go curChannel.DownloadAlbum(siteId, curChannel.Selected, "mid")
 }
 
 func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
@@ -374,7 +384,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						var albumIds []string
 						for i := range channel.RowTracker.Rows {
 							alb := channel.RowTracker.Rows[i].(model.Message)
-							albumIds = append(albumIds, alb.Status)
+							albumIds = append(albumIds, alb.AlbumId)
 						}
 						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
 					} else {
@@ -463,7 +473,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				switch ui.SiteId {
 				case 1:
 					gtx.Execute(clipboard.WriteCmd{
-						Data: io.NopCloser(strings.NewReader(releaseUrl + ui.ContextMenuTarget.Status)),
+						Data: io.NopCloser(strings.NewReader(releaseUrl + ui.ContextMenuTarget.AlbumId)),
 					})
 				}
 			}
@@ -482,7 +492,24 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 			}
 			if ui.DownloadBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
-				go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.Status}, "mid")
+				go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, "mid")
+			}
+			if elemState.Selected.Update(gtx) {
+				ch := ui.Rooms.Active()
+				if ch != nil {
+					if elemState.Selected.Value {
+						if !slices2.Contains(ch.Selected, el.AlbumId) {
+							ch.Selected = append(ch.Selected, el.AlbumId)
+						}
+					} else {
+						for i, v := range ch.Selected {
+							if v == el.AlbumId {
+								ch.Selected = append(ch.Selected[:i], ch.Selected[i+1:]...)
+								break
+							}
+						}
+					}
+				}
 			}
 			return ui.row(el, elemState)(gtx)
 		}
@@ -505,7 +532,6 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 		SentAt:  data.SentAt,
 		Avatar:  data.Avatar,
 	})
-
 	return msg.Layout
 }
 

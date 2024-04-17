@@ -14,14 +14,6 @@ type VerticalMarginStyle struct {
 	Size unit.Dp
 }
 
-// VerticalMargin configures a vertical margin with a sensible default
-// margin.
-func VerticalMargin() VerticalMarginStyle {
-	return VerticalMarginStyle{
-		Size: unit.Dp(4),
-	}
-}
-
 // Layout the provided widget within the margin and return their combined
 // dimensions.
 func (v VerticalMarginStyle) Layout(gtx layout.Context, w layout.Widget) layout.Dimensions {
