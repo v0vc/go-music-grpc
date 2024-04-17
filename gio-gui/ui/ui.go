@@ -175,7 +175,6 @@ func (ui *UI) MassDownload(siteId uint32, curChannel *Room) {
 	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
 		return
 	}
-
 	go curChannel.DownloadAlbum(siteId, curChannel.Selected, "mid")
 }
 

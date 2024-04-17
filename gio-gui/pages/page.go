@@ -1,7 +1,6 @@
 package page
 
 import (
-	"log"
 	"time"
 
 	"gioui.org/app"
@@ -86,7 +85,8 @@ func (r *Router) SwitchTo(tag interface{}) {
 
 func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dimensions {
 	for _, event := range r.AppBar.Events(gtx) {
-		switch event := event.(type) {
+		// switch event := event.(type) {
+		switch event.(type) {
 		case component.AppBarNavigationClicked:
 			if r.NonModalDrawer {
 				r.NavAnim.ToggleVisibility(gtx.Now)
@@ -95,9 +95,10 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dime
 				r.NavAnim.Disappear(gtx.Now)
 			}
 		case component.AppBarContextMenuDismissed:
-			log.Printf("Context menu dismissed: %v", event)
+			// log.Printf("Context menu dismissed: %v", event)
 		case component.AppBarOverflowActionClicked:
-			log.Printf("Overflow action selected: %v", event)
+			// log.Printf("Overflow action selected: %v", event)
+			r.pages[r.current].Overflow()
 		}
 	}
 	if r.ModalNavDrawer.NavDestinationChanged() {

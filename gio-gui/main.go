@@ -21,9 +21,9 @@ func main() {
 	/*flag.Parse()*/
 	go func() {
 		w := new(app.Window)
-		w.Option(
-			app.Title("Gio CMT v1.0.0"),
-		)
+		/*w.Option(
+			app.Title("Gio CMT v0.0.1"),
+		)*/
 		if err := loop(w); err != nil {
 			log.Fatal(err)
 		}
