@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	artistRegexString = `^https://zvuk.com/artist/(\d+)$`
-	artistUrl         = "https://zvuk.com/artist/"
-	releaseUrl        = "https://zvuk.com/release/"
+	artistRegexString  = `^https://zvuk.com/artist/(\d+)$`
+	releaseRegexString = `^https://zvuk.com/release/(\d+)$`
+	artistUrl          = "https://zvuk.com/artist/"
+	releaseUrl         = "https://zvuk.com/release/"
 )
 
 var (
@@ -184,10 +185,17 @@ func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	if ch == nil {
 		return
 	}
-	artistId := findArtistId(artistUrl)
+	artistId := findArtistId(artistUrl, true)
 	if artistId == "" {
-		ch.Content = "invalid url"
-		return
+		releaseId := findArtistId(artistUrl, false)
+		if releaseId != "" {
+			go g.DownloadAlbum(siteId, []string{releaseId}, "mid")
+			ch.Content = "download: " + releaseId
+			return
+		} else {
+			ch.Content = "invalid url"
+			return
+		}
 	} else {
 		ch.Content = fmt.Sprintf("working: %v", artistId)
 	}
@@ -534,10 +542,15 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 	return msg.Layout
 }
 
-func findArtistId(url string) string {
-	matchArtist := regexp.MustCompile(artistRegexString).FindStringSubmatch(url)
-	if matchArtist == nil {
+func findArtistId(url string, isArtist bool) string {
+	var resId []string
+	if isArtist {
+		resId = regexp.MustCompile(artistRegexString).FindStringSubmatch(url)
+	} else {
+		resId = regexp.MustCompile(releaseRegexString).FindStringSubmatch(url)
+	}
+	if resId == nil {
 		return ""
 	}
-	return matchArtist[1]
+	return resId[1]
 }

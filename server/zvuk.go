@@ -409,10 +409,11 @@ func getCurrentTrackQuality(streamUrl string, qualityMap *map[string]TrackQualit
 	return nil
 }
 
-func getAlbumTracks(ctx context.Context, albumId, token, email, password string) (*ReleaseInfo, string, bool) {
+func getAlbumTracks(ctx context.Context, albumId, token, email, password string) (*ReleaseInfo, string, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+apiRelease, nil)
 	if err != nil {
 		log.Println(err)
+		return nil, "", false, err
 	}
 
 	req.Header.Add(authHeader, token)
@@ -423,6 +424,7 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 	do, err := client.Do(req)
 	if err != nil || do == nil {
 		log.Println(err)
+		return nil, "", false, err
 	}
 
 	defer do.Body.Close()
@@ -430,7 +432,7 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 
 	switch do.StatusCode {
 	case http.StatusTeapot:
-		return nil, "", false
+		return nil, "", false, nil
 	case http.StatusUnauthorized:
 		log.Printf("Try to renew access token...")
 		token, err = getTokenFromSite(ctx, email, password)
@@ -440,7 +442,7 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 		} else {
 			log.Println("Can't get new token", err)
 		}
-		return nil, token, needTokenUpd
+		return nil, token, needTokenUpd, nil
 	case http.StatusOK:
 		var obj ReleaseInfo
 
@@ -448,9 +450,9 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 		if err != nil {
 			log.Println("Can't decode response from api: ", err)
 		}
-		return &obj, token, needTokenUpd
+		return &obj, token, needTokenUpd, err
 	default:
-		return nil, "", false
+		return nil, "", false, err
 	}
 }
 
@@ -976,7 +978,10 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 	}
 
 	login, pass, token := getTokenDb(tx, ctx, siteId)
-	item, token, needTokenUpd := getAlbumTracks(ctx, albumId, token, login, pass)
+	item, token, needTokenUpd, er := getAlbumTracks(ctx, albumId, token, login, pass)
+	if er != nil {
+		return nil, er
+	}
 	if needTokenUpd {
 		updateTokenDb(tx, ctx, token, siteId)
 	}
@@ -1212,7 +1217,10 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	for _, albumId := range notDbAlbumIds {
 		var tryCount int
 	L1:
-		item, tokenNew, needTokenUpd := getAlbumTracks(ctx, albumId, token, login, pass)
+		item, tokenNew, needTokenUpd, er := getAlbumTracks(ctx, albumId, token, login, pass)
+		if er != nil {
+			return mDownloaded, er
+		}
 		if needTokenUpd {
 			updateTokenDb(tx, ctx, tokenNew, siteId)
 		}
