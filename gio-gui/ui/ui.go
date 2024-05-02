@@ -411,6 +411,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						// Delete на -=NEW=- сделаем очистку статусу синка
 						for _, ch := range ui.Rooms.List {
 							ch.Room.Count = ""
+							ch.Room.Selected = nil
 						}
 						go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
 					} else {
