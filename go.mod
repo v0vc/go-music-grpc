@@ -14,11 +14,11 @@ require (
 	github.com/machinebox/graphql v0.2.2
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/panjf2000/ants/v2 v2.9.1
-	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f
-	golang.org/x/exp/shiny v0.0.0-20240416160154-fe59bbe5cc7f
-	golang.org/x/image v0.15.0
-	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.34.0
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
+	golang.org/x/exp/shiny v0.0.0-20240506185415-9bf2ced13842
+	golang.org/x/image v0.16.0
+	google.golang.org/grpc v1.64.0
+	google.golang.org/protobuf v1.34.1
 )
 
 require (
@@ -27,8 +27,8 @@ require (
 	github.com/go-text/typesetting v0.1.1 // indirect
 	github.com/matryer/is v1.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240429193739-8cf5692501f6 // indirect
+	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240515191416-fc5f0ca64291 // indirect
 )

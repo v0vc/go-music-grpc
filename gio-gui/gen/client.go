@@ -47,7 +47,7 @@ func GetClientInstance() (artist.ArtistServiceClient, error) {
 		lock.Lock()
 		defer lock.Unlock()
 		log.Println("Creating single instance now.")
-		cc, err := grpc.Dial("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cc, err := grpc.NewClient("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			cc.Close()
 			return nil, fmt.Errorf("could not connect: %v", err)

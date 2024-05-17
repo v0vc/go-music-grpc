@@ -22,7 +22,7 @@ func main() {
 
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 
-	cc, err := grpc.Dial("localhost:4041", opts)
+	cc, err := grpc.NewClient("localhost:4041", opts)
 	if err != nil {
 		log.Fatalf("could not connect: %v", err)
 	}
