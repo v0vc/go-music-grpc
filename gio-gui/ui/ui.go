@@ -63,7 +63,7 @@ type UI struct {
 	// InsideRoom if we are currently in the room view.
 	// Used to decide when to render the sidebar on small viewports.
 	InsideRoom bool
-	// room menu
+	// channel menu
 	SyncBtn, DownloadChannelBtn, CopyChannelBtn, DeleteBtn widget.Clickable
 	// message menu
 	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn widget.Clickable
@@ -139,7 +139,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 	// Generate most of the model data.
 	rooms, err := g.GetChannels(siteId)
 	MapDto(&ui, rooms, nil, g)
-	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentChatRow, err)
+	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentRow, err)
 	return &ui
 }
 
@@ -172,7 +172,8 @@ func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 	}
 }
 
-func (ui *UI) MassDownload(siteId uint32, curChannel *Room) {
+func (ui *UI) MassDownload(siteId uint32) {
+	curChannel := ui.Rooms.Active()
 	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
 		return
 	}
@@ -209,7 +210,7 @@ func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	}
 
 	MapDto(ui, channels, albums, g)
-	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentChatRow, nil)
+	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentRow, nil)
 }
 
 // Layout the application UI.
@@ -224,7 +225,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentChatRow, nil)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, nil)
 			ui.InsideRoom = true
 			break
 		}
@@ -389,8 +390,8 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					channel := ui.ChannelMenuTarget
 					if channel.Loaded {
 						var albumIds []string
-						for i := range channel.RowTracker.Rows {
-							alb := channel.RowTracker.Rows[i].(model.Message)
+						for _, i := range channel.RowTracker.Rows {
+							alb := i.(model.Message)
 							albumIds = append(albumIds, alb.AlbumId)
 						}
 						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
@@ -417,7 +418,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					} else {
 						ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 						if ui.ChannelMenuTarget.Interact.Active {
-							ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentChatRow, nil)
+							ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentRow, nil)
 						}
 						ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 					}
@@ -459,10 +460,10 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 	})
 }
 
-// presentChatRow returns a widget closure that can layout the given chat item.
+// presentRow returns a widget closure that can layout the given chat item.
 // `data` contains managed data for this chat item, `state` contains UI defined
 // interactive state.
-func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget {
+func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 	switch el := data.(type) {
 	case model.Message:
 		elemState, ok := state.(*Row)
@@ -500,19 +501,22 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 			}
 			if ui.DownloadBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
-				go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, "mid")
+				if active != nil {
+					go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, "mid")
+				}
 			}
+
 			if elemState.Selected.Update(gtx) {
-				ch := ui.Rooms.Active()
-				if ch != nil {
+				active := ui.Rooms.Active()
+				if active != nil {
 					if elemState.Selected.Value {
-						if !slices2.Contains(ch.Selected, el.AlbumId) {
-							ch.Selected = append(ch.Selected, el.AlbumId)
+						if !slices2.Contains(active.Selected, el.AlbumId) {
+							active.Selected = append(active.Selected, el.AlbumId)
 						}
 					} else {
-						for i, v := range ch.Selected {
+						for i, v := range active.Selected {
 							if v == el.AlbumId {
-								ch.Selected = append(ch.Selected[:i], ch.Selected[i+1:]...)
+								active.Selected = append(active.Selected[:i], active.Selected[i+1:]...)
 								break
 							}
 						}
@@ -541,6 +545,21 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 		Avatar:  data.Avatar,
 	})
 	return msg.Layout
+}
+
+func (ui *UI) SelectAll(value bool) {
+	curChannel := ui.Rooms.Active()
+	if curChannel != nil {
+		for _, data := range curChannel.RowTracker.Rows {
+			switch data.(type) {
+			case model.Message:
+				elemState, ok := curChannel.ListState.GetState(data.Serial()).(*Row)
+				if ok {
+					elemState.Selected.Value = value
+				}
+			}
+		}
+	}
 }
 
 func findArtistId(url string, isArtist bool) string {

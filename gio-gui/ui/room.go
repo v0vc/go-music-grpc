@@ -74,7 +74,7 @@ func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Roo
 						ch.RowTracker.Add(alb)
 					}
 
-					ch.ListState.InPlace(el)
+					ch.ListState.Modify(el, nil, nil)
 				}
 				ch.Unlock()
 			}
@@ -94,8 +94,8 @@ func (r *Room) RunSearch(searchText string) {
 			return
 		}
 		resp = make([]list.Serial, 0, len(r.RowTracker.Rows)/3)
-		for i := range r.RowTracker.Rows {
-			e := r.RowTracker.Rows[i].(model.Message)
+		for _, i := range r.RowTracker.Rows {
+			e := i.(model.Message)
 			if strings.Contains(e.Title, input) || strings.Contains(strings.ToLower(e.Title), input) {
 				// log.Println(e.SerialID)
 				resp = append(resp, e.Serial())
@@ -189,7 +189,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	AddAlbumsToUi(rooms, res, r, start)
 }
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentChatRow func(data list.Element, state interface{}) layout.Widget, err error) {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, err error) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -241,7 +241,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 			},
 			// Define a presenter that can transform each kind of row data
 			// and state into a widget.
-			Presenter: presentChatRow,
+			Presenter: presentRow,
 			// NOTE(jfm): award coupling between message data and `list.Manager`.
 			Loader:      channel.RowTracker.Load,
 			Synthesizer: synth,

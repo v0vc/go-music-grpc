@@ -328,6 +328,14 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	return widget(gtx)
 }
 
+func (m *Manager) GetState(id Serial) interface{} {
+	state, ok := m.elementState[id]
+	if ok {
+		return state
+	}
+	return nil
+}
+
 // UpdatedLen returns the number of elements managed by this manager, and also updates
 // the state of the ListManager and List prior to layout. This method should
 // be called to provide a layout.List with the length of the underlying list,
@@ -352,7 +360,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 			if len(m.elements.Elements) > 0 {
 				// Resolve the current element at the start of the viewport within
 				// the old element list.
-				listStart := min(list.Position.First, len(m.elements.Elements)-1)
+				listStart := min(max(list.Position.First, 0), len(m.elements.Elements)-1)
 				startSerial := m.elements.Elements[listStart].Serial()
 
 				// Find that start element within the new element list and set the
@@ -419,25 +427,3 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 
 	return len(m.elements.Elements)
 }
-
-// ManagedElements returns the slice of elements managed by the manager
-// during the current frame. This MUST be called from the layout goroutine,
-// and callers must not insert, remove, or reorder elements.
-//
-// This method is useful for checking the relative positions of managed
-// elements during layout. Many applications will never need this functionality.
-/*func (m *Manager) ManagedElements(gtx layout.Context) []Element {
-	return m.elements.Elements
-}*/
-
-// ManagedState returns the map of widget state managed by the manager
-// during the current frame. This MUST be called from the layout goroutine,
-// and callers must not insert or remove elements from the returned map.
-//
-// This method is useful for checking for events on all managed widgets in
-// a single loop ahead of laying each element out, rather than checking
-// each element during layout. Many applications will never need this
-// functionality.
-/*func (m *Manager) ManagedState(gtx layout.Context) map[Serial]interface{} {
-	return m.elementState
-}*/

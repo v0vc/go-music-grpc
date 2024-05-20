@@ -1,6 +1,7 @@
 package zvuk
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"strings"
@@ -21,16 +22,16 @@ import (
 type Page struct {
 	// widget.List
 	*page.Router
-	addBtn, insertBtn, pasteBtn, dBtn widget.Clickable
-	editor                            widget.Editor
-	th                                *page.Theme
-	contextMenu                       component.MenuState
-	contextArea                       component.ContextArea
+	addBtn, insertBtn, pasteBtn widget.Clickable
+	editor                      widget.Editor
+	th                          *page.Theme
+	contextMenu                 component.MenuState
+	contextArea                 component.ContextArea
 }
 
 const (
 	siteId = 1
-	newUrl = "...............url"
+	newUrl = "url"
 )
 
 // New constructs a Page with the provided router.
@@ -123,15 +124,38 @@ func (p *Page) Actions() []component.AppBarAction {
 }
 
 func (p *Page) Overflow() []component.OverflowAction {
-	if singleInstance != nil {
-		go singleInstance.MassDownload(siteId, singleInstance.Rooms.Active())
-	}
 	// return []component.OverflowAction{}
 	return []component.OverflowAction{
 		{
 			Name: "Download",
-			Tag:  &p.dBtn,
+			Tag:  0,
 		},
+		{
+			Name: "Select All",
+			Tag:  1,
+		},
+		{
+			Name: "Unselect",
+			Tag:  2,
+		},
+	}
+}
+
+func (p *Page) ClickMainMenu(event component.AppBarEvent) {
+	res := strings.Split(fmt.Sprint(event), " ")
+	switch res[len(res)-1] {
+	case "0":
+		if singleInstance != nil {
+			go singleInstance.MassDownload(siteId)
+		}
+	case "1":
+		if singleInstance != nil {
+			go singleInstance.SelectAll(true)
+		}
+	case "2":
+		if singleInstance != nil {
+			go singleInstance.SelectAll(false)
+		}
 	}
 }
 

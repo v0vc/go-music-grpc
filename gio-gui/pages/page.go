@@ -14,6 +14,7 @@ type Page interface {
 	Overflow() []component.OverflowAction
 	Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dimensions
 	NavItem() component.NavItem
+	ClickMainMenu(event component.AppBarEvent)
 }
 
 type Config struct {
@@ -98,7 +99,8 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dime
 			// log.Printf("Context menu dismissed: %v", event)
 		case component.AppBarOverflowActionClicked:
 			// log.Printf("Overflow action selected: %v", event)
-			r.pages[r.current].Overflow()
+			// r.pages[r.current].Overflow()
+			r.pages[r.current].ClickMainMenu(event)
 		}
 	}
 	if r.ModalNavDrawer.NavDestinationChanged() {

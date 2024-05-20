@@ -30,19 +30,6 @@ type RowTracker struct {
 	ScrollToEnd bool
 }
 
-// Send adds the message to the data model.
-// This is analogous to interacting with the backend api.
-/*func (rt *RowTracker) Send(user, content string) model.Message {
-		u, ok := rt.RowTracker.Lookup(user)
-		if !ok {
-			return model.Message{}
-		}
-	msg := rt.Generator.GenNewMessage(u.Title, content)
-	msg := rt.Generator.GenNewMessage("Album", content)
-	rt.Add(msg)
-	return msg
-}*/
-
 // Add a list element as a row of data to track.
 func (rt *RowTracker) Add(r list.Element) {
 	rt.Lock()
@@ -72,13 +59,6 @@ func (rt *RowTracker) Index(ii int) list.Element {
 	}
 	return rt.Rows[ii]
 }
-
-// NewRow generates a new row.
-/*func (rt *RowTracker) NewRow() list.Element {
-	el := rt.Generator.GenNewMessage(rt.Messages.Random().Title, "test new", len(rt.Rows))
-	rt.Add(el)
-	return el
-}*/
 
 // Load simulates loading chat history from a database or API. It
 // sleeps for a random number of milliseconds and then returns
@@ -116,7 +96,7 @@ func (rt *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded [
 		end := min(numRows, idx+rt.MaxLoads)
 		return rt.Rows[idx+1 : end], end < len(rt.Rows)-1
 	}
-	start := maximum(0, idx-rt.MaxLoads)
+	start := max(0, idx-rt.MaxLoads)
 	return rt.Rows[start:idx], start > 0
 }
 
@@ -160,18 +140,4 @@ func sliceRemove(s *[]list.Element, index int) {
 	lastIndex := len(*s) - 1
 	(*s)[index], (*s)[lastIndex] = (*s)[lastIndex], (*s)[index]
 	*s = (*s)[:lastIndex]
-}
-
-func maximum(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

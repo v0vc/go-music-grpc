@@ -138,26 +138,6 @@ func DefaultHooks(w *app.Window, th *material.Theme) Hooks {
 	}
 }
 
-func min(ints ...int) int {
-	if len(ints) > 0 {
-		lowest := ints[0]
-		for i := 1; i < len(ints); i++ {
-			if ints[i] < lowest {
-				lowest = ints[i]
-			}
-		}
-		return lowest
-	}
-	return 0
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // Direction indicates a direction relative to the viewport of a list.
 type Direction uint8
 
