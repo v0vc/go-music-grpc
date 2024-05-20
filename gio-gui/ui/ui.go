@@ -180,6 +180,27 @@ func (ui *UI) MassDownload(siteId uint32) {
 	go curChannel.DownloadAlbum(siteId, curChannel.Selected, "mid")
 }
 
+func (ui *UI) SelectAll(value bool) {
+	curChannel := ui.Rooms.Active()
+	if curChannel != nil {
+		curChannel.Selected = nil
+		for _, data := range curChannel.RowTracker.Rows {
+			switch el := data.(type) {
+			case model.Message:
+				elemState, ok := curChannel.ListState.GetState(data.Serial()).(*Row)
+				if ok {
+					elemState.Selected.Value = value
+					if value {
+						if !slices2.Contains(curChannel.Selected, el.AlbumId) {
+							curChannel.Selected = append(curChannel.Selected, el.AlbumId)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
 	g := &gen.Generator{}
 	ch := ui.Rooms.GetBaseChannel()
@@ -545,21 +566,6 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 		Avatar:  data.Avatar,
 	})
 	return msg.Layout
-}
-
-func (ui *UI) SelectAll(value bool) {
-	curChannel := ui.Rooms.Active()
-	if curChannel != nil {
-		for _, data := range curChannel.RowTracker.Rows {
-			switch data.(type) {
-			case model.Message:
-				elemState, ok := curChannel.ListState.GetState(data.Serial()).(*Row)
-				if ok {
-					elemState.Selected.Value = value
-				}
-			}
-		}
-	}
 }
 
 func findArtistId(url string, isArtist bool) string {
