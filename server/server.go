@@ -443,32 +443,6 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	}, err
 }
 
-func (*server) ReadAlbumsIds(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadAlbumIdsResponse, error) {
-	siteId := req.GetSiteId()
-	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, read releases: %v started\n", siteId, artistId)
-
-	var (
-		ids []string
-		err error
-	)
-
-	ids, err = getArtistReleasesIdFromDb(context.WithoutCancel(ctx), siteId, artistId, req.GetNewOnly())
-
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
-		)
-	} else {
-		log.Printf("siteId: %v, read releases: %v completed, total: %v\n", siteId, artistId, len(ids))
-	}
-
-	return &artist.ReadAlbumIdsResponse{
-		Ids: ids,
-	}, err
-}
-
 func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*artist.SyncAlbumResponse, error) {
 	siteId := req.GetSiteId()
 	albumId := req.GetAlbumId()
