@@ -190,11 +190,9 @@ func (ui *UI) SelectAll(value bool) {
 				elemState, ok := curChannel.ListState.GetState(data.Serial()).(*Row)
 				if ok {
 					elemState.Selected.Value = value
-					if value {
-						if !slices2.Contains(curChannel.Selected, el.AlbumId) {
-							curChannel.Selected = append(curChannel.Selected, el.AlbumId)
-						}
-					}
+				}
+				if value {
+					curChannel.Selected = append(curChannel.Selected, el.AlbumId)
 				}
 			}
 		}
@@ -322,15 +320,6 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 					Right:  unit.Dp(8),
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return ui.layoutEditor(gtx)
-					/*gutter := lay.Gutter()
-					gutter.RightWidth = gutter.RightWidth + listStyle.ScrollbarStyle.Width()
-					return gutter.Layout(gtx,
-						nil,
-						func(gtx layout.Context) layout.Dimensions {
-							return ui.layoutEditor(gtx)
-						},
-						material.IconButton(ui.th.Theme, &ui.AddBtn, icon.Search, "Search").Layout,
-					)*/
 				})
 			})
 		}),
@@ -364,17 +353,6 @@ func (ui *UI) layoutTopbar(gtx layout.Context) layout.Dimensions {
 					btn.Background = ui.th.Palette.Surface
 					return btn.Layout(gtx)
 				}),
-				/*layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return chatwidget.Image{
-						Image: widget.Image{
-							Src: room.Interact.Image.Op(),
-						},
-						Width:  unit.Dp(24),
-						Height: unit.Dp(24),
-						Radii:  unit.Dp(3),
-					}.Layout(gtx)
-				}),*/
 				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return material.Label(ui.th.Theme, unit.Sp(14), room.Name).Layout(gtx)
@@ -526,7 +504,6 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 					go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, "mid")
 				}
 			}
-
 			if elemState.Selected.Update(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {

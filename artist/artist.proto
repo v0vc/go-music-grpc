@@ -72,10 +72,15 @@ message SyncArtistResponse {
 message ReadArtistAlbumRequest {
   uint32 siteId = 1;
   string artistId = 2;
+  bool newOnly = 3;
 }
 
 message ReadArtistAlbumResponse {
   repeated Album releases = 1;
+}
+
+message ReadAlbumIdsResponse {
+  repeated string ids = 1;
 }
 
 message DeleteArtistRequest {
@@ -132,7 +137,7 @@ message ListArtistResponse {
 service ArtistService {
   rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
   rpc ReadArtistAlbums (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
-  rpc ReadNewAlbums (ListArtistRequest) returns (ReadArtistAlbumResponse);
+  rpc ReadAlbumsIds (ReadArtistAlbumRequest) returns (ReadAlbumIdsResponse);
   rpc SyncAlbum (SyncAlbumRequest) returns (SyncAlbumResponse);
   rpc ReadAlbumTracks (ReadAlbumTrackRequest) returns (ReadAlbumTrackResponse);
   rpc DeleteArtist (DeleteArtistRequest) returns (DeleteArtistResponse);

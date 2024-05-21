@@ -63,20 +63,33 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 	return artRawId, userAdded
 }
 
-func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string) []string {
+func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string, newOnly bool) ([]string, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
 	}
 	defer db.Close()
 
-	stRows, err := db.PrepareContext(ctx, "select a.albumId from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ?;")
+	var str string
+
+	if newOnly {
+		str = "select a.albumId from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId;"
+	} else {
+		str = "select a.albumId from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ?;"
+	}
+	stRows, err := db.PrepareContext(ctx, str)
 	if err != nil {
 		log.Println(err)
 	}
 	defer stRows.Close()
 
-	rows, err := stRows.QueryContext(ctx, artistId, siteId)
+	var rows *sql.Rows
+	if newOnly {
+		rows, err = stRows.QueryContext(ctx, siteId)
+	} else {
+		rows, err = stRows.QueryContext(ctx, artistId, siteId)
+	}
+
 	if err != nil {
 		log.Println(err)
 	}
@@ -93,7 +106,7 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 		albIds = append(albIds, alb)
 	}
 
-	return albIds
+	return albIds, err
 }
 
 func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
@@ -403,14 +416,18 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, read artist releases: %v started\n", siteId, artistId)
+	log.Printf("siteId: %v, read releases: %v started\n", siteId, artistId)
 
 	var (
 		albums []*artist.Album
 		err    error
 	)
 
-	albums, err = getArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
+	if req.GetNewOnly() {
+		albums, err = getNewReleasesFromDb(context.WithoutCancel(ctx), siteId)
+	} else {
+		albums, err = getArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
+	}
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -418,7 +435,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, read artist releases: %v completed, total: %v\n", siteId, artistId, len(albums))
+		log.Printf("siteId: %v, read releases: %v completed, total: %v\n", siteId, artistId, len(albums))
 	}
 
 	return &artist.ReadArtistAlbumResponse{
@@ -426,16 +443,17 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	}, err
 }
 
-func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest) (*artist.ReadArtistAlbumResponse, error) {
+func (*server) ReadAlbumsIds(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadAlbumIdsResponse, error) {
 	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, read new releases started\n", siteId)
+	artistId := req.GetArtistId()
+	log.Printf("siteId: %v, read releases: %v started\n", siteId, artistId)
 
 	var (
-		albums []*artist.Album
-		err    error
+		ids []string
+		err error
 	)
 
-	albums, err = getNewReleasesFromDb(context.WithoutCancel(ctx), siteId)
+	ids, err = getArtistReleasesIdFromDb(context.WithoutCancel(ctx), siteId, artistId, req.GetNewOnly())
 
 	if err != nil {
 		return nil, status.Errorf(
@@ -443,11 +461,11 @@ func (*server) ReadNewAlbums(ctx context.Context, req *artist.ListArtistRequest)
 			fmt.Sprintf("Internal error: %v", err),
 		)
 	} else {
-		log.Printf("siteId: %v, read new releases completed, total: %v\n", siteId, len(albums))
+		log.Printf("siteId: %v, read releases: %v completed, total: %v\n", siteId, artistId, len(ids))
 	}
 
-	return &artist.ReadArtistAlbumResponse{
-		Releases: albums,
+	return &artist.ReadAlbumIdsResponse{
+		Ids: ids,
 	}, err
 }
 
@@ -616,7 +634,7 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 		resDown map[string]string
 	)
 
-	albIds := getArtistReleasesIdFromDb(ctx, siteId, artistId)
+	albIds, _ := getArtistReleasesIdFromDb(ctx, siteId, artistId, false)
 
 	switch siteId {
 	case 1:

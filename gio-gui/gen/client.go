@@ -174,18 +174,15 @@ func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
 	if client == nil {
 		return nil
 	}
-	res, err := client.ReadNewAlbums(context.Background(), &artist.ListArtistRequest{
-		SiteId: siteId,
+	res, err := client.ReadArtistAlbums(context.Background(), &artist.ReadArtistAlbumRequest{
+		SiteId:  siteId,
+		NewOnly: true,
 	})
 	albums := make([]model.Message, len(res.GetReleases()))
 	if err != nil || res == nil {
 		return albums
 	}
-	/*for _, alb := range res.GetReleases() {
-		serial := g.old.Increment()
-		al := MapAlbum(alb, serial, false)
-		albums = append(albums, al)
-	}*/
+
 	for i, alb := range res.GetReleases() {
 		serial := g.old.Increment()
 		al := MapAlbum(alb, serial, false)
