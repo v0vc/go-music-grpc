@@ -160,9 +160,9 @@ func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 				ScrollToEnd:   false,
 			}
 			room := &Room{
-				Room:            r,
-				RowTracker:      rt,
-				SearchResponses: make(chan []list.Serial),
+				Room:       r,
+				RowTracker: rt,
+				// SearchResponses: make(chan []list.Serial),
 			}
 
 			room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
@@ -445,12 +445,20 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				active := ui.Rooms.Active()
 				editor := &active.Editor
-				/*for _, e := range editor.Events() {
-					if _, ok := e.(widget.ChangeEvent); ok {
-						active.RunSearch(editor.Text())
+				for {
+					event, ok := editor.Update(gtx)
+					if !ok {
 						break
 					}
-				}*/
+					if _, ok := event.(widget.ChangeEvent); ok {
+						go active.RunSearch(editor.Text())
+						if editor.Text() == "" {
+							ui.Rooms.Active().Loaded = false
+							ui.Rooms.SelectAndFill(ui.SiteId, 0, nil, ui.Invalidator, ui.presentRow, nil)
+						}
+						break
+					}
+				}
 				editor.Submit = true
 				editor.SingleLine = true
 				return material.Editor(ui.th.Theme, editor, "Search").Layout(gtx)

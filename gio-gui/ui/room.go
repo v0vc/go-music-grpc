@@ -48,7 +48,7 @@ type Room struct {
 	Editor widget.Editor
 	sync.Mutex
 	// searchCurSeq    int
-	SearchResponses chan []list.Serial
+	// SearchResponses chan []list.Serial
 }
 
 func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Room, start time.Time) {
@@ -84,34 +84,22 @@ func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Roo
 }
 
 func (r *Room) RunSearch(searchText string) {
-	var resp []list.Serial
-	go func() {
-		defer func() {
-			r.SearchResponses <- resp
-		}()
-		input := strings.ToLower(searchText)
+	input := strings.ToLower(searchText)
+	resp := make([]list.Serial, 0)
+	for _, i := range r.RowTracker.Rows {
+		e := i.(model.Message)
 		if input == "" {
-			return
-		}
-		resp = make([]list.Serial, 0, len(r.RowTracker.Rows)/3)
-		for _, i := range r.RowTracker.Rows {
-			e := i.(model.Message)
-			if strings.Contains(e.Title, input) || strings.Contains(strings.ToLower(e.Title), input) {
-				// log.Println(e.SerialID)
+			resp = append(resp, e.Serial())
+		} else {
+			if !(strings.Contains(e.Title, input) || strings.Contains(strings.ToLower(e.Title), input)) {
 				resp = append(resp, e.Serial())
-			} // else {
-			// resp.indices = append(resp.indices, e.Serial())
-			// r.RowTracker.Delete(e.Serial())
-			// r.ListState.Modify(nil, nil, []list.Serial{e.Serial()})
-			//}
+			}
 		}
-	}()
-
-	/*pending := <-r.SearchResponses
-	for _, ind := range pending {
-		r.RowTracker.Delete(ind)
 	}
-	go r.ListState.Modify(nil, nil, pending)*/
+	for _, i := range resp {
+		r.RowTracker.Delete(i)
+	}
+	r.ListState.Modify(nil, nil, resp)
 }
 
 // DeleteRow removes the row with the provided serial from both the

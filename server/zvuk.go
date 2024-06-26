@@ -1139,7 +1139,7 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 		return
 	}
 
-	log.Printf("Downloading track %s of %s: %s - %s\n", albInfo.TrackNum, albInfo.TrackTotal, albInfo.TrackTitle, curQuality.Specs)
+	fmt.Printf("Downloading track %s of %s: %s - %s\n", albInfo.TrackNum, albInfo.TrackTotal, albInfo.TrackTitle, curQuality.Specs)
 	resDown, err := downloadTrack(ctx, trackPath, cdnUrl)
 	if err != nil {
 		log.Println("Failed to download track.", err)
