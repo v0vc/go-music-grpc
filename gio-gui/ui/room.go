@@ -244,14 +244,14 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 }
 
 // Changed if the active room has changed since last call.
-func (r *Rooms) Changed() bool {
+/*func (r *Rooms) Changed() bool {
 	r.Lock()
 	defer r.Unlock()
 
 	defer func() { r.changed = false }()
 
 	return r.changed
-}
+}*/
 
 // Index returns a pointer to a Room at the given index.
 // Index is bounded by [0, len(rooms)).

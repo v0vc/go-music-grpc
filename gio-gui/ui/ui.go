@@ -454,7 +454,7 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 						go active.RunSearch(editor.Text())
 						if editor.Text() == "" {
 							ui.Rooms.Active().Loaded = false
-							ui.Rooms.SelectAndFill(ui.SiteId, 0, nil, ui.Invalidator, ui.presentRow, nil)
+							ui.Rooms.SelectAndFill(ui.SiteId, ui.Rooms.active, nil, ui.Invalidator, ui.presentRow, nil)
 						}
 						break
 					}
