@@ -138,7 +138,13 @@ func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality strin
 	r.Lock()
 	defer r.Unlock()
 
-	go r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality)
+	r.Content = "Downloading..."
+	ids := r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality)
+	if len(ids) == 0 {
+		r.Content = "All music exist locally"
+	} else {
+		r.Content = fmt.Sprintf("%d album(s) downloaded", len(ids))
+	}
 }
 
 func (r *Room) DownloadArtist(siteId uint32, artistId string, trackQuality string) {
@@ -167,6 +173,7 @@ func (r *Room) ClearSync(siteId uint32) {
 func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	r.Lock()
 	defer r.Unlock()
+	r.Content = "In progress..."
 
 	arts := make(chan map[string][]model.Message, 1)
 	start := time.Now()
@@ -242,16 +249,6 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 	channel.ListState = lm
 	channel.Room.Loaded = true
 }
-
-// Changed if the active room has changed since last call.
-/*func (r *Rooms) Changed() bool {
-	r.Lock()
-	defer r.Unlock()
-
-	defer func() { r.changed = false }()
-
-	return r.changed
-}*/
 
 // Index returns a pointer to a Room at the given index.
 // Index is bounded by [0, len(rooms)).
