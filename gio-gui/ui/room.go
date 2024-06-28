@@ -140,10 +140,14 @@ func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality strin
 
 	r.Content = "Downloading..."
 	ids := r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality)
-	if len(ids) == 0 {
+	var albs = len(ids)
+	switch albs {
+	case 0:
 		r.Content = "All music exist locally"
-	} else {
-		r.Content = fmt.Sprintf("%d album(s) downloaded", len(ids))
+	case 1:
+		r.Content = fmt.Sprintf("%d album downloaded", albs)
+	default:
+		r.Content = fmt.Sprintf("%d albums downloaded", len(ids))
 	}
 }
 
