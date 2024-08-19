@@ -39,6 +39,30 @@ type server struct {
 	artist.ArtistServiceServer
 }
 
+func GetTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string, string) {
+	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from main.site where site_id = ? limit 1;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer stmt.Close()
+
+	var (
+		token sql.NullString
+		login sql.NullString
+		pass  sql.NullString
+	)
+	err = stmt.QueryRowContext(ctx, siteId).Scan(&login, &pass, &token)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		log.Printf("no token for sourceId: %d", siteId)
+	case err != nil:
+		log.Println(err)
+	}
+
+	return login.String, pass.String, token.String
+}
+
 func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
 	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded from main.artist where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
@@ -378,22 +402,29 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 
 	for _, artId := range artIds {
 		wgSync.Add(1)
+		var (
+			art *artist.Artist
+			er  error
+		)
 		_ = pool.Submit(func() {
 			switch siteId {
 			case 1:
-				// артист со сберзвука
-				art, er := SyncArtistSb(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
-				if er == nil {
-					if art != nil {
-						artists = append(artists, art)
-					}
-				} else {
-					log.Printf("Sync error: %v", er)
-				}
+				// автор со сберзвука
+				art, er = SyncArtistSb(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
 			case 2:
-				// артист со спотика
+				// автор со спотика
 			case 3:
-				// артист с дизера
+				// автор с дизера
+			case 4:
+				// автор с ютуба
+				art, er = SyncArtistYou(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
+			}
+			if er == nil {
+				if art != nil {
+					artists = append(artists, art)
+				}
+			} else {
+				log.Printf("Sync error: %v", er)
 			}
 			wgSync.Done()
 		})

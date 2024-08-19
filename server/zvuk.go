@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -29,9 +28,6 @@ const (
 	apiBase               = "https://zvuk.com/"
 	apiRelease            = "api/tiny/releases"
 	apiStream             = "api/tiny/track/stream"
-	albumRegexString      = `^https://zvuk.com/release/(\d+)$`
-	playlistRegexString   = `^https://zvuk.com/playlist/(\d+)$`
-	artistRegexString     = `^https://zvuk.com/artist/(\d+)$`
 	trackTemplateAlbum    = "{{.trackPad}}-{{.title}}"
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.year}} - {{.album}}"
@@ -291,30 +287,6 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 	}
 
 	return mTracks, mAlbum
-}
-
-func getTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string, string) {
-	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from main.site where site_id = ? limit 1;")
-	if err != nil {
-		log.Println(err)
-	}
-	defer stmt.Close()
-
-	var (
-		token string
-		login string
-		pass  string
-	)
-	err = stmt.QueryRowContext(ctx, siteId).Scan(&login, &pass, &token)
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		log.Printf("no token for sourceId: %d", siteId)
-	case err != nil:
-		log.Println(err)
-	}
-
-	return login, pass, token
 }
 
 func updateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32) {
@@ -671,7 +643,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		log.Println(err)
 	}
 
-	login, pass, token := getTokenDb(tx, ctx, siteId)
+	login, pass, token := GetTokenDb(tx, ctx, siteId)
 	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId.Id, token, login, pass)
 	if item == nil || err != nil {
 		log.Println(err)
@@ -977,7 +949,7 @@ func SyncAlbumSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.
 		log.Println(err)
 	}
 
-	login, pass, token := getTokenDb(tx, ctx, siteId)
+	login, pass, token := GetTokenDb(tx, ctx, siteId)
 	item, token, needTokenUpd, er := getAlbumTracks(ctx, albumId, token, login, pass)
 	if er != nil {
 		return nil, er
@@ -1174,7 +1146,7 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 	}
 
 	mTracks, _ := getTrackFromDb(tx, ctx, siteId, trackIds, false)
-	_, _, token := getTokenDb(tx, ctx, siteId)
+	_, _, token := GetTokenDb(tx, ctx, siteId)
 	err = tx.Rollback()
 	if err != nil {
 		log.Println(err)
@@ -1209,7 +1181,7 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	}
 
 	mTracks, dbAlbums := getTrackFromDb(tx, ctx, siteId, albIds, true)
-	login, pass, token := getTokenDb(tx, ctx, siteId)
+	login, pass, token := GetTokenDb(tx, ctx, siteId)
 
 	mDownloaded := make(map[string]string)
 
