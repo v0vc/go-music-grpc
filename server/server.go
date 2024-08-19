@@ -433,7 +433,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, sync artist: %v completed\n", siteId, artistId)
@@ -463,7 +463,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, read releases: %v completed, total: %v\n", siteId, artistId, len(albums))
@@ -501,7 +501,7 @@ func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*ar
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, sync album %v completed, total: %v\n", siteId, albumId, len(tracks))
@@ -527,7 +527,7 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, read album %v tracks completed, total: %v\n", siteId, albumId, len(tracks))
@@ -558,7 +558,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, deleting artist %v completed\n", siteId, artistId)
@@ -586,7 +586,7 @@ func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*ar
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, clear sync state completed\n", siteId)
@@ -618,7 +618,7 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, download albums %v completed, total: %v\n", siteId, albIds, len(resDown))
@@ -654,7 +654,7 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, download artist %v completed, total: %v\n", siteId, artistId, len(resDown))
@@ -688,7 +688,7 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	} else {
 		log.Printf("siteId: %v, download tracks %v completed, total: %v\n", siteId, trackIds, len(resDown))
@@ -707,7 +707,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
-			fmt.Sprintf("Internal error: %v", err),
+			"Internal error",
 		)
 	}
 	defer db.Close()
