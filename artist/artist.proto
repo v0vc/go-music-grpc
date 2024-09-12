@@ -41,15 +41,6 @@ message Track {
   int32  duration = 10;
 }
 
-message SyncAlbumRequest {
-  uint32 siteId = 1;
-  string albumId = 2;
-}
-
-message SyncAlbumResponse {
-  repeated Track tracks = 1;
-}
-
 message ReadAlbumTrackRequest {
   uint32 siteId = 1;
   string albumId = 2;
@@ -133,7 +124,6 @@ message ListArtistResponse {
 service ArtistService {
   rpc SyncArtist (SyncArtistRequest) returns (SyncArtistResponse);
   rpc ReadArtistAlbums (ReadArtistAlbumRequest) returns (ReadArtistAlbumResponse);
-  rpc SyncAlbum (SyncAlbumRequest) returns (SyncAlbumResponse);
   rpc ReadAlbumTracks (ReadAlbumTrackRequest) returns (ReadAlbumTrackResponse);
   rpc DeleteArtist (DeleteArtistRequest) returns (DeleteArtistResponse);
   rpc ClearSync (ClearSyncRequest) returns (ClearSyncResponse);

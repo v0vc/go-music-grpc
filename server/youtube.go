@@ -7,15 +7,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/v0vc/go-music-grpc/artist"
 )
 
 const (
-	youtubeApi   = "https://www.googleapis.com/youtube/v3/"
-	chanelString = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
-	uploadString = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId)),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
+	youtubeApi      = "https://www.googleapis.com/youtube/v3/"
+	chanelString    = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
+	uploadString    = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId)),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
+	statisticString = "videos?id=[VID]&key=[KEY]&part=contentDetails,statistics&fields=items(id,contentDetails(duration),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
 )
 
 func getChannel(ctx context.Context, channelId string, apiKey string) (*Channel, error) {
@@ -59,6 +62,26 @@ func geUpload(ctx context.Context, url string) (*Uploads, error) {
 	return uploads, nil
 }
 
+func geStatistics(ctx context.Context, url string) (*Statistics, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeApi+url, nil)
+	if err != nil {
+		return new(Statistics), err
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil || response == nil || response.StatusCode != http.StatusOK {
+		return new(Statistics), err
+	}
+
+	defer response.Body.Close()
+
+	var stat *Statistics
+	err = json.NewDecoder(response.Body).Decode(&stat)
+	if err != nil || stat == nil {
+		return new(Statistics), err
+	}
+	return stat, nil
+}
+
 func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
 	var resArtist *artist.Artist
 
@@ -80,15 +103,89 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		return resArtist, tx.Rollback()
 	}
 
-	var uploads []*Uploads
-	urlUpload := strings.Replace(strings.Replace(uploadString, "[ID]", ch.Items[0].ContentDetails.RelatedPlaylists.Uploads, 1), "[KEY]", token, 1)
+	stChannel, err := tx.PrepareContext(ctx, "insert into main.channel(siteId, channelId, title, thumbnail) values (?,?,?,?) on conflict (siteId, channelId) do update set syncState = 1 returning ch_id;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer stChannel.Close()
+
+	var chId int
+	chThumb := GetThumb(ctx, ch.Items[0].Snippet.Thumbnails.Default.URL)
+	insErr := stChannel.QueryRowContext(ctx, siteId, artistId.Id, ch.Items[0].Snippet.Title, chThumb).Scan(&chId)
+	if insErr != nil {
+		log.Println(insErr)
+	} else {
+		log.Printf("Processed channel: %v, id: %v \n", ch.Items[0].Snippet.Title, chId)
+	}
+
+	stPlaylist, err := tx.PrepareContext(ctx, "insert into main.playlist(playlistId) values (?) on conflict (playlistId, title) do nothing returning pl_id;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer stPlaylist.Close()
+
+	uploadId := ch.Items[0].ContentDetails.RelatedPlaylists.Uploads
+	var plId int
+	insEr := stPlaylist.QueryRowContext(ctx, uploadId).Scan(&plId)
+	if insErr != nil {
+		log.Println(insEr)
+	} else {
+		log.Printf("Processed playlist: %v, id: %v \n", uploadId, plId)
+	}
+
+	stChPl, err := tx.PrepareContext(ctx, "insert into main.channelPlaylist(channelId, playlistId) values (?,?) on conflict do nothing;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer stChPl.Close()
+	_, err = stChPl.ExecContext(ctx, chId, plId)
+	if err != nil {
+		log.Println(err)
+	}
+
+	type vidItem struct {
+		id           string
+		title        string
+		published    time.Time
+		duration     string
+		likeCount    string
+		viewCount    string
+		commentCount string
+		thumbnail    []byte
+	}
+	var videos []*vidItem
+
+	urlUpload := strings.Replace(strings.Replace(uploadString, "[ID]", uploadId, 1), "[KEY]", token, 1)
 	i := 0
 	for {
 		upl, er := geUpload(ctx, urlUpload)
 		if er == nil && upl != nil {
-			uploads = append(uploads, upl)
+			var sb strings.Builder
+			for _, vid := range upl.Items {
+				sb.WriteString(vid.Snippet.ResourceID.VideoID + ",")
+				videos = append(videos, &vidItem{
+					id:        vid.Snippet.ResourceID.VideoID,
+					title:     vid.Snippet.Title,
+					published: vid.Snippet.PublishedAt,
+				})
+			}
+			urlStat := strings.Replace(strings.Replace(statisticString, "[VID]", strings.TrimRight(sb.String(), ","), 1), "[KEY]", token, 1)
+			stat, ere := geStatistics(ctx, urlStat)
+			if ere == nil && stat != nil {
+				for _, vid := range stat.Items {
+					idx := slices.IndexFunc(videos, func(c *vidItem) bool { return c.id == vid.ID })
+					if idx != -1 {
+						videos[idx].duration = vid.ContentDetails.Duration
+						videos[idx].likeCount = vid.Statistics.LikeCount
+						videos[idx].viewCount = vid.Statistics.ViewCount
+						videos[idx].commentCount = vid.Statistics.CommentCount
+					} else {
+						log.Println("Failed to find video ", vid.ID)
+					}
+				}
+			}
 		}
-		if upl.NextPageToken == "" || er != nil {
+		if upl == nil || upl.NextPageToken == "" {
 			break
 		} else {
 			if i == 0 {
@@ -99,7 +196,33 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		i++
 	}
 
-	fmt.Println(uploads)
+	stVideo, err := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, thumbnail) values (?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer stVideo.Close()
+
+	for _, vid := range videos {
+		var vidId int
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, vid.duration, vid.likeCount, vid.viewCount, vid.commentCount, nil).Scan(&vidId)
+		if vidErr != nil {
+			log.Println(vidErr)
+		} else {
+			log.Printf("Processed video: %v \n", vidId)
+		}
+	}
+
+	er := tx.Commit()
+	if er != nil {
+		return nil, er
+	}
+
+	/*for c := range slices.Chunk(uploads, 50) {
+		var sb strings.Builder
+		for _, vid := range c{
+			sb.WriteString(vid.)
+		}
+	}*/
 
 	return resArtist, nil
 }

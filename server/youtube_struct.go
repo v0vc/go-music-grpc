@@ -30,14 +30,24 @@ type Uploads struct {
 	Items         []struct {
 		Snippet struct {
 			PublishedAt time.Time `json:"publishedAt,omitempty"`
-			ChannelID   string    `json:"channelId,omitempty"`
 			Title       string    `json:"title,omitempty"`
 			ResourceID  struct {
 				VideoID string `json:"videoId,omitempty"`
 			} `json:"resourceId,omitempty"`
 		} `json:"snippet,omitempty"`
+	} `json:"items,omitempty"`
+}
+
+type Statistics struct {
+	Items []struct {
+		ID             string `json:"id,omitempty"`
 		ContentDetails struct {
-			VideoPublishedAt time.Time `json:"videoPublishedAt,omitempty"`
+			Duration string `json:"duration,omitempty"`
 		} `json:"contentDetails,omitempty"`
+		Statistics struct {
+			ViewCount    string `json:"viewCount,omitempty"`
+			LikeCount    string `json:"likeCount,omitempty"`
+			CommentCount string `json:"commentCount,omitempty"`
+		} `json:"statistics,omitempty"`
 	} `json:"items,omitempty"`
 }

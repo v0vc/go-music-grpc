@@ -49,8 +49,43 @@ CREATE TABLE albumTrack (
     trackId INTEGER REFERENCES track (trk_id) ON UPDATE CASCADE ON DELETE CASCADE,
     UNIQUE(albumId,trackId)
 );
-CREATE TABLE trackArtist (
-    trackId INTEGER REFERENCES track (trk_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    artistId INTEGER REFERENCES artist (art_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    UNIQUE(trackId, artistId)
+CREATE TABLE channel (
+    ch_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    siteId INTEGER REFERENCES site (site_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    channelId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    syncState INTEGER default 1,
+    thumbnail BLOB,
+    UNIQUE(siteId,channelId)
+);
+CREATE TABLE playlist (
+    pl_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    playlistId TEXT,
+    title TEXT NOT NULL DEFAULT 'Uploads',
+    playlistType INTEGER default 0,
+    thumbnail BLOB,
+    UNIQUE(playlistId,title)
+);
+CREATE TABLE channelPlaylist (
+    channelId INTEGER REFERENCES channel (ch_id) ON DELETE CASCADE,
+    playlistId INTEGER REFERENCES playlist (pl_id) ON DELETE CASCADE,
+    UNIQUE(channelId,playlistId)
+);
+CREATE TABLE video (
+    vid_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    videoId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    timestamp TEXT,
+    duration INTEGER,
+    likeCount INTEGER,
+    viewCount INTEGER,
+    commentCount INTEGER,
+    syncState INTEGER default 0,
+    thumbnail BLOB,
+    UNIQUE(videoId,title)
+);
+CREATE TABLE playlistVideo (
+    playlistId INTEGER REFERENCES playlist (pl_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    videoId INTEGER REFERENCES video (vid_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    UNIQUE(playlistId,videoId)
 );

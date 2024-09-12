@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -363,6 +365,34 @@ func DeleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32,
 	return aff, err
 }
 
+func GetThumb(ctx context.Context, url string) []byte {
+	// rkn block fix
+	if strings.Contains(url, "yt3.ggpht.com") {
+		url = strings.Replace(url, "yt3", "yt4", 1)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil
+	}
+
+	response, err := http.DefaultClient.Do(req)
+
+	if err != nil || response == nil {
+		return []byte{}
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode == http.StatusOK || response.StatusCode == http.StatusNotModified {
+		res, er := io.ReadAll(response.Body)
+		if er != nil {
+			return []byte{}
+		}
+		return res
+
+	}
+	return []byte{}
+}
+
 func vacuumDb(ctx context.Context) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v", dbFile))
 	if err != nil {
@@ -472,44 +502,6 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	return &artist.ReadArtistAlbumResponse{
 		Releases: albums,
 	}, err
-}
-
-func (*server) SyncAlbum(ctx context.Context, req *artist.SyncAlbumRequest) (*artist.SyncAlbumResponse, error) {
-	siteId := req.GetSiteId()
-	albumId := req.GetAlbumId()
-	log.Printf("siteId: %v, sync album %v started\n", siteId, albumId)
-
-	var (
-		tracks []*artist.Track
-		err    error
-	)
-
-	wgSync.Add(1)
-	_ = pool.Submit(func() {
-		switch siteId {
-		case 1:
-			tracks, err = SyncAlbumSb(context.WithoutCancel(ctx), siteId, albumId)
-		case 2:
-			// "артист со спотика"
-		case 3:
-			// "артист с дизера"
-		}
-		wgSync.Done()
-	})
-	wgSync.Wait()
-
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			"Internal error",
-		)
-	} else {
-		log.Printf("siteId: %v, sync album %v completed, total: %v\n", siteId, albumId, len(tracks))
-	}
-
-	return &artist.SyncAlbumResponse{
-		Tracks: tracks,
-	}, nil
 }
 
 func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRequest) (*artist.ReadAlbumTrackResponse, error) {

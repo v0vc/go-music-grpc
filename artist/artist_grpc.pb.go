@@ -25,7 +25,6 @@ const _ = grpc.SupportPackageIsVersion7
 type ArtistServiceClient interface {
 	SyncArtist(ctx context.Context, in *SyncArtistRequest, opts ...grpc.CallOption) (*SyncArtistResponse, error)
 	ReadArtistAlbums(ctx context.Context, in *ReadArtistAlbumRequest, opts ...grpc.CallOption) (*ReadArtistAlbumResponse, error)
-	SyncAlbum(ctx context.Context, in *SyncAlbumRequest, opts ...grpc.CallOption) (*SyncAlbumResponse, error)
 	ReadAlbumTracks(ctx context.Context, in *ReadAlbumTrackRequest, opts ...grpc.CallOption) (*ReadAlbumTrackResponse, error)
 	DeleteArtist(ctx context.Context, in *DeleteArtistRequest, opts ...grpc.CallOption) (*DeleteArtistResponse, error)
 	ClearSync(ctx context.Context, in *ClearSyncRequest, opts ...grpc.CallOption) (*ClearSyncResponse, error)
@@ -55,15 +54,6 @@ func (c *artistServiceClient) SyncArtist(ctx context.Context, in *SyncArtistRequ
 func (c *artistServiceClient) ReadArtistAlbums(ctx context.Context, in *ReadArtistAlbumRequest, opts ...grpc.CallOption) (*ReadArtistAlbumResponse, error) {
 	out := new(ReadArtistAlbumResponse)
 	err := c.cc.Invoke(ctx, "/artist.ArtistService/ReadArtistAlbums", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *artistServiceClient) SyncAlbum(ctx context.Context, in *SyncAlbumRequest, opts ...grpc.CallOption) (*SyncAlbumResponse, error) {
-	out := new(SyncAlbumResponse)
-	err := c.cc.Invoke(ctx, "/artist.ArtistService/SyncAlbum", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +129,6 @@ func (c *artistServiceClient) ListArtist(ctx context.Context, in *ListArtistRequ
 type ArtistServiceServer interface {
 	SyncArtist(context.Context, *SyncArtistRequest) (*SyncArtistResponse, error)
 	ReadArtistAlbums(context.Context, *ReadArtistAlbumRequest) (*ReadArtistAlbumResponse, error)
-	SyncAlbum(context.Context, *SyncAlbumRequest) (*SyncAlbumResponse, error)
 	ReadAlbumTracks(context.Context, *ReadAlbumTrackRequest) (*ReadAlbumTrackResponse, error)
 	DeleteArtist(context.Context, *DeleteArtistRequest) (*DeleteArtistResponse, error)
 	ClearSync(context.Context, *ClearSyncRequest) (*ClearSyncResponse, error)
@@ -159,9 +148,6 @@ func (UnimplementedArtistServiceServer) SyncArtist(context.Context, *SyncArtistR
 }
 func (UnimplementedArtistServiceServer) ReadArtistAlbums(context.Context, *ReadArtistAlbumRequest) (*ReadArtistAlbumResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadArtistAlbums not implemented")
-}
-func (UnimplementedArtistServiceServer) SyncAlbum(context.Context, *SyncAlbumRequest) (*SyncAlbumResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SyncAlbum not implemented")
 }
 func (UnimplementedArtistServiceServer) ReadAlbumTracks(context.Context, *ReadAlbumTrackRequest) (*ReadAlbumTrackResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadAlbumTracks not implemented")
@@ -229,24 +215,6 @@ func _ArtistService_ReadArtistAlbums_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ArtistServiceServer).ReadArtistAlbums(ctx, req.(*ReadArtistAlbumRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ArtistService_SyncAlbum_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SyncAlbumRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ArtistServiceServer).SyncAlbum(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/artist.ArtistService/SyncAlbum",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArtistServiceServer).SyncAlbum(ctx, req.(*SyncAlbumRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -391,10 +359,6 @@ var ArtistService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReadArtistAlbums",
 			Handler:    _ArtistService_ReadArtistAlbums_Handler,
-		},
-		{
-			MethodName: "SyncAlbum",
-			Handler:    _ArtistService_SyncAlbum_Handler,
 		},
 		{
 			MethodName: "ReadAlbumTracks",
