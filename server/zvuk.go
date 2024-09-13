@@ -636,7 +636,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				if insErr != nil {
 					log.Println(insErr)
 				} else {
-					log.Printf("processed artist: %v, id: %v \n", art.GetTitle(), artId)
+					log.Printf("Processed artist: %v, id: %v \n", art.GetTitle(), artId)
 				}
 				mArtist[art.GetArtistId()] = artId
 			}
@@ -653,7 +653,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 				if err != nil {
 					log.Println(err)
 				} else {
-					log.Printf("processed album: %v, id: %v \n", album.GetTitle(), albId)
+					log.Printf("Processed album: %v, id: %v \n", album.GetTitle(), albId)
 				}
 
 				for _, arId := range album.GetArtistIds() {

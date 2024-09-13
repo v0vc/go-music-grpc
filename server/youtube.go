@@ -212,11 +212,6 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		}
 	}
 
-	er := tx.Commit()
-	if er != nil {
-		return nil, er
-	}
-
 	/*for c := range slices.Chunk(uploads, 50) {
 		var sb strings.Builder
 		for _, vid := range c{
@@ -224,5 +219,5 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		}
 	}*/
 
-	return resArtist, nil
+	return resArtist, tx.Commit()
 }
