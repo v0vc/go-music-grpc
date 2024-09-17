@@ -31,7 +31,12 @@ type Uploads struct {
 		Snippet struct {
 			PublishedAt time.Time `json:"publishedAt,omitempty"`
 			Title       string    `json:"title,omitempty"`
-			ResourceID  struct {
+			Thumbnails  struct {
+				Default struct {
+					URL string `json:"url,omitempty"`
+				} `json:"default,omitempty"`
+			}
+			ResourceID struct {
 				VideoID string `json:"videoId,omitempty"`
 			} `json:"resourceId,omitempty"`
 		} `json:"snippet,omitempty"`

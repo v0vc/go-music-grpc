@@ -17,7 +17,7 @@ import (
 const (
 	youtubeApi      = "https://www.googleapis.com/youtube/v3/"
 	chanelString    = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
-	uploadString    = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId)),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
+	uploadString    = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
 	statisticString = "videos?id=[VID]&key=[KEY]&part=contentDetails,statistics&fields=items(id,contentDetails(duration),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
 )
 
@@ -144,14 +144,15 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	}
 
 	type vidItem struct {
-		id           string
-		title        string
-		published    time.Time
-		duration     string
-		likeCount    string
-		viewCount    string
-		commentCount string
-		thumbnail    []byte
+		id            string
+		title         string
+		published     time.Time
+		duration      string
+		likeCount     string
+		viewCount     string
+		commentCount  string
+		thumbnailLink string
+		thumbnail     []byte
 	}
 	var videos []*vidItem
 
@@ -164,9 +165,10 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			for _, vid := range upl.Items {
 				sb.WriteString(vid.Snippet.ResourceID.VideoID + ",")
 				videos = append(videos, &vidItem{
-					id:        vid.Snippet.ResourceID.VideoID,
-					title:     vid.Snippet.Title,
-					published: vid.Snippet.PublishedAt,
+					id:            vid.Snippet.ResourceID.VideoID,
+					title:         vid.Snippet.Title,
+					published:     vid.Snippet.PublishedAt,
+					thumbnailLink: vid.Snippet.Thumbnails.Default.URL,
 				})
 			}
 			urlStat := strings.Replace(strings.Replace(statisticString, "[VID]", strings.TrimRight(sb.String(), ","), 1), "[KEY]", token, 1)
@@ -202,14 +204,32 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	}
 	defer stVideo.Close()
 
+	var vidRawIds []int
 	for _, vid := range videos {
+		vid.thumbnail = GetThumb(ctx, vid.thumbnailLink)
 		var vidId int
-		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, vid.duration, vid.likeCount, vid.viewCount, vid.commentCount, nil).Scan(&vidId)
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, vid.duration, vid.likeCount, vid.viewCount, vid.commentCount, vid.thumbnail).Scan(&vidId)
 		if vidErr != nil {
 			log.Println(vidErr)
 		} else {
 			log.Printf("Processed video: %v \n", vidId)
+			vidRawIds = append(vidRawIds, vidId)
 		}
+	}
+
+	sqlStr := fmt.Sprintf("insert into main.playlistVideo(playlistId, videoId) values %v on conflict (playlistId, videoId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(videos)), ","))
+	stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
+
+	defer stArtAlb.Close()
+
+	var args []interface{}
+	for _, v := range vidRawIds {
+		args = append(args, plId, v)
+	}
+
+	_, err = stArtAlb.ExecContext(ctx, args...)
+	if err != nil {
+		log.Println(err)
 	}
 
 	/*for c := range slices.Chunk(uploads, 50) {
