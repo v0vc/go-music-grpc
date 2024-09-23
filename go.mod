@@ -17,7 +17,7 @@ require (
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
 	golang.org/x/exp/shiny v0.0.0-20240909161429-701f63a606c0
 	golang.org/x/image v0.20.0
-	google.golang.org/grpc v1.66.2
+	google.golang.org/grpc v1.67.0
 	google.golang.org/protobuf v1.34.2
 )
 
