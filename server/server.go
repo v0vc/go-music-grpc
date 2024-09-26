@@ -46,7 +46,12 @@ func GetTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 	if err != nil {
 		log.Println(err)
 	}
-	defer stmt.Close()
+	defer func(stmt *sql.Stmt) {
+		err = stmt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmt)
 
 	var (
 		token sql.NullString
@@ -70,7 +75,12 @@ func GetArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId inte
 	if err != nil {
 		log.Println(err)
 	}
-	defer stmtArt.Close()
+	defer func(stmtArt *sql.Stmt) {
+		err = stmtArt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtArt)
 
 	var (
 		artRawId  int
@@ -94,7 +104,12 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	var str string
 
@@ -107,7 +122,12 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 	if err != nil {
 		log.Println(err)
 	}
-	defer stRows.Close()
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
 
 	var rows *sql.Rows
 	if newOnly {
@@ -119,7 +139,12 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 	if err != nil {
 		log.Println(err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
 
 	var albIds []string
 
@@ -128,7 +153,6 @@ func getArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 		if err = rows.Scan(&alb); err != nil {
 			log.Println(err)
 		}
-
 		albIds = append(albIds, alb)
 	}
 
@@ -140,19 +164,34 @@ func getArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail, a.syncState from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.alb_id in (select ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.artistId = ? limit 1)) and ar.siteId = ? group by aa.albumId order by a.syncState desc, a.releaseDate desc;")
 	if err != nil {
 		log.Println(err)
 	}
-	defer stRows.Close()
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
 
 	rows, err := stRows.QueryContext(ctx, artistId, siteId)
 	if err != nil {
 		log.Println(err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
 
 	var albs []*artist.Album
 
@@ -178,19 +217,34 @@ func getNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId order by a.releaseDate desc;")
 	if err != nil {
 		log.Println(err)
 	}
-	defer stRows.Close()
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
 
 	rows, err := stRows.QueryContext(ctx, siteId)
 	if err != nil {
 		log.Println(err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
 
 	var albs []*artist.Album
 
@@ -215,7 +269,12 @@ func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, erro
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	var artistIds []ArtistRawId
 
@@ -223,7 +282,12 @@ func getArtistIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, erro
 	if err != nil {
 		log.Println(err)
 	}
-	defer stmtArt.Close()
+	defer func(stmtArt *sql.Stmt) {
+		err = stmtArt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtArt)
 
 	rows, err := stmtArt.QueryContext(ctx, siteId)
 	if err != nil {
@@ -248,19 +312,34 @@ func getAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	stRows, err := db.PrepareContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.genre, t.trackNum, t.duration from main.albumTrack at join track t on t.trk_id = at.trackId join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = at.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? order by t.trackNum;")
 	if err != nil {
 		log.Println(err)
 	}
-	defer stRows.Close()
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
 
 	rows, err := stRows.QueryContext(ctx, albumId, siteId)
 	if err != nil {
 		log.Println(err)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
 
 	var tracks []*artist.Track
 
@@ -281,7 +360,12 @@ func clearSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -292,7 +376,12 @@ func clearSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
 	if err != nil {
 		log.Println(err)
 	}
-	defer stRows.Close()
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
 
 	rows, err := stRows.ExecContext(ctx, siteId)
 	if err != nil {
@@ -310,7 +399,12 @@ func deleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -347,7 +441,12 @@ func DeleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32,
 				log.Println(er)
 			}
 
-			defer stmt.Close()
+			defer func(stmt *sql.Stmt) {
+				err = stmt.Close()
+				if err != nil {
+					log.Println(err)
+				}
+			}(stmt)
 			cc, er := stmt.ExecContext(ctx)
 			if er != nil {
 				log.Println(er)
@@ -380,7 +479,12 @@ func GetThumb(ctx context.Context, url string) []byte {
 	if err != nil || response == nil {
 		return []byte{}
 	}
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
 
 	if response.StatusCode == http.StatusOK || response.StatusCode == http.StatusNotModified {
 		res, er := io.ReadAll(response.Body)
@@ -399,7 +503,12 @@ func vacuumDb(ctx context.Context) {
 		log.Println(err)
 	}
 
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 	_, err = db.ExecContext(ctx, "VACUUM;")
 	if err != nil {
 		log.Println(err)
@@ -702,7 +811,12 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 			"Internal error",
 		)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	var arts []*artist.Artist
 
@@ -710,20 +824,28 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	if er != nil {
 		log.Println(er)
 	}
-	defer stmtArt.Close()
+	defer func(stmtArt *sql.Stmt) {
+		err = stmtArt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtArt)
 
 	rows, er := stmtArt.QueryContext(context.WithoutCancel(ctx), siteId)
 	if er != nil {
 		log.Println(er)
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
 
 	for rows.Next() {
 		var art artist.Artist
 		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
-			if e != nil {
-				log.Println(e)
-			}
+			log.Println(e)
 		}
 		art.SiteId = siteId
 		arts = append(arts, &art)

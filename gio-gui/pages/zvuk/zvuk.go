@@ -180,7 +180,7 @@ func getInstance(invalidator func(), th *page.Theme, loadSize int) *ui.UI {
 }
 
 func (p *Page) Layout(gtx layout.Context, th *page.Theme, loadSize int) layout.Dimensions {
-	ui := getInstance(p.Router.Invalidate, th, loadSize)
+	mainUi := getInstance(p.Router.Invalidate, th, loadSize)
 	p.th = th
-	return ui.Layout(gtx)
+	return mainUi.Layout(gtx)
 }

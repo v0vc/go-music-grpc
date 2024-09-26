@@ -74,7 +74,12 @@ func downloadAlbumCover(ctx context.Context, url, path string) error {
 		return err
 	}
 
-	defer f.Close()
+	defer func(f *os.File) {
+		err = f.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(f)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil
@@ -88,7 +93,12 @@ func downloadAlbumCover(ctx context.Context, url, path string) error {
 		return err
 	}
 
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
 	if response.StatusCode != http.StatusOK {
 		return err
 	}
@@ -102,7 +112,12 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 		return "", err
 	}
 
-	defer f.Close()
+	defer func(f *os.File) {
+		err = f.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(f)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
@@ -114,7 +129,12 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 		return "", err
 	}
 
-	defer do.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(do.Body)
 	if do.StatusCode != http.StatusOK && do.StatusCode != http.StatusPartialContent {
 		log.Println(do.Status)
 		return "", err
@@ -151,7 +171,12 @@ func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string
 	if err != nil {
 		log.Println(err)
 	}
-	defer stmtAlb.Close()
+	defer func(stmtAlb *sql.Stmt) {
+		err = stmtAlb.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtAlb)
 
 	var albId int
 	err = stmtAlb.QueryRowContext(ctx, albumId, siteId).Scan(&albId)
@@ -166,7 +191,12 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId stri
 	if err != nil {
 		log.Println(err)
 	}
-	defer stmtAlb.Close()
+	defer func(stmtAlb *sql.Stmt) {
+		err = stmtAlb.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtAlb)
 
 	var artId int
 	err = stmtAlb.QueryRowContext(ctx, artistId, siteId).Scan(&artId)
@@ -188,7 +218,12 @@ func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string
 			log.Println(err)
 		}
 
-		defer rows.Close()
+		defer func(rows *sql.Rows) {
+			err = rows.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(rows)
 
 		for rows.Next() {
 			var (
@@ -233,7 +268,12 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 	if err != nil {
 		log.Println(err)
 	}
-	defer stRows.Close()
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
 
 	args := make([]interface{}, len(ids))
 	for i, trackId := range ids {
@@ -246,7 +286,13 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 		log.Println(err)
 	}
 
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
 	mTracks := make(map[string]*AlbumInfo)
 
 	var mAlbum []string
@@ -277,7 +323,13 @@ func updateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32)
 		log.Println(err)
 	}
 
-	defer stmtUpdToken.Close()
+	defer func(stmtUpdToken *sql.Stmt) {
+		err = stmtUpdToken.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtUpdToken)
+
 	_, _ = stmtUpdToken.ExecContext(ctx, token, siteId)
 }
 
@@ -296,7 +348,12 @@ func getTokenFromSite(ctx context.Context, email, password string) (string, erro
 		return "", err
 	}
 
-	defer do.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(do.Body)
 	if do.StatusCode != http.StatusOK {
 		return "", err
 	}
@@ -328,13 +385,19 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 			return "", err
 		}
 		if do.StatusCode == http.StatusTeapot && i != 4 {
-			do.Body.Close()
+			err = do.Body.Close()
+			if err != nil {
+				return "", err
+			}
 			log.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
 
 			continue
 		}
 		if do.StatusCode != http.StatusOK {
-			do.Body.Close()
+			err = do.Body.Close()
+			if err != nil {
+				return "", err
+			}
 			return "", err
 		}
 
@@ -344,7 +407,12 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 		return "", err
 	}
 
-	defer do.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(do.Body)
 
 	var obj *TrackStreamInfo
 	err = json.NewDecoder(do.Body).Decode(&obj)
@@ -381,7 +449,13 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 		return nil, "", false, err
 	}
 
-	defer do.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(do.Body)
+
 	needTokenUpd := false
 
 	switch do.StatusCode {
@@ -459,7 +533,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -619,10 +698,20 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 	)
 	if artists != nil {
 		stArtist, _ := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title) values (?,?,?) on conflict (siteId, artistId) do update set syncState = 1 returning art_id;")
-		defer stArtist.Close()
+		defer func(stArtist *sql.Stmt) {
+			err = stArtist.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(stArtist)
 
 		stArtistUser, _ := tx.PrepareContext(ctx, "insert into main.artist(siteId, artistId, title, userAdded, thumbnail) values (?,?,?,?,?) on conflict (siteId, artistId) do update set userAdded = 1 returning art_id;")
-		defer stArtistUser.Close()
+		defer func(stArtistUser *sql.Stmt) {
+			err = stArtistUser.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(stArtistUser)
 
 		for _, art := range artists {
 			artId, ok := mArtist[art.GetArtistId()]
@@ -645,7 +734,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 
 	if albums != nil {
 		stAlbum, _ := tx.PrepareContext(ctx, "insert into main.album(albumId, title, releaseDate, releaseType, thumbnail, syncState) values (?,?,?,?,?,?) on conflict (albumId, title) do update set syncState = 0 returning alb_id;")
-		defer stAlbum.Close()
+		defer func(stAlbum *sql.Stmt) {
+			err = stAlbum.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(stAlbum)
 
 		for _, album := range albums {
 			if album.GetAlbumId() != "" {
@@ -723,7 +817,13 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		log.Printf("siteId: %v, artistId: %d, avatar has been updated\n", siteId, artRawId)
 		stArtistUpd, _ := tx.PrepareContext(ctx, "update main.artist set userAdded = 1, thumbnail = ? where art_id = ?;")
 
-		defer stArtistUpd.Close()
+		defer func(stArtistUpd *sql.Stmt) {
+			err = stArtistUpd.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(stArtistUpd)
+
 		_, err = stArtistUpd.ExecContext(ctx, thumb, artRawId)
 		if err != nil {
 			log.Println(err)
@@ -735,7 +835,12 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		sqlStr := fmt.Sprintf("insert into main.artistAlbum(artistId, albumId) values %v on conflict (artistId, albumId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(artAlbs)), ","))
 		stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
 
-		defer stArtAlb.Close()
+		defer func(stArtAlb *sql.Stmt) {
+			err = stArtAlb.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(stArtAlb)
 
 		var args []interface{}
 		for _, artAl := range artAlbs {
@@ -851,7 +956,12 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -886,7 +996,12 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {

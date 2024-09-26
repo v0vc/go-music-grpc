@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"slices"
@@ -32,7 +33,12 @@ func getChannel(ctx context.Context, channelId string, apiKey string) (*Channel,
 		return new(Channel), err
 	}
 
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
 
 	var channel *Channel
 	err = json.NewDecoder(response.Body).Decode(&channel)
@@ -52,7 +58,12 @@ func geUpload(ctx context.Context, url string) (*Uploads, error) {
 		return new(Uploads), err
 	}
 
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
 
 	var uploads *Uploads
 	err = json.NewDecoder(response.Body).Decode(&uploads)
@@ -72,7 +83,12 @@ func geStatistics(ctx context.Context, url string) (*Statistics, error) {
 		return new(Statistics), err
 	}
 
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
 
 	var stat *Statistics
 	err = json.NewDecoder(response.Body).Decode(&stat)
@@ -89,7 +105,12 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	if err != nil {
 		log.Println(err)
 	}
-	defer db.Close()
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
 
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -107,7 +128,12 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	if err != nil {
 		log.Println(err)
 	}
-	defer stChannel.Close()
+	defer func(stChannel *sql.Stmt) {
+		err = stChannel.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stChannel)
 
 	var chId int
 	chThumb := GetThumb(ctx, ch.Items[0].Snippet.Thumbnails.Default.URL)
@@ -122,7 +148,12 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	if err != nil {
 		log.Println(err)
 	}
-	defer stPlaylist.Close()
+	defer func(stPlaylist *sql.Stmt) {
+		err = stPlaylist.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stPlaylist)
 
 	uploadId := ch.Items[0].ContentDetails.RelatedPlaylists.Uploads
 	var plId int
@@ -137,7 +168,13 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	if err != nil {
 		log.Println(err)
 	}
-	defer stChPl.Close()
+	defer func(stChPl *sql.Stmt) {
+		err = stChPl.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stChPl)
+
 	_, err = stChPl.ExecContext(ctx, chId, plId)
 	if err != nil {
 		log.Println(err)
@@ -202,7 +239,12 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	if err != nil {
 		log.Println(err)
 	}
-	defer stVideo.Close()
+	defer func(stVideo *sql.Stmt) {
+		err = stVideo.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stVideo)
 
 	var vidRawIds []int
 	for _, vid := range videos {
@@ -220,7 +262,12 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	sqlStr := fmt.Sprintf("insert into main.playlistVideo(playlistId, videoId) values %v on conflict (playlistId, videoId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(videos)), ","))
 	stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
 
-	defer stArtAlb.Close()
+	defer func(stArtAlb *sql.Stmt) {
+		err = stArtAlb.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stArtAlb)
 
 	var args []interface{}
 	for _, v := range vidRawIds {

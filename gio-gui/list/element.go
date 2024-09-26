@@ -154,6 +154,8 @@ func (d *Direction) Add(other Direction) {
 		if other == After {
 			*d = Both
 		}
+	default:
+		*d = other
 	}
 }
 

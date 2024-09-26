@@ -91,7 +91,12 @@ func writeMp3Tags(decTrackPath string, tags map[string]string, imgData []byte) e
 		return err
 	}
 
-	defer tag.Close()
+	defer func(tag *id3v2.Tag) {
+		err = tag.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(tag)
 
 	for k, v := range tags {
 		resolved, ok := resolve[k]

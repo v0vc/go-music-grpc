@@ -132,6 +132,8 @@ func asyncProcess(ctx context.Context, maxSize int, hooks Hooks) (chan<- interfa
 						loadSerial = synthesis.SerialAt(0)
 					case After:
 						loadSerial = synthesis.SerialAt(len(synthesis.Source) - 1)
+					default:
+						loadSerial = synthesis.SerialAt(0)
 					}
 					// Load new elements.
 					var more bool

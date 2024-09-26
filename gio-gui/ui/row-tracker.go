@@ -97,7 +97,7 @@ func (rt *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded [
 		return rt.Rows[idx+1 : end], end < len(rt.Rows)-1
 	}
 	start := max(0, idx-rt.MaxLoads)
-	return rt.Rows[start:idx], start > 0
+	return rt.Rows[start:idx], false
 }
 
 // Delete removes the element with the provided serial from storage.
