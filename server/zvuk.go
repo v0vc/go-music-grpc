@@ -28,111 +28,6 @@ import (
 	}
 }*/
 
-func GetNewReleasesFromDbSb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId order by 4 desc;")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	rows, err := stRows.QueryContext(ctx, siteId)
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(rows)
-
-	var albs []*artist.Album
-
-	for rows.Next() {
-		var alb artist.Album
-
-		var artIds string
-
-		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail); err != nil {
-			log.Println(err)
-		}
-
-		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
-		albs = append(albs, &alb)
-	}
-
-	return albs, err
-}
-
-func GetArtistReleasesFromDbSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail, a.syncState from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.alb_id in (select ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.artistId = ? limit 1)) and ar.siteId = ? group by aa.albumId order by 7 desc, 4 desc;")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	rows, err := stRows.QueryContext(ctx, artistId, siteId)
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(rows)
-
-	var albs []*artist.Album
-
-	for rows.Next() {
-		var (
-			alb    artist.Album
-			artIds string
-		)
-
-		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail, &alb.SyncState); err != nil {
-			log.Println(err)
-		}
-
-		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
-		albs = append(albs, &alb)
-	}
-
-	return albs, err
-}
-
 func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string) int {
 	stmtAlb, err := tx.PrepareContext(ctx, "select aa.albumId from main.artistAlbum aa join album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? limit 1;")
 	if err != nil {
@@ -495,6 +390,366 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	return mDownloaded, err
 }
 
+func GetNewReleasesFromDbSb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId order by 4 desc;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.QueryContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	var albs []*artist.Album
+
+	for rows.Next() {
+		var alb artist.Album
+
+		var artIds string
+
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail); err != nil {
+			log.Println(err)
+		}
+
+		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
+		albs = append(albs, &alb)
+	}
+
+	return albs, err
+}
+
+func GetArtistReleasesFromDbSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail, a.syncState from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.alb_id in (select ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.artistId = ? limit 1)) and ar.siteId = ? group by aa.albumId order by 7 desc, 4 desc;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.QueryContext(ctx, artistId, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	var albs []*artist.Album
+
+	for rows.Next() {
+		var (
+			alb    artist.Album
+			artIds string
+		)
+
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail, &alb.SyncState); err != nil {
+			log.Println(err)
+		}
+
+		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
+		albs = append(albs, &alb)
+	}
+
+	return albs, err
+}
+
+func ClearSyncStateDbSb(ctx context.Context, siteId uint32) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
+
+	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.syncState = 1 and alb_id in (select distinct ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.siteId = ?));")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.ExecContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	aff, err := rows.RowsAffected()
+	if err != nil {
+		log.Println(err)
+	}
+	return aff, tx.Commit()
+}
+
+func DeleteArtistDbSb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
+
+	return deleteBaseSb(ctx, tx, artistId, siteId, true)
+}
+
+func GetArtistReleasesIdFromDbSb(ctx context.Context, siteId uint32, artistId string, newOnly bool) ([]string, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	var str string
+
+	if newOnly {
+		str = "select a.albumId from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId;"
+	} else {
+		str = "select a.albumId from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ?;"
+	}
+	stRows, err := db.PrepareContext(ctx, str)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	var rows *sql.Rows
+	if newOnly {
+		rows, err = stRows.QueryContext(ctx, siteId)
+	} else {
+		rows, err = stRows.QueryContext(ctx, artistId, siteId)
+	}
+
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	var albIds []string
+
+	for rows.Next() {
+		var alb string
+		if err = rows.Scan(&alb); err != nil {
+			log.Println(err)
+		}
+		albIds = append(albIds, alb)
+	}
+
+	return albIds, err
+}
+
+func GetArtistIdsFromDbSb(ctx context.Context, siteId uint32) ([]ArtistRawId, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	var artistIds []ArtistRawId
+
+	stmtArt, err := db.PrepareContext(ctx, "select a.art_id, a.artistId from main.artist a where a.siteId = ? and a.userAdded = 1;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stmtArt *sql.Stmt) {
+		err = stmtArt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtArt)
+
+	rows, err := stmtArt.QueryContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+
+	for rows.Next() {
+		var artId ArtistRawId
+
+		if er := rows.Scan(&artId.RawId, &artId.Id); er != nil {
+			log.Println(err)
+		}
+
+		artistIds = append(artistIds, artId)
+	}
+
+	return artistIds, err
+}
+
+func GetAlbumTrackFromDbSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	stRows, err := db.PrepareContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.genre, t.trackNum, t.duration from main.albumTrack at join track t on t.trk_id = at.trackId join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = at.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? order by t.trackNum;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.QueryContext(ctx, albumId, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	var tracks []*artist.Track
+
+	for rows.Next() {
+		var track artist.Track
+		if err = rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
+			log.Println(err)
+		}
+
+		tracks = append(tracks, &track)
+	}
+
+	return tracks, err
+}
+
+func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	var arts []*artist.Artist
+
+	stmtArt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stmtArt *sql.Stmt) {
+		err = stmtArt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtArt)
+
+	rows, err := stmtArt.QueryContext(context.WithoutCancel(ctx), siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	for rows.Next() {
+		var art artist.Artist
+		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
+			log.Println(e)
+		}
+		art.SiteId = siteId
+		arts = append(arts, &art)
+	}
+	return arts, err
+}
+
 func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
 	var resArtist *artist.Artist
 
@@ -832,214 +1087,4 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 	}
 
 	return resArtist, tx.Commit()
-}
-
-func ClearSyncStateDbSb(ctx context.Context, siteId uint32) (int64, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		log.Println(err)
-	}
-
-	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.syncState = 1 and alb_id in (select distinct ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.siteId = ?));")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	rows, err := stRows.ExecContext(ctx, siteId)
-	if err != nil {
-		log.Println(err)
-	}
-	aff, err := rows.RowsAffected()
-	if err != nil {
-		log.Println(err)
-	}
-	return aff, tx.Commit()
-}
-
-func DeleteArtistDbSb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		log.Println(err)
-	}
-
-	return deleteBaseSb(ctx, tx, artistId, siteId, true)
-}
-
-func GetArtistReleasesIdFromDbSb(ctx context.Context, siteId uint32, artistId string, newOnly bool) ([]string, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	var str string
-
-	if newOnly {
-		str = "select a.albumId from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.syncState = 1 and ar.siteId = ? group by aa.albumId;"
-	} else {
-		str = "select a.albumId from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where ar.artistId = ? and ar.siteId = ?;"
-	}
-	stRows, err := db.PrepareContext(ctx, str)
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	var rows *sql.Rows
-	if newOnly {
-		rows, err = stRows.QueryContext(ctx, siteId)
-	} else {
-		rows, err = stRows.QueryContext(ctx, artistId, siteId)
-	}
-
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(rows)
-
-	var albIds []string
-
-	for rows.Next() {
-		var alb string
-		if err = rows.Scan(&alb); err != nil {
-			log.Println(err)
-		}
-		albIds = append(albIds, alb)
-	}
-
-	return albIds, err
-}
-
-func GetArtistIdsFromDbSb(ctx context.Context, siteId uint32) ([]ArtistRawId, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	var artistIds []ArtistRawId
-
-	stmtArt, err := db.PrepareContext(ctx, "select a.art_id, a.artistId from main.artist a where a.siteId = ? and a.userAdded = 1;")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stmtArt *sql.Stmt) {
-		err = stmtArt.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stmtArt)
-
-	rows, err := stmtArt.QueryContext(ctx, siteId)
-	if err != nil {
-		log.Println(err)
-	}
-
-	for rows.Next() {
-		var artId ArtistRawId
-
-		if er := rows.Scan(&artId.RawId, &artId.Id); er != nil {
-			log.Println(err)
-		}
-
-		artistIds = append(artistIds, artId)
-	}
-
-	return artistIds, err
-}
-
-func GetAlbumTrackFromDbSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	stRows, err := db.PrepareContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.genre, t.trackNum, t.duration from main.albumTrack at join track t on t.trk_id = at.trackId join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = at.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? order by t.trackNum;")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	rows, err := stRows.QueryContext(ctx, albumId, siteId)
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(rows)
-
-	var tracks []*artist.Track
-
-	for rows.Next() {
-		var track artist.Track
-		if err = rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
-			log.Println(err)
-		}
-
-		tracks = append(tracks, &track)
-	}
-
-	return tracks, err
 }

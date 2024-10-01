@@ -471,56 +471,31 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 
 func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*artist.ListArtistResponse, error) {
 	siteId := req.GetSiteId()
-	log.Printf("siteId: %v, list artists started\n", siteId)
+	log.Printf("siteId: %v, list started\n", siteId)
 
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		return nil, status.Errorf(
-			codes.Internal,
-			"Internal error",
-		)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
+	var (
+		arts []*artist.Artist
+		err  error
+	)
+
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		switch siteId {
+		case 1:
+			// автор со сберзвука
+			arts, err = GetArtists(context.WithoutCancel(ctx), siteId)
+		case 2:
+			// автор со спотика
+		case 3:
+			// автор с дизера
+		case 4:
+			// автор с ютуба
 		}
-	}(db)
+		wgSync.Done()
+	})
+	wgSync.Wait()
 
-	var arts []*artist.Artist
-
-	stmtArt, er := db.PrepareContext(context.WithoutCancel(ctx), "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by ar.title;")
-	if er != nil {
-		log.Println(er)
-	}
-	defer func(stmtArt *sql.Stmt) {
-		err = stmtArt.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stmtArt)
-
-	rows, er := stmtArt.QueryContext(context.WithoutCancel(ctx), siteId)
-	if er != nil {
-		log.Println(er)
-	}
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(rows)
-
-	for rows.Next() {
-		var art artist.Artist
-		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
-			log.Println(e)
-		}
-		art.SiteId = siteId
-		arts = append(arts, &art)
-	}
-
-	log.Printf("siteId: %v, list artists completed, total: %v\n", siteId, len(arts))
+	log.Printf("siteId: %v, list completed, total: %v\n", siteId, len(arts))
 
 	return &artist.ListArtistResponse{
 		Artists: arts,
