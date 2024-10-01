@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	slices2 "golang.org/x/exp/slices"
 	"log"
 	"strconv"
 	"strings"
+
+	slices2 "golang.org/x/exp/slices"
 
 	"github.com/v0vc/go-music-grpc/artist"
 )
