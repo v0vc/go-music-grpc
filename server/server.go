@@ -139,6 +139,21 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		artIds  []ArtistRawId
 		err     error
 	)
+	switch siteId {
+	case 1:
+		// автор со сберзвука
+		if artistId == "-1" {
+			artIds, err = GetArtistIdsFromDbSb(ctx, siteId)
+		} else {
+			artIds = append(artIds, ArtistRawId{Id: artistId})
+		}
+	case 2:
+		// автор со спотика
+	case 3:
+		// автор с дизера
+	case 4:
+		// автор с ютуба
+	}
 
 	for _, artId := range artIds {
 		wgSync.Add(1)
@@ -147,11 +162,6 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			switch siteId {
 			case 1:
 				// автор со сберзвука
-				if artistId == "-1" {
-					artIds, err = GetArtistIdsFromDbSb(ctx, siteId)
-				} else {
-					artIds = append(artIds, ArtistRawId{Id: artistId})
-				}
 				art, err = SyncArtistSb(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
 			case 2:
 				// автор со спотика
@@ -179,7 +189,13 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			"Internal error",
 		)
 	} else {
-		log.Printf("siteId: %v, sync artist: %v completed\n", siteId, artistId)
+		var resCount int
+		for _, ar := range artists {
+			for range ar.Albums {
+				resCount++
+			}
+		}
+		log.Printf("siteId: %v, sync: %v completed, new : %v\n", siteId, artistId, resCount)
 	}
 
 	return &artist.SyncArtistResponse{
