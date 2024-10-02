@@ -202,3 +202,48 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 
 	return resArtist, tx.Commit()
 }
+
+func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	var arts []*artist.Artist
+
+	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, count(v.vid_id) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId and v.syncState = 1 where ch.siteId = ? group by ch.ch_id order by 3;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stmtArt *sql.Stmt) {
+		err = stmtArt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmt)
+
+	rows, err := stmt.QueryContext(context.WithoutCancel(ctx), siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	for rows.Next() {
+		var art artist.Artist
+		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
+			log.Println(e)
+		}
+		art.SiteId = siteId
+		arts = append(arts, &art)
+	}
+	return arts, err
+}

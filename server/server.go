@@ -490,6 +490,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 			// автор с дизера
 		case 4:
 			// автор с ютуба
+			arts, err = GetChannels(context.WithoutCancel(ctx), siteId)
 		}
 		wgSync.Done()
 	})
