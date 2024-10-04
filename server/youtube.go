@@ -247,3 +247,56 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	}
 	return arts, err
 }
+
+func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail, a.syncState from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.alb_id in (select ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.artistId = ? limit 1)) and ar.siteId = ? group by aa.albumId order by 9 desc, 4 desc;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.QueryContext(ctx, artistId, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	var albs []*artist.Album
+
+	for rows.Next() {
+		var (
+			alb    artist.Album
+			artIds string
+		)
+
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail, &alb.SyncState); err != nil {
+			log.Println(err)
+		}
+
+		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
+		albs = append(albs, &alb)
+	}
+
+	return albs, err
+}

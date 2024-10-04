@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/v0vc/go-music-grpc/gio-gui/pages/youtube"
 	"log"
 	"os"
 	"strconv"
@@ -66,7 +67,7 @@ func loop(w *app.Window) error {
 	th := page.NewTheme(conf)
 	router := page.NewRouter(w)
 	router.Register(0, zvuk.New(&router))
-	// router.Register(1, sber.New(&router))
+	router.Register(1, youtube.New(&router))
 	// router.Register(2, spotify.New(&router))
 	// router.Register(3, deezer.New(&router))
 	// router.Register(4, rutracker.New(&router))*/

@@ -114,3 +114,8 @@ var SaveIcon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ContentSave)
 	return icon
 }()
+
+var YoutubeIcon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.AVVideoLibrary)
+	return icon
+}()

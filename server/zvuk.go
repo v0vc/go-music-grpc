@@ -97,7 +97,7 @@ func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId i
 	return artRawId, userAdded
 }
 
-func getExistIds(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string) {
+func getExistIdsDb(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string) {
 	var (
 		existAlbumIds  []string
 		existArtistIds []string
@@ -208,23 +208,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 	return mTracks, mAlbum
 }
 
-func updateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32) {
-	stmtUpdToken, err := tx.PrepareContext(ctx, "update main.site set token = ? where site_id = ?;")
-	if err != nil {
-		log.Println(err)
-	}
-
-	defer func(stmtUpdToken *sql.Stmt) {
-		err = stmtUpdToken.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stmtUpdToken)
-
-	_, _ = stmtUpdToken.ExecContext(ctx, token, siteId)
-}
-
-func deleteBaseSb(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32, isCommit bool) (int64, error) {
+func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32, isCommit bool) (int64, error) {
 	artId := getArtistIdDb(tx, ctx, siteId, artistId)
 	rnd := RandStringBytesMask(4)
 
@@ -274,7 +258,7 @@ func deleteBaseSb(ctx context.Context, tx *sql.Tx, artistId string, siteId uint3
 	return aff, err
 }
 
-func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
+func DownloadTracks(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -314,7 +298,7 @@ func DownloadTracksSb(ctx context.Context, siteId uint32, trackIds []string, tra
 	return mDownloaded, err
 }
 
-func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQuality string) (map[string]string, error) {
+func DownloadAlbum(ctx context.Context, siteId uint32, albIds []string, trackQuality string) (map[string]string, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -345,7 +329,7 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 			return mDownloaded, er
 		}
 		if needTokenUpd {
-			updateTokenDb(tx, ctx, tokenNew, siteId)
+			UpdateTokenDb(tx, ctx, tokenNew, siteId)
 		}
 
 		if item == nil {
@@ -390,7 +374,7 @@ func DownloadAlbumSb(ctx context.Context, siteId uint32, albIds []string, trackQ
 	return mDownloaded, err
 }
 
-func GetNewReleasesFromDbSb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
+func GetNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -442,7 +426,7 @@ func GetNewReleasesFromDbSb(ctx context.Context, siteId uint32) ([]*artist.Album
 	return albs, err
 }
 
-func GetArtistReleasesFromDbSb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
+func GetArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -495,46 +479,7 @@ func GetArtistReleasesFromDbSb(ctx context.Context, siteId uint32, artistId stri
 	return albs, err
 }
 
-func ClearSyncStateDbSb(ctx context.Context, siteId uint32) (int64, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		log.Println(err)
-	}
-
-	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.syncState = 1 and alb_id in (select distinct ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.siteId = ?));")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	rows, err := stRows.ExecContext(ctx, siteId)
-	if err != nil {
-		log.Println(err)
-	}
-	aff, err := rows.RowsAffected()
-	if err != nil {
-		log.Println(err)
-	}
-	return aff, tx.Commit()
-}
-
-func DeleteArtistDbSb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
+func DeleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -551,10 +496,10 @@ func DeleteArtistDbSb(ctx context.Context, siteId uint32, artistId string) (int6
 		log.Println(err)
 	}
 
-	return deleteBaseSb(ctx, tx, artistId, siteId, true)
+	return deleteBase(ctx, tx, artistId, siteId, true)
 }
 
-func GetArtistReleasesIdFromDbSb(ctx context.Context, siteId uint32, artistId string, newOnly bool) ([]string, error) {
+func GetArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string, newOnly bool) ([]string, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -614,7 +559,7 @@ func GetArtistReleasesIdFromDbSb(ctx context.Context, siteId uint32, artistId st
 	return albIds, err
 }
 
-func GetArtistIdsFromDbSb(ctx context.Context, siteId uint32) ([]ArtistRawId, error) {
+func GetArtistIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -657,7 +602,7 @@ func GetArtistIdsFromDbSb(ctx context.Context, siteId uint32) ([]ArtistRawId, er
 	return artistIds, err
 }
 
-func GetAlbumTrackFromDbSb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
+func GetAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -750,7 +695,7 @@ func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	return arts, err
 }
 
-func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
+func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
 	var resArtist *artist.Artist
 
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
@@ -776,7 +721,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 		return resArtist, tx.Rollback()
 	}
 	if needTokenUpd {
-		updateTokenDb(tx, ctx, token, siteId)
+		UpdateTokenDb(tx, ctx, token, siteId)
 	}
 
 	var (
@@ -799,7 +744,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 	mArtist := make(map[string]int)
 
 	if artRawId != 0 {
-		existAlbumIds, existArtistIds = getExistIds(tx, ctx, artRawId)
+		existAlbumIds, existArtistIds = getExistIdsDb(tx, ctx, artRawId)
 		mArtist[artistId.Id] = artRawId
 	}
 
@@ -1078,7 +1023,7 @@ func SyncArtistSb(ctx context.Context, siteId uint32, artistId ArtistRawId, isAd
 	}
 
 	for _, aid := range deletedArtistIds {
-		aff, er := deleteBaseSb(ctx, tx, aid, siteId, false)
+		aff, er := deleteBase(ctx, tx, aid, siteId, false)
 		if er != nil {
 			log.Println(er)
 		} else {

@@ -70,6 +70,61 @@ func GetTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 	return login.String, pass.String, token.String
 }
 
+func UpdateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32) {
+	stmtUpdToken, err := tx.PrepareContext(ctx, "update main.site set token = ? where site_id = ?;")
+	if err != nil {
+		log.Println(err)
+	}
+
+	defer func(stmtUpdToken *sql.Stmt) {
+		err = stmtUpdToken.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtUpdToken)
+
+	_, _ = stmtUpdToken.ExecContext(ctx, token, siteId)
+}
+
+func ClearSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
+
+	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.syncState = 1 and alb_id in (select distinct ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.siteId = ?));")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.ExecContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	aff, err := rows.RowsAffected()
+	if err != nil {
+		log.Println(err)
+	}
+	return aff, tx.Commit()
+}
+
 func GetThumb(ctx context.Context, url string) []byte {
 	// rkn block fix
 	if strings.Contains(url, "yt3.ggpht.com") {
@@ -143,7 +198,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	case 1:
 		// автор со сберзвука
 		if artistId == "-1" {
-			artIds, err = GetArtistIdsFromDbSb(ctx, siteId)
+			artIds, err = GetArtistIdsFromDb(ctx, siteId)
 		} else {
 			artIds = append(artIds, ArtistRawId{Id: artistId})
 		}
@@ -162,7 +217,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			switch siteId {
 			case 1:
 				// автор со сберзвука
-				art, err = SyncArtistSb(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
+				art, err = SyncArtist(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
 			case 2:
 				// автор со спотика
 			case 3:
@@ -217,9 +272,9 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	case 1:
 		// автор со сберзвука
 		if req.GetNewOnly() {
-			albums, err = GetNewReleasesFromDbSb(context.WithoutCancel(ctx), siteId)
+			albums, err = GetNewReleasesFromDb(context.WithoutCancel(ctx), siteId)
 		} else {
-			albums, err = GetArtistReleasesFromDbSb(context.WithoutCancel(ctx), siteId, artistId)
+			albums, err = GetArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
 		}
 	case 2:
 		// автор со спотика
@@ -227,6 +282,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 		// автор с дизера
 	case 4:
 		// автор с ютуба
+		albums, err = GetArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
 	}
 
 	if err != nil {
@@ -257,7 +313,7 @@ func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRe
 	switch siteId {
 	case 1:
 		// автор со сберзвука
-		tracks, err = GetAlbumTrackFromDbSb(context.WithoutCancel(ctx), siteId, albumId)
+		tracks, err = GetAlbumTrackFromDb(context.WithoutCancel(ctx), siteId, albumId)
 	case 2:
 		// автор со спотика
 	case 3:
@@ -296,7 +352,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 		switch siteId {
 		case 1:
 			// автор со сберзвука
-			res, err = DeleteArtistDbSb(context.WithoutCancel(ctx), siteId, artistId)
+			res, err = DeleteArtistDb(context.WithoutCancel(ctx), siteId, artistId)
 		case 2:
 			// автор со спотика
 		case 3:
@@ -336,7 +392,7 @@ func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*ar
 		switch siteId {
 		case 1:
 			// автор со сберзвука
-			res, err = ClearSyncStateDbSb(context.WithoutCancel(ctx), siteId)
+			res, err = ClearSyncStateDb(context.WithoutCancel(ctx), siteId)
 		case 2:
 			// автор со спотика
 		case 3:
@@ -374,7 +430,7 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 	switch siteId {
 	case 1:
 		// mid, high, flac
-		resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+		resDown, err = DownloadAlbum(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -409,8 +465,8 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 	switch siteId {
 	case 1:
 		// mid, high, flac
-		albIds, _ := GetArtistReleasesIdFromDbSb(ctx, siteId, artistId, false)
-		resDown, err = DownloadAlbumSb(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+		albIds, _ := GetArtistReleasesIdFromDb(ctx, siteId, artistId, false)
+		resDown, err = DownloadAlbum(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
 	case 2:
 		// "артист со спотика"
 	case 3:
@@ -447,7 +503,7 @@ func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksReq
 	switch siteId {
 	case 1:
 		// mid, high, flac
-		resDown, err = DownloadTracksSb(context.WithoutCancel(ctx), siteId, trackIds, req.GetTrackQuality())
+		resDown, err = DownloadTracks(context.WithoutCancel(ctx), siteId, trackIds, req.GetTrackQuality())
 	case 2:
 		// "артист со спотика"
 	case 3:
