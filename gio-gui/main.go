@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/v0vc/go-music-grpc/gio-gui/pages/youtube"
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/v0vc/go-music-grpc/gio-gui/pages/youtube"
 
 	"gioui.org/app"
 	"gioui.org/op"

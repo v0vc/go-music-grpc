@@ -479,7 +479,7 @@ func GetArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	return albs, err
 }
 
-func DeleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64, error) {
+func DeleteArtistsDb(ctx context.Context, siteId uint32, artistId []string) (int64, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -496,7 +496,18 @@ func DeleteArtistDb(ctx context.Context, siteId uint32, artistId string) (int64,
 		log.Println(err)
 	}
 
-	return deleteBase(ctx, tx, artistId, siteId, true)
+	var deletedRowCount int64
+	for _, aid := range artistId {
+		aff, er := deleteBase(ctx, tx, aid, siteId, false)
+		if er != nil {
+			log.Println(er)
+			return 0, tx.Rollback()
+		} else {
+			log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
+			deletedRowCount = deletedRowCount + aff
+		}
+	}
+	return deletedRowCount, tx.Commit()
 }
 
 func GetArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string, newOnly bool) ([]string, error) {
@@ -695,7 +706,7 @@ func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	return arts, err
 }
 
-func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
+func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool, isDelete bool) (*artist.Artist, []string, error) {
 	var resArtist *artist.Artist
 
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
@@ -718,7 +729,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId.Id, token, login, pass)
 	if item == nil || err != nil {
 		log.Println(err)
-		return resArtist, tx.Rollback()
+		return resArtist, []string{}, tx.Rollback()
 	}
 	if needTokenUpd {
 		UpdateTokenDb(tx, ctx, token, siteId)
@@ -1022,14 +1033,16 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 		}
 	}
 
-	for _, aid := range deletedArtistIds {
-		aff, er := deleteBase(ctx, tx, aid, siteId, false)
-		if er != nil {
-			log.Println(er)
-		} else {
-			log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
+	if isDelete {
+		for _, aid := range deletedArtistIds {
+			aff, er := deleteBase(ctx, tx, aid, siteId, false)
+			if er != nil {
+				log.Println(er)
+			} else {
+				log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
+			}
 		}
 	}
 
-	return resArtist, tx.Commit()
+	return resArtist, deletedArtistIds, tx.Commit()
 }

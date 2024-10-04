@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	slices2 "golang.org/x/exp/slices"
+
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/panjf2000/ants/v2"
@@ -190,9 +192,10 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	log.Printf("siteId: %v, sync artist: %v started\n", siteId, artistId)
 
 	var (
-		artists []*artist.Artist
-		artIds  []ArtistRawId
-		err     error
+		artists    []*artist.Artist
+		artIds     []ArtistRawId
+		deletedIds []string
+		err        error
 	)
 	switch siteId {
 	case 1:
@@ -210,6 +213,8 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		// автор с ютуба
 	}
 
+	isDelete := len(artIds) == 1
+	var deletedArtIds []string
 	for _, artId := range artIds {
 		wgSync.Add(1)
 		var art *artist.Artist
@@ -217,7 +222,14 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			switch siteId {
 			case 1:
 				// автор со сберзвука
-				art, err = SyncArtist(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
+				art, deletedArtIds, err = SyncArtist(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd(), isDelete)
+				if !isDelete {
+					for _, id := range deletedArtIds {
+						if !slices2.Contains(deletedIds, id) {
+							deletedIds = append(deletedIds, id)
+						}
+					}
+				}
 			case 2:
 				// автор со спотика
 			case 3:
@@ -236,8 +248,18 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			wgSync.Done()
 		})
 	}
-
 	wgSync.Wait()
+
+	// post actions (switch in future)
+	if siteId == 1 && deletedIds != nil {
+		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds)
+		if er != nil {
+			log.Printf("Delete unused artists failed: %v", er)
+		} else {
+			log.Printf("siteId: %v, delete unused artists completed, total : %v\n", siteId, deletedRowCount)
+		}
+	}
+
 	if err != nil {
 		return nil, status.Errorf(
 			codes.Internal,
@@ -352,14 +374,13 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 		switch siteId {
 		case 1:
 			// автор со сберзвука
-			res, err = DeleteArtistDb(context.WithoutCancel(ctx), siteId, artistId)
+			res, err = DeleteArtistsDb(context.WithoutCancel(ctx), siteId, []string{artistId})
 		case 2:
 			// автор со спотика
 		case 3:
 			// автор с дизера
 		case 4:
 			// автор с ютуба
-
 		}
 		wgSync.Done()
 	})
