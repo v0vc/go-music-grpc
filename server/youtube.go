@@ -162,7 +162,8 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 
 	var vidRawIds []int
 	for _, vid := range videos {
-		vid.thumbnail = GetThumb(ctx, vid.thumbnailLink)
+		vThumb := GetThumb(ctx, vid.thumbnailLink)
+		vid.thumbnail = PrepareThumb(vThumb, 15, 64, 64, 90)
 		var vidId int
 		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, vid.duration, vid.likeCount, vid.viewCount, vid.commentCount, vid.thumbnail).Scan(&vidId)
 		if vidErr != nil {
@@ -215,7 +216,7 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 
 	var arts []*artist.Artist
 
-	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, count(v.vid_id) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId and v.syncState = 1 where ch.siteId = ? group by ch.ch_id order by 3;")
+	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, count(v.vid_id) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? group by ch.ch_id order by 3;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -241,9 +242,10 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 		var art artist.Artist
 		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
 			log.Println(e)
+		} else {
+			art.SiteId = siteId
+			arts = append(arts, &art)
 		}
-		art.SiteId = siteId
-		arts = append(arts, &art)
 	}
 	return arts, err
 }
@@ -260,7 +262,7 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 		}
 	}(db)
 
-	stRows, err := db.PrepareContext(ctx, "select a.alb_id, a.title, a.albumId, a.releaseDate, a.releaseType, group_concat(ar.title, ', ') as subTitle, group_concat(ar.artistId, ',') as artIds, a.thumbnail, a.syncState from main.artistAlbum aa join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.alb_id in (select ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.artistId = ? limit 1)) and ar.siteId = ? group by aa.albumId order by 9 desc, 4 desc;")
+	stRows, err := db.PrepareContext(ctx, "select v.vid_id, v.title, v.videoId, v.duration, v.timestamp, v.thumbnail, v.syncState from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where pV.playlistId = (select pl_id from main.playlist join main.channelPlaylist cP on playlist.pl_id = cP.playlistId where cP.channelId = (select ch_id from main.channel where channelId = ? and siteId = ? limit 1) and playlistType = 0 limit 1) order by 4 desc;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -285,17 +287,13 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 	var albs []*artist.Album
 
 	for rows.Next() {
-		var (
-			alb    artist.Album
-			artIds string
-		)
+		var alb artist.Album
 
-		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail, &alb.SyncState); err != nil {
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.Thumbnail, &alb.SyncState); err != nil {
 			log.Println(err)
+		} else {
+			albs = append(albs, &alb)
 		}
-
-		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
-		albs = append(albs, &alb)
 	}
 
 	return albs, err

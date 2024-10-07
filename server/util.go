@@ -35,16 +35,6 @@ func FindDifference(a, b []string) []string {
 	return diff
 }
 
-/*func FirstOrDefault[T any](slice []T, filter func(*T) bool) (element *T) {
-	for i := 0; i < len(slice); i++ {
-		if filter(&slice[i]) {
-			return &slice[i]
-		}
-	}
-
-	return nil
-}*/
-
 func FileExists(path string) (bool, error) {
 	f, err := os.Stat(path)
 	if err == nil {

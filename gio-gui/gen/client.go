@@ -48,8 +48,11 @@ func GetClientInstance() (artist.ArtistServiceClient, error) {
 		defer lock.Unlock()
 		log.Println("Creating single instance now.")
 		cc, err := grpc.NewClient("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			cc.Close()
+		if cc != nil && err != nil {
+			er := cc.Close()
+			if er != nil {
+				return nil, err
+			}
 			return nil, fmt.Errorf("could not connect: %v", err)
 		}
 		singleInstance = artist.NewArtistServiceClient(cc)
@@ -92,20 +95,20 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 
 	rooms.Add(baseRoom)
 
-	for _, artist := range res.GetArtists() {
-		thumb := artist.GetThumbnail()
+	for _, art := range res.GetArtists() {
+		thumb := art.GetThumbnail()
 		if thumb == nil {
 			thumb = GetNoAvatarInstance()
 		}
 		im, _, _ := image.Decode(bytes.NewReader(thumb))
 		channel := model.Room{
-			Name:   artist.GetTitle(),
-			Id:     artist.GetArtistId(),
+			Name:   art.GetTitle(),
+			Id:     art.GetArtistId(),
 			Image:  im,
 			IsBase: false,
 		}
-		if artist.GetNewAlbs() > 0 {
-			channel.Count = strconv.Itoa(int(artist.GetNewAlbs()))
+		if art.GetNewAlbs() > 0 {
+			channel.Count = strconv.Itoa(int(art.GetNewAlbs()))
 		}
 
 		rooms.Add(channel)
@@ -178,8 +181,11 @@ func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
 		SiteId:  siteId,
 		NewOnly: true,
 	})
+	if res == nil {
+		return make([]model.Message, 0)
+	}
 	albums := make([]model.Message, len(res.GetReleases()))
-	if err != nil || res == nil {
+	if err != nil {
 		return albums
 	}
 
@@ -200,8 +206,11 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) []model.Mess
 		SiteId:   siteId,
 		ArtistId: artistId,
 	})
+	if res == nil {
+		return make([]model.Message, 0)
+	}
 	albums := make([]model.Message, len(res.GetReleases()))
-	if err != nil || res == nil {
+	if err != nil {
 		return albums
 	}
 	for i, alb := range res.GetReleases() {

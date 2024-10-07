@@ -197,20 +197,10 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		deletedIds []string
 		err        error
 	)
-	switch siteId {
-	case 1:
-		// автор со сберзвука
-		if artistId == "-1" {
-			artIds, err = GetArtistIdsFromDb(ctx, siteId)
-		} else {
-			artIds = append(artIds, ArtistRawId{Id: artistId})
-		}
-	case 2:
-		// автор со спотика
-	case 3:
-		// автор с дизера
-	case 4:
-		// автор с ютуба
+	if artistId == "-1" {
+		artIds, err = GetArtistIdsFromDb(ctx, siteId)
+	} else {
+		artIds = append(artIds, ArtistRawId{Id: artistId})
 	}
 
 	isDelete := len(artIds) == 1
@@ -304,7 +294,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 		// автор с дизера
 	case 4:
 		// автор с ютуба
-		albums, err = GetArtistReleasesFromDb(context.WithoutCancel(ctx), siteId, artistId)
+		albums, err = GetChannelVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
 	}
 
 	if err != nil {

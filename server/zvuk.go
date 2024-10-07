@@ -124,14 +124,14 @@ func getExistIdsDb(tx *sql.Tx, ctx context.Context, artId int) ([]string, []stri
 
 			if er := rows.Scan(&albId, &artisId); er != nil {
 				log.Println(er)
-			}
+			} else {
+				if albId != "" && !slices2.Contains(existAlbumIds, albId) {
+					existAlbumIds = append(existAlbumIds, albId)
+				}
 
-			if albId != "" && !slices2.Contains(existAlbumIds, albId) {
-				existAlbumIds = append(existAlbumIds, albId)
-			}
-
-			if artisId != "" && !slices2.Contains(existArtistIds, artisId) {
-				existArtistIds = append(existArtistIds, artisId)
+				if artisId != "" && !slices2.Contains(existArtistIds, artisId) {
+					existArtistIds = append(existArtistIds, artisId)
+				}
 			}
 		}
 	}
@@ -195,13 +195,14 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 		)
 		if er := rows.Scan(&alb.ArtistTitle, &alb.AlbumTitle, &alb.AlbumId, &alb.AlbumYear, &alb.AlbumCover, &trackId, &alb.TrackNum, &alb.TrackTotal, &alb.TrackTitle, &alb.TrackGenre); er != nil {
 			log.Println(er)
-		}
-		_, ok := mTracks[trackId]
-		if !ok {
-			mTracks[trackId] = &alb
-		}
-		if isAlbum && !slices2.Contains(mAlbum, alb.AlbumId) {
-			mAlbum = append(mAlbum, alb.AlbumId)
+		} else {
+			_, ok := mTracks[trackId]
+			if !ok {
+				mTracks[trackId] = &alb
+			}
+			if isAlbum && !slices2.Contains(mAlbum, alb.AlbumId) {
+				mAlbum = append(mAlbum, alb.AlbumId)
+			}
 		}
 	}
 
@@ -417,10 +418,10 @@ func GetNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, 
 
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail); err != nil {
 			log.Println(err)
+		} else {
+			alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
+			albs = append(albs, &alb)
 		}
-
-		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
-		albs = append(albs, &alb)
 	}
 
 	return albs, err
@@ -470,10 +471,10 @@ func GetArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.ReleaseDate, &alb.ReleaseType, &alb.SubTitle, &artIds, &alb.Thumbnail, &alb.SyncState); err != nil {
 			log.Println(err)
+		} else {
+			alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
+			albs = append(albs, &alb)
 		}
-
-		alb.ArtistIds = append(alb.ArtistIds, strings.Split(artIds, ",")...)
-		albs = append(albs, &alb)
 	}
 
 	return albs, err
@@ -563,8 +564,9 @@ func GetArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId stri
 		var alb string
 		if err = rows.Scan(&alb); err != nil {
 			log.Println(err)
+		} else {
+			albIds = append(albIds, alb)
 		}
-		albIds = append(albIds, alb)
 	}
 
 	return albIds, err
@@ -605,9 +607,9 @@ func GetArtistIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, erro
 
 		if er := rows.Scan(&artId.RawId, &artId.Id); er != nil {
 			log.Println(err)
+		} else {
+			artistIds = append(artistIds, artId)
 		}
-
-		artistIds = append(artistIds, artId)
 	}
 
 	return artistIds, err
@@ -653,9 +655,9 @@ func GetAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]
 		var track artist.Track
 		if err = rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
 			log.Println(err)
+		} else {
+			tracks = append(tracks, &track)
 		}
-
-		tracks = append(tracks, &track)
 	}
 
 	return tracks, err
@@ -699,9 +701,10 @@ func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 		var art artist.Artist
 		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
 			log.Println(e)
+		} else {
+			art.SiteId = siteId
+			arts = append(arts, &art)
 		}
-		art.SiteId = siteId
-		arts = append(arts, &art)
 	}
 	return arts, err
 }
