@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
-	"github.com/disintegration/imaging"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/jpeg"
 	"log"
+
+	"github.com/disintegration/imaging"
 )
 
 func PrepareThumb(imgByte []byte, borderWidth int, length int, width int, jpegQuality int) []byte {
@@ -27,5 +28,8 @@ func PrepareThumb(imgByte []byte, borderWidth int, length int, width int, jpegQu
 
 	buff := bytes.Buffer{}
 	err = jpeg.Encode(&buff, dstImage, &jpeg.Options{Quality: jpegQuality})
+	if err != nil {
+		log.Println(err)
+	}
 	return buff.Bytes()
 }
