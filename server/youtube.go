@@ -103,7 +103,6 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		viewCount     string
 		commentCount  string
 		thumbnailLink string
-		thumbnail     []byte
 	}
 	var videos []*vidItem
 
@@ -163,9 +162,8 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	var vidRawIds []int
 	for _, vid := range videos {
 		vThumb := GetThumb(ctx, vid.thumbnailLink)
-		vid.thumbnail = PrepareThumb(vThumb, 15, 64, 64, 90)
 		var vidId int
-		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, vid.duration, vid.likeCount, vid.viewCount, vid.commentCount, vid.thumbnail).Scan(&vidId)
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, ConvertYoutubeDurationToSec(vid.duration), vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
 		if vidErr != nil {
 			log.Println(vidErr)
 		} else {
