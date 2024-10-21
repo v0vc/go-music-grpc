@@ -48,7 +48,7 @@ func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string
 	return albId
 }
 
-func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId string) int {
+func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId string) (int, error) {
 	stmtAlb, err := tx.PrepareContext(ctx, "select art_id from main.artist where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
 		log.Println(err)
@@ -65,7 +65,7 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId stri
 	if err != nil {
 		log.Println(err)
 	}
-	return artId
+	return artId, err
 }
 
 func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
@@ -210,7 +210,15 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 }
 
 func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32, isCommit bool) (int64, error) {
-	artId := getArtistIdDb(tx, ctx, siteId, artistId)
+	var (
+		aff int64
+		err error
+	)
+
+	artId, err := getArtistIdDb(tx, ctx, siteId, artistId)
+	if err != nil {
+		return -1, err
+	}
 	rnd := RandStringBytesMask(4)
 
 	execs := []struct {
@@ -223,11 +231,6 @@ func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32,
 		{stmt: fmt.Sprintf("delete from main.album where alb_id in (select albumId from _temp_album_%v);", rnd), res: 3},
 		{stmt: fmt.Sprintf("drop table _temp_album_%v;", rnd), res: 4},
 	}
-
-	var (
-		aff int64
-		err error
-	)
 
 	for _, exec := range execs {
 		func() {
@@ -941,8 +944,8 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 							alb: albId,
 						})
 					} else {
-						artId = getArtistIdDb(tx, ctx, siteId, arId)
-						if artId != 0 {
+						artId, err = getArtistIdDb(tx, ctx, siteId, arId)
+						if err == nil && artId != 0 {
 							mArtist[arId] = artId
 							artAlbs = append(artAlbs, &artAlb{
 								art: artId,

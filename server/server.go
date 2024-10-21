@@ -273,7 +273,11 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbumRequest) (*artist.ReadArtistAlbumResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, read releases: %v started\n", siteId, artistId)
+	if artistId == "" {
+		log.Printf("siteId: %v, read new items started\n", siteId)
+	} else {
+		log.Printf("siteId: %v, read items: %v started\n", siteId, artistId)
+	}
 
 	var (
 		albums []*artist.Album
@@ -294,7 +298,11 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 		// автор с дизера
 	case 4:
 		// автор с ютуба
-		albums, err = GetChannelVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
+		if req.GetNewOnly() {
+			albums, err = GetNewVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
+		} else {
+			albums, err = GetChannelVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
+		}
 	}
 
 	if err != nil {
@@ -304,7 +312,11 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 			"Internal error",
 		)
 	} else {
-		log.Printf("siteId: %v, read releases: %v completed, total: %v\n", siteId, artistId, len(albums))
+		if artistId == "" {
+			log.Printf("siteId: %v, read new items completed, total: %v\n", siteId, len(albums))
+		} else {
+			log.Printf("siteId: %v, read items: %v completed, total: %v\n", siteId, artistId, len(albums))
+		}
 	}
 
 	return &artist.ReadArtistAlbumResponse{

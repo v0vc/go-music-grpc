@@ -214,7 +214,7 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 
 	var arts []*artist.Artist
 
-	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, count(v.vid_id) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? group by ch.ch_id order by 3;")
+	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, count(v.vid_id) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? and v.syncState = 1 group by ch.ch_id order by 3;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -272,6 +272,55 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 	}(stRows)
 
 	rows, err := stRows.QueryContext(ctx, artistId, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	var albs []*artist.Album
+
+	for rows.Next() {
+		var alb artist.Album
+
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.Thumbnail, &alb.SyncState); err != nil {
+			log.Println(err)
+		} else {
+			albs = append(albs, &alb)
+		}
+	}
+
+	return albs, err
+}
+
+func GetNewVideosFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	stRows, err := db.PrepareContext(ctx, "select v.vid_id, v.title, v.videoId, v.duration, v.timestamp, v.thumbnail, v.syncState from main.video v where v.syncState = 1 order by 5 desc;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.QueryContext(ctx)
 	if err != nil {
 		log.Println(err)
 	}
