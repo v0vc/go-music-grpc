@@ -170,6 +170,7 @@ func (r *Room) ClearSync(siteId uint32) {
 		r.RowTracker.Delete(i.Serial())
 		deleted = append(deleted, i.Serial())
 	}
+	r.RowTracker.Rows = nil
 
 	go r.ListState.Modify(nil, nil, deleted)
 }

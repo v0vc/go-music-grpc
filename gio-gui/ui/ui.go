@@ -98,12 +98,12 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Album")
+				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Name")
 				item.Icon = icon.CopyIcon
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbArtistBtn, "Copy Artist")
+				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbArtistBtn, "Copy Author")
 				item.Icon = icon.CopyIcon
 				return item.Layout(gtx)
 			},
