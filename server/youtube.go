@@ -97,7 +97,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	type vidItem struct {
 		id            string
 		title         string
-		published     time.Time
+		published     string
 		duration      string
 		likeCount     string
 		viewCount     string
@@ -163,7 +163,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	for _, vid := range videos {
 		vThumb := GetThumb(ctx, vid.thumbnailLink)
 		var vidId int
-		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, ConvertYoutubeDurationToSec(vid.duration), vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, strings.TrimRight(strings.Replace(vid.published, "T", " ", 1), "Z"), ConvertYoutubeDurationToSec(vid.duration), vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
 		if vidErr != nil {
 			log.Println(vidErr)
 		} else {
@@ -214,7 +214,7 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 
 	var arts []*artist.Artist
 
-	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, count(v.vid_id) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? and v.syncState = 1 group by ch.ch_id order by 3;")
+	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, COUNT(IIF(v.syncState > 0, 1, NULL)) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? group by ch.ch_id order by 3;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -290,6 +290,13 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.Thumbnail, &alb.SyncState); err != nil {
 			log.Println(err)
 		} else {
+			date, er := time.Parse(time.DateTime, alb.ReleaseDate)
+			if er != nil {
+				log.Println(er)
+			} else {
+				alb.SubTitle = fmt.Sprintf("%s  %s", alb.GetSubTitle(), TimeAgo(date))
+			}
+			alb.ReleaseType = 3
 			albs = append(albs, &alb)
 		}
 	}
@@ -339,6 +346,13 @@ func GetNewVideosFromDb(ctx context.Context, siteId uint32, artistId string) ([]
 		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.Thumbnail, &alb.SyncState); err != nil {
 			log.Println(err)
 		} else {
+			date, er := time.Parse(time.DateTime, alb.ReleaseDate)
+			if er != nil {
+				log.Println(er)
+			} else {
+				alb.SubTitle = fmt.Sprintf("%s  %s", alb.GetSubTitle(), TimeAgo(date))
+			}
+			alb.ReleaseType = 3
 			albs = append(albs, &alb)
 		}
 	}

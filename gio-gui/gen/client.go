@@ -301,20 +301,18 @@ func (g *Generator) ClearSync(siteId uint32) int64 {
 }
 
 func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
-	at, _ := time.Parse("2006-01-02T00:00:00", alb.GetReleaseDate())
+	at, _ := time.Parse(time.DateTime, alb.GetReleaseDate())
 	thumb := alb.GetThumbnail()
 	if thumb == nil {
 		thumb = GetNoAvatarInstance()
 	}
 	im, _, _ := image.Decode(bytes.NewReader(thumb))
 	return model.Message{
-		// SerialID: fmt.Sprintf("%05d", cur-at.Unix()),
 		SerialID: fmt.Sprintf("%05d", serial),
-		// Title:    fmt.Sprintf("%v (%v)", alb.GetTitle(), mapReleaseType(alb.ReleaseType)),
 		Title:    alb.GetTitle(),
 		Content:  alb.GetSubTitle(),
 		AlbumId:  alb.GetAlbumId(),
-		Type:     mapReleaseType(alb.ReleaseType),
+		Type:     mapReleaseType(alb.GetReleaseType()),
 		ParentId: alb.GetArtistIds(),
 		SentAt:   at,
 		Avatar:   im,

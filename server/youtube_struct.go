@@ -1,7 +1,5 @@
 package main
 
-import "time"
-
 type Channel struct {
 	Items []struct {
 		Snippet struct {
@@ -29,8 +27,8 @@ type Uploads struct {
 	NextPageToken string `json:"nextPageToken,omitempty"`
 	Items         []struct {
 		Snippet struct {
-			PublishedAt time.Time `json:"publishedAt,omitempty"`
-			Title       string    `json:"title,omitempty"`
+			PublishedAt string `json:"publishedAt,omitempty"`
+			Title       string `json:"title,omitempty"`
 			Thumbnails  struct {
 				Default struct {
 					URL string `json:"url,omitempty"`

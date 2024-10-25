@@ -929,7 +929,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 
 		for _, album := range albums {
 			if album.GetAlbumId() != "" {
-				err = stAlbum.QueryRowContext(ctx, album.GetAlbumId(), album.GetTitle(), album.GetReleaseDate(), album.GetReleaseType(), album.GetThumbnail(), album.GetSyncState()).Scan(&albId)
+				err = stAlbum.QueryRowContext(ctx, album.GetAlbumId(), album.GetTitle(), strings.Replace(album.GetReleaseDate(), "T", " ", 1), album.GetReleaseType(), album.GetThumbnail(), album.GetSyncState()).Scan(&albId)
 				if err != nil {
 					log.Println(err)
 				} else {

@@ -89,15 +89,6 @@ func (t *Theme) UsePalette(p Palette) {
 	t.Theme.Fg = t.Palette.OnBg
 }
 
-// Toggle the active theme between pre-configured Light and Dark palettes.
-/*func (t *Theme) Toggle() {
-	if t.Palette == Light {
-		t.UsePalette(Dark)
-	} else {
-		t.UsePalette(Light)
-	}
-}*/
-
 func rgb(c uint32) color.NRGBA {
 	return argb(0xff000000 | c)
 }
