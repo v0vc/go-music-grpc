@@ -49,18 +49,24 @@ type RowConfig struct {
 	// Content of the latest message as raw text.
 	Content string
 	Type    string
+	TypeId  int32
 	// SentAt timestamp of the latest message.
 	SentAt time.Time
 }
 
 func NewRow(th *material.Theme, interact *Row, menu *component.MenuState, msg *RowConfig) RowStyle {
 	interact.Avatar.Cache(msg.Avatar)
+	var year string
+	if msg.TypeId <= 1 {
+		year = strconv.Itoa(msg.SentAt.Local().Year())
+	}
+
 	return RowStyle{
 		Row:       interact,
 		Name:      material.Label(th, unit.Sp(14), msg.Title),
 		Summary:   material.Label(th, unit.Sp(12), msg.Content),
 		Type:      material.Label(th, unit.Sp(12), msg.Type),
-		TimeStamp: material.Label(th, unit.Sp(12), strconv.Itoa(msg.SentAt.Local().Year())),
+		TimeStamp: material.Label(th, unit.Sp(12), year),
 		Selected:  material.CheckBox(th, &interact.Selected, ""),
 		Image: Image{
 			Image: widget.Image{

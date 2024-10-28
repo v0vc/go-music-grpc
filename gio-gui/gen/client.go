@@ -309,25 +309,14 @@ func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 	im, _, _ := image.Decode(bytes.NewReader(thumb))
 	return model.Message{
 		SerialID: fmt.Sprintf("%05d", serial),
+		TypeId:   alb.GetReleaseType(),
 		Title:    alb.GetTitle(),
 		Content:  alb.GetSubTitle(),
 		AlbumId:  alb.GetAlbumId(),
-		Type:     mapReleaseType(alb.GetReleaseType()),
 		ParentId: alb.GetArtistIds(),
 		SentAt:   at,
 		Avatar:   im,
 		Read:     isRead,
-	}
-}
-
-func mapReleaseType(r int32) string {
-	switch r {
-	case 0:
-		return "Album"
-	case 1:
-		return "Single"
-	default:
-		return ""
 	}
 }
 

@@ -544,7 +544,8 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 	msg := NewRow(ui.th.Theme, state, &ui.MessageMenu, &RowConfig{
 		Title:   data.Title,
 		Content: data.Content,
-		Type:    data.Type,
+		TypeId:  data.TypeId,
+		Type:    data.GetStringType(),
 		SentAt:  data.SentAt,
 		Avatar:  data.Avatar,
 	})
