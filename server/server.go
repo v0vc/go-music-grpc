@@ -383,6 +383,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 			// автор с дизера
 		case 4:
 			// автор с ютуба
+			res, err = DeleteChannelDb(context.WithoutCancel(ctx), siteId, []string{artistId})
 		}
 		wgSync.Done()
 	})

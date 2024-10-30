@@ -90,3 +90,9 @@ CREATE TABLE playlistVideo (
     videoId INTEGER REFERENCES video (vid_id) ON UPDATE CASCADE ON DELETE CASCADE,
     UNIQUE(playlistId,videoId)
 );
+
+CREATE TRIGGER delete_channel BEFORE DELETE ON channel
+    BEGIN
+        DELETE FROM video WHERE vid_id in (SELECT videoId FROM playlistVideo WHERE playlistId in (SELECT playlistId FROM channelPlaylist WHERE channelId = old.ch_id));
+        DELETE FROM playlist WHERE pl_id in (SELECT playlistId FROM channelPlaylist WHERE channelId = old.ch_id);
+    END;

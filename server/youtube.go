@@ -359,3 +359,48 @@ func GetNewVideosFromDb(ctx context.Context, siteId uint32, artistId string) ([]
 
 	return albs, err
 }
+
+func DeleteChannelDb(ctx context.Context, siteId uint32, artistId []string) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
+
+	var deletedRowCount int64
+	stDelete, err := tx.PrepareContext(ctx, "delete from main.channel where channelId = ? and siteId = ?;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stDelete *sql.Stmt) {
+		er := stDelete.Close()
+		if er != nil {
+			log.Println(er)
+		}
+	}(stDelete)
+
+	for _, id := range artistId {
+		res, er := stDelete.ExecContext(ctx, id, siteId)
+		if er != nil {
+			log.Println(er)
+		}
+		rowCount, er := res.RowsAffected()
+		if er != nil {
+			log.Println(er)
+		} else {
+			deletedRowCount = deletedRowCount + rowCount
+		}
+	}
+
+	return deletedRowCount, tx.Commit()
+}
