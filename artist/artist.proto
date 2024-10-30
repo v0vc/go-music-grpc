@@ -23,9 +23,11 @@ message Album {
   string subTitle = 4;
   string releaseDate = 5;
   int32 releaseType = 6;
-  bytes thumbnail = 7;
-  int32 syncState = 8;
-  repeated string artistIds = 9;
+  int32 likeCount = 7;
+  int32 viewCount = 8;
+  bytes thumbnail = 9;
+  int32 syncState = 10;
+  repeated string artistIds = 11;
 }
 
 message Track {

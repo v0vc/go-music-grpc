@@ -82,6 +82,7 @@ CREATE TABLE video (
     commentCount INTEGER,
     syncState INTEGER default 0,
     thumbnail BLOB,
+    quality REAL GENERATED ALWAYS AS (1.0 * likeCount / viewCount * 100) VIRTUAL,
     UNIQUE(videoId,title)
 );
 CREATE TABLE playlistVideo (
