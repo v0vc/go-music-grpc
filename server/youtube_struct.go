@@ -54,3 +54,11 @@ type Statistics struct {
 		} `json:"statistics,omitempty"`
 	} `json:"items,omitempty"`
 }
+
+type ChannelId struct {
+	Items []struct {
+		Snippet struct {
+			ChannelID string `json:"channelId,omitempty"`
+		} `json:"snippet,omitempty"`
+	} `json:"items,omitempty"`
+}

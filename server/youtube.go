@@ -32,6 +32,15 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	}
 
 	_, _, token := GetTokenDb(tx, ctx, siteId)
+	if strings.HasPrefix(artistId.Id, "@") || len(artistId.Id) == 11 {
+		// с ui пришли либо имя канала с @, либо id видео, найдем id канала
+		chId, er := geChannelId(ctx, token, artistId.Id)
+		if er != nil {
+			fmt.Println(er)
+		}
+		artistId.Id = chId
+	}
+
 	ch, err := getChannel(ctx, artistId.Id, token)
 	if err != nil || len(ch.Items) != 1 {
 		log.Println(err)

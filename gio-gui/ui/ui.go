@@ -30,10 +30,12 @@ import (
 )
 
 const (
-	artistRegexString  = `^https://zvuk.com/artist/(\d+)$`
-	releaseRegexString = `^https://zvuk.com/release/(\d+)$`
-	artistUrl          = "https://zvuk.com/artist/"
-	releaseUrl         = "https://zvuk.com/release/"
+	zvArtistUrl     = "https://zvuk.com/artist/"
+	zvReleaseUrl    = "https://zvuk.com/release/"
+	zvArtistRegex   = `^https://zvuk.com/artist/(\d+)$`
+	zvReleaseRegex  = `^https://zvuk.com/release/(\d+)$`
+	youVideoRegex   = "^(?:https?:)?(?:\\/\\/)?(?:youtu\\.be\\/|(?:www\\.|m\\.)?youtube\\.com\\/(?:watch|v|embed)(?:\\.php)?(?:\\?.*v=|\\/))([a-zA-Z0-9\\_-]{7,15})(?:[\\?&][a-zA-Z0-9\\_-]+=[a-zA-Z0-9\\_-]+)*(?:[&\\/\\#].*)?$"
+	youChannelRegex = "^https?:\\/\\/(www\\.)?youtube\\.com\\/(channel\\/UC[\\w-]{21}[AQgw]|(c\\/|user\\/)?[\\w@-]+)$"
 )
 
 var (
@@ -98,7 +100,7 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *
 				return item.Layout(gtx)
 			},
 			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Name")
+				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Link")
 				item.Icon = icon.CopyIcon
 				return item.Layout(gtx)
 			},
@@ -199,26 +201,40 @@ func (ui *UI) SelectAll(value bool) {
 	}
 }
 
-func (ui *UI) AddChannel(siteId uint32, artistUrl string) {
+func (ui *UI) AddChannel(siteId uint32, url string) {
 	g := &gen.Generator{}
 	ch := ui.Rooms.GetBaseChannel()
 	if ch == nil {
 		return
 	}
-	artistId := findArtistId(artistUrl, true)
-	if artistId == "" {
-		releaseId := findArtistId(artistUrl, false)
-		if releaseId != "" {
-			go g.DownloadAlbum(siteId, []string{releaseId}, "mid")
-			ch.Content = "download: " + releaseId
-			return
-		} else {
-			ch.Content = "invalid url"
-			return
+	var artistId string
+	switch siteId {
+	case 1:
+		// автор со сберзвука
+		artistId = findArtistId(url, true)
+		if artistId == "" {
+			releaseId := findArtistId(url, false)
+			if releaseId != "" {
+				go g.DownloadAlbum(siteId, []string{releaseId}, "mid")
+				ch.Content = "download: " + releaseId
+				return
+			}
 		}
-	} else {
-		ch.Content = fmt.Sprintf("working: %v", artistId)
+	case 2:
+		// автор со спотика
+	case 3:
+		// автор с дизера
+	case 4:
+		// автор с ютуба
+		artistId = findYoutubeId(url)
 	}
+	if artistId == "" {
+		ch.Content = "invalid url"
+		return
+	} else {
+		ch.Content = fmt.Sprintf("work: %v", artistId)
+	}
+
 	start := time.Now()
 	channels, albums, artTitle, err := g.AddChannel(siteId, artistId)
 	if err != nil {
@@ -401,7 +417,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					switch ui.SiteId {
 					case 1:
 						gtx.Execute(clipboard.WriteCmd{
-							Data: io.NopCloser(strings.NewReader(artistUrl + ui.ChannelMenuTarget.Id)),
+							Data: io.NopCloser(strings.NewReader(zvArtistUrl + ui.ChannelMenuTarget.Id)),
 						})
 					}
 				}
@@ -487,7 +503,7 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 				switch ui.SiteId {
 				case 1:
 					gtx.Execute(clipboard.WriteCmd{
-						Data: io.NopCloser(strings.NewReader(releaseUrl + ui.ContextMenuTarget.AlbumId)),
+						Data: io.NopCloser(strings.NewReader(zvReleaseUrl + ui.ContextMenuTarget.AlbumId)),
 					})
 				}
 			}
@@ -496,7 +512,7 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 				case 1:
 					var sb []string
 					for _, artId := range ui.ContextMenuTarget.ParentId {
-						sb = append(sb, artistUrl+artId)
+						sb = append(sb, zvArtistUrl+artId)
 					}
 
 					gtx.Execute(clipboard.WriteCmd{
@@ -555,12 +571,41 @@ func (ui *UI) row(data model.Message, state *Row) layout.Widget {
 func findArtistId(url string, isArtist bool) string {
 	var resId []string
 	if isArtist {
-		resId = regexp.MustCompile(artistRegexString).FindStringSubmatch(url)
+		resId = regexp.MustCompile(zvArtistRegex).FindStringSubmatch(url)
 	} else {
-		resId = regexp.MustCompile(releaseRegexString).FindStringSubmatch(url)
+		resId = regexp.MustCompile(zvReleaseRegex).FindStringSubmatch(url)
 	}
 	if resId == nil {
 		return ""
 	}
 	return resId[1]
+}
+
+func findYoutubeId(url string) string {
+	resId := regexp.MustCompile(youVideoRegex).FindStringSubmatch(url)
+	if resId == nil {
+		resId = regexp.MustCompile(youChannelRegex).FindStringSubmatch(url)
+		if len(resId) >= 3 {
+			if strings.HasPrefix(resId[2], "channel") {
+				return strings.Split(resId[2], "/")[1]
+			}
+			if strings.HasPrefix(resId[2], "user") {
+				res := strings.Split(resId[2], "/")[1]
+				if !strings.HasPrefix(res, "@") {
+					res = "@" + res
+				}
+				return res
+			}
+			res := resId[2]
+			if !strings.HasPrefix(res, "@") {
+				res = "@" + res
+			}
+			return res
+		}
+		return ""
+	}
+	if len(resId) >= 2 {
+		return resId[1]
+	}
+	return ""
 }

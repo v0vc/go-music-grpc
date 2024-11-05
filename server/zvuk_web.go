@@ -137,6 +137,16 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 			log.Println("Can't get new token", err)
 		}
 		return nil, token, needTokenUpd, nil
+	case http.StatusForbidden:
+		log.Printf("Try to renew access token...")
+		token, err = getTokenFromSite(ctx, email, password)
+		if err == nil && token != "" {
+			log.Printf("Token was updated successfully.")
+			needTokenUpd = true
+		} else {
+			log.Println("Can't get new token", err)
+		}
+		return nil, token, needTokenUpd, nil
 	case http.StatusOK:
 		var obj ReleaseInfo
 

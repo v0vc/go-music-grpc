@@ -115,7 +115,7 @@ func (p *Page) Actions() []component.AppBarAction {
 						p.addActions(),
 						[]component.OverflowAction{},
 					)
-					p.Router.AppBar.ToggleContextual(gtx.Now, "Add artist link: ")
+					p.Router.AppBar.ToggleContextual(gtx.Now, "Add video link: ")
 				}
 				return component.SimpleIconButton(bg, fg, &p.addBtn, icon.PlusIcon).Layout(gtx)
 			},
