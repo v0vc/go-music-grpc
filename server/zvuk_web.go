@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -29,28 +28,15 @@ const (
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.year}} - {{.album}}"
 	releaseChunk          = 100
-	authHeader            = "x-auth-token"
+	authHeader            = "cookie"
 	thumbSize             = "64x64"
 	coverSize             = "600x600"
 )
 
-type Transport struct{}
+type Transport struct{ auth string }
 
 var (
-	jar, _     = cookiejar.New(nil)
-	client     = &http.Client{Jar: jar, Transport: &Transport{}}
-	userAgents = []string{
-		"OpenPlay|4.9.4|Android|7.1|HTC One X10",
-		"OpenPlay|4.10.1|Android|7.1.2|Sony Xperia Z5",
-		"OpenPlay|4.10.2|Android|7.1|Sony Xperia XZ",
-		"OpenPlay|4.10.3|Android|7.1.2|Asus ASUS_Z01QD",
-		"OpenPlay|4.11.2|Android|8|Nexus 6P",
-		"OpenPlay|4.11.4|Android|8.1|Samsung Galaxy S6",
-		"OpenPlay|4.11.5|Android|9|Samsung Galaxy S7",
-		"OpenPlay|4.12.3|Android|10|Samsung Galaxy S8",
-		"OpenPlay|4.13|Android|11|Samsung Galaxy S9",
-		"OpenPlay|4.14|Android|12|Google Pixel 4 XL",
-	}
+	jar, _          = cookiejar.New(nil)
 	trackQualityMap = map[string]TrackQuality{
 		"/stream?":   {"128 Kbps MP3", ".mp3", false},
 		"/streamhq?": {"320 Kbps MP3", ".mp3", false},
@@ -59,8 +45,10 @@ var (
 )
 
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Add("User-Agent", userAgents[rand.Int()%len(userAgents)])
-	req.Header.Add("Referer", apiBase)
+	req.Header.Add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.3; rv:115.0) Gecko/20100101 Firefox/115.0")
+	if t.auth != "" {
+		req.Header.Add(authHeader, fmt.Sprintf("auth=%s", t.auth))
+	}
 	return http.DefaultTransport.RoundTrip(req)
 }
 
@@ -74,6 +62,8 @@ func getTokenFromSite(ctx context.Context, email, password string) (string, erro
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	client := &http.Client{Jar: jar, Transport: &Transport{}}
+	defer client.CloseIdleConnections()
 	do, err := client.Do(req)
 	if err != nil || do == nil {
 		return "", err
@@ -104,11 +94,12 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 		return nil, "", false, err
 	}
 
-	req.Header.Add(authHeader, token)
 	query := url.Values{}
 	query.Set("ids", albumId)
 	query.Set("include", "track")
 	req.URL.RawQuery = query.Encode()
+	client := &http.Client{Jar: jar, Transport: &Transport{auth: token}}
+	defer client.CloseIdleConnections()
 	do, err := client.Do(req)
 	if err != nil || do == nil {
 		log.Println(err)
@@ -138,15 +129,8 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 		}
 		return nil, token, needTokenUpd, nil
 	case http.StatusForbidden:
-		log.Printf("Try to renew access token...")
-		token, err = getTokenFromSite(ctx, email, password)
-		if err == nil && token != "" {
-			log.Printf("Token was updated successfully.")
-			needTokenUpd = true
-		} else {
-			log.Println("Can't get new token", err)
-		}
-		return nil, token, needTokenUpd, nil
+		log.Printf("Something was changed in api, please report. Exit...")
+		return nil, "", false, nil
 	case http.StatusOK:
 		var obj ReleaseInfo
 
@@ -167,7 +151,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 	graphqlRequest.Var("id", artistId)
 	graphqlRequest.Var("limit", releaseChunk)
 	graphqlRequest.Var("offset", 0)
-	graphqlRequest.Header.Add(authHeader, token)
+	graphqlRequest.Header.Add(authHeader, fmt.Sprintf("auth=%s", token))
 
 	var (
 		needTokenUpd    = false
@@ -178,7 +162,7 @@ func getArtistReleases(ctx context.Context, artistId, token, email, password str
 		log.Printf("try to renew access token...")
 		token, err = getTokenFromSite(ctx, email, password)
 		if err == nil {
-			graphqlRequest.Header.Set(authHeader, token)
+			graphqlRequest.Header.Set(authHeader, fmt.Sprintf("auth=%s", token))
 			err = graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
 			if err != nil {
 				log.Printf("can't get artist data from api: %v\n", err)
@@ -245,10 +229,11 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 	var coverPath string
 
 	cdnUrl, err := getTrackStreamUrl(ctx, trackId, trackQuality, token)
-	if err != nil {
+	if err != nil || cdnUrl == "" {
 		log.Println("Failed to get track info from api.", err)
 		return
 	}
+
 	curQuality := getCurrentTrackQuality(cdnUrl, &trackQualityMap)
 	if curQuality == nil {
 		log.Println("The API returned an unsupported format.")
@@ -345,6 +330,8 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 	}
 
 	req.Header.Add("Range", "bytes=0-")
+	client := &http.Client{Jar: jar, Transport: &Transport{}}
+	defer client.CloseIdleConnections()
 	do, err := client.Do(req)
 	if err != nil || do == nil {
 		return "", err
@@ -369,7 +356,6 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 	res, err := io.Copy(f, io.TeeReader(do.Body, counter))
 
 	log.Println("")
-
 	return humanize.Bytes(uint64(res)), err
 }
 
@@ -379,13 +365,12 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 	if err != nil {
 		return "", err
 	}
-
-	req.Header.Add(authHeader, token)
 	query := url.Values{}
 	query.Set("id", trackId)
 	query.Set("quality", trackQuality)
 	req.URL.RawQuery = query.Encode()
-
+	client := &http.Client{Jar: jar, Transport: &Transport{auth: token}}
+	defer client.CloseIdleConnections()
 	for i := 0; i < 5; i++ {
 		do, err = client.Do(req)
 		if err != nil || do == nil {
@@ -400,12 +385,9 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 
 			continue
 		}
+
 		if do.StatusCode != http.StatusOK {
-			err = do.Body.Close()
-			if err != nil {
-				return "", err
-			}
-			return "", err
+			return "", do.Body.Close()
 		}
 
 		break
