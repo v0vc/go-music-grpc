@@ -17,7 +17,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 
-	"github.com/machinebox/graphql"
+	"github.com/v0vc/graphql"
 )
 
 const (
@@ -28,9 +28,11 @@ const (
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.year}} - {{.album}}"
 	releaseChunk          = 100
-	authHeader            = "cookie"
+	authHeader            = "x-auth-token"
+	uaHeader              = "user-agent"
 	thumbSize             = "64x64"
 	coverSize             = "600x600"
+	ua                    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.3; rv:115.0) Gecko/20100101 Firefox/115.0"
 )
 
 type Transport struct{ auth string }
@@ -45,9 +47,9 @@ var (
 )
 
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.3; rv:115.0) Gecko/20100101 Firefox/115.0")
+	req.Header.Add(uaHeader, ua)
 	if t.auth != "" {
-		req.Header.Add(authHeader, fmt.Sprintf("auth=%s", t.auth))
+		req.Header.Add("cookie", fmt.Sprintf("auth=%s", t.auth))
 	}
 	return http.DefaultTransport.RoundTrip(req)
 }
@@ -144,46 +146,78 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 	}
 }
 
-func getArtistReleases(ctx context.Context, artistId, token, email, password string) (*ArtistReleases, string, bool, error) {
-	var obj ArtistReleases
-	graphqlClient := graphql.NewClient(apiBase + "api/v1/graphql")
-	graphqlRequest := graphql.NewRequest(`query getArtistReleases($id: ID!, $limit: Int!, $offset: Int!) { getArtists(ids: [$id]) { __typename releases(limit: $limit, offset: $offset) { __typename ...ReleaseGqlFragment } } } fragment ReleaseGqlFragment on Release { __typename artists { __typename id title image { __typename ...ImageInfoGqlFragment } } date id image { __typename ...ImageInfoGqlFragment } title type } fragment ImageInfoGqlFragment on ImageInfo { __typename src }`)
-	graphqlRequest.Var("id", artistId)
-	graphqlRequest.Var("limit", releaseChunk)
-	graphqlRequest.Var("offset", 0)
-	graphqlRequest.Header.Add(authHeader, fmt.Sprintf("auth=%s", token))
+func setGraphqlHeaders(req *graphql.Request, token string) {
+	req.Header.Add(authHeader, token)
+	req.Header.Add(uaHeader, ua)
+	req.Header.Add("origin", apiBase)
+	req.Header.Add("content-type", "application/json")
+	req.Header.Add("apollographql-client-version", "1.3")
+	req.Header.Add("apollographql-client-name", "SberZvuk")
+	req.Header.Add("accept-language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+	req.Header.Add("accept", "*/*")
+}
 
+func getArtistReleases(ctx context.Context, artistId, token string) (*ArtistAlbums, error) {
 	var (
-		needTokenUpd    = false
-		graphqlResponse interface{}
+		res         ArtistAlbums
+		hasNextPage = true
+		cursor      string
+		err         error
 	)
-	err := graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
-	if err != nil {
-		log.Printf("try to renew access token...")
-		token, err = getTokenFromSite(ctx, email, password)
-		if err == nil {
-			graphqlRequest.Header.Set(authHeader, fmt.Sprintf("auth=%s", token))
-			err = graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
-			if err != nil {
-				log.Printf("can't get artist data from api: %v\n", err)
-			} else {
-				log.Printf("token was updated successfully")
-				needTokenUpd = true
-			}
+
+	for hasNextPage {
+		graphqlRequest := graphql.NewRequest(`query artistReleases($ids: [ID!]!, $limit: Int = 100, $cursor: String = null) { getArtists(ids: $ids) { id title image { src } discography { all(limit: $limit, cursor: $cursor) { releases { id title type image { src } artists { id title } date } page_info { endCursor hasNextPage } } } } }`)
+		graphqlRequest.Var("limit", releaseChunk)
+		if cursor != "" {
+			graphqlRequest.Var("cursor", cursor)
 		} else {
-			log.Printf("can't get new token: %v\n", err)
+			graphqlRequest.Var("cursor", nil)
 		}
-	}
-	if err != nil {
-		return nil, "", false, err
-	} else {
-		jsonString, er := json.Marshal(graphqlResponse)
-		err = json.Unmarshal(jsonString, &obj)
+		graphqlRequest.Var("ids", []string{artistId})
+		setGraphqlHeaders(graphqlRequest, token)
+
+		graphqlClient := graphql.NewClient(apiBase+"api/v1/graphql", graphql.WithHTTPClient(&http.Client{Jar: jar, Transport: &Transport{}}))
+
+		var graphqlResponse interface{}
+		err = graphqlClient.Run(ctx, graphqlRequest, &graphqlResponse)
 		if err != nil {
-			return nil, "", false, err
+			return nil, err
 		}
-		return &obj, token, needTokenUpd, er
+
+		jsonString, er := json.Marshal(graphqlResponse)
+		if er != nil {
+			return nil, er
+		}
+
+		var obj ArtistAlbums
+		if res.GetArtists == nil {
+			err = json.Unmarshal(jsonString, &res)
+			if err != nil {
+				return nil, err
+			}
+			if len(res.GetArtists) == 1 {
+				hasNextPage = res.GetArtists[0].Discography.All.PageInfo.HasNextPage
+				cursor = res.GetArtists[0].Discography.All.PageInfo.EndCursor
+			} else {
+				return nil, fmt.Errorf("bad api response for artist: %s", artistId)
+			}
+
+		} else {
+			err = json.Unmarshal(jsonString, &obj)
+			if err != nil {
+				return nil, err
+			}
+			if len(res.GetArtists) == 1 {
+				res.GetArtists[0].Discography.All.Releases = append(res.GetArtists[0].Discography.All.Releases, obj.GetArtists[0].Discography.All.Releases...)
+				hasNextPage = obj.GetArtists[0].Discography.All.PageInfo.HasNextPage
+				cursor = obj.GetArtists[0].Discography.All.PageInfo.EndCursor
+			} else {
+				return nil, fmt.Errorf("bad api response for artist: %s", artistId)
+			}
+		}
 	}
+
+	return &res, err
 }
 
 func downloadAlbumCover(ctx context.Context, url, path string) error {
@@ -355,7 +389,7 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 	}
 	res, err := io.Copy(f, io.TeeReader(do.Body, counter))
 
-	log.Println("")
+	// log.Println("")
 	return humanize.Bytes(uint64(res)), err
 }
 

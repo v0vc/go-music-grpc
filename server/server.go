@@ -43,6 +43,31 @@ type server struct {
 	artist.ArtistServiceServer
 }
 
+func GetTokenOnlyDb(tx *sql.Tx, ctx context.Context, siteId uint32) string {
+	stmt, err := tx.PrepareContext(ctx, "select token from main.site where site_id = ? limit 1;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stmt *sql.Stmt) {
+		err = stmt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmt)
+
+	var token sql.NullString
+	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		log.Printf("no token for sourceId: %d", siteId)
+	case err != nil:
+		log.Println(err)
+	}
+
+	return token.String
+}
+
 func GetTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string, string) {
 	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from main.site where site_id = ? limit 1;")
 	if err != nil {
@@ -241,14 +266,14 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	wgSync.Wait()
 
 	// post actions (switch in future)
-	if siteId == 1 && deletedIds != nil {
+	/*if siteId == 1 && deletedIds != nil {
 		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds)
 		if er != nil {
 			log.Printf("Delete unused artists failed: %v", er)
 		} else {
 			log.Printf("siteId: %v, delete unused artists completed, total : %v\n", siteId, deletedRowCount)
 		}
-	}
+	}*/
 
 	if err != nil {
 		return nil, status.Errorf(

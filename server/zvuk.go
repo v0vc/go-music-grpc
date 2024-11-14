@@ -68,8 +68,8 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId stri
 	return artId, err
 }
 
-func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int) {
-	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded from main.artist where artistId = ? and siteId = ? limit 1;")
+func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) (int, int, []byte) {
+	stmtArt, err := tx.PrepareContext(ctx, "select art_id, userAdded, thumbnail from main.artist where artistId = ? and siteId = ? limit 1;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -83,9 +83,10 @@ func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId i
 	var (
 		artRawId  int
 		userAdded int
+		thumb     []byte
 	)
 
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded)
+	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded, &thumb)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		log.Printf("no artist with id %v\n", artistId)
@@ -94,7 +95,7 @@ func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId i
 	default:
 		log.Printf("siteId: %v, artist db id is %d\n", siteId, artRawId)
 	}
-	return artRawId, userAdded
+	return artRawId, userAdded, thumb
 }
 
 func getExistIdsDb(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string) {
@@ -713,7 +714,7 @@ func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 }
 
 func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool, isDelete bool) (*artist.Artist, []string, error) {
-	var resArtist *artist.Artist
+	//var resArtist *artist.Artist
 
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
@@ -731,23 +732,24 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 		log.Println(err)
 	}
 
-	login, pass, token := GetTokenDb(tx, ctx, siteId)
-	item, token, needTokenUpd, err := getArtistReleases(ctx, artistId.Id, token, login, pass)
+	token := GetTokenOnlyDb(tx, ctx, siteId)
+	item, err := getArtistReleases(ctx, artistId.Id, token)
 	if item == nil || err != nil {
 		log.Println(err)
-		return resArtist, []string{}, tx.Rollback()
+		return nil, []string{}, tx.Rollback()
 	}
-	if needTokenUpd {
+	/*if needTokenUpd {
 		UpdateTokenDb(tx, ctx, token, siteId)
-	}
+	}*/
 
 	var (
 		artRawId int
 		uAdd     int
+		thumb    []byte
 	)
 
 	if artistId.RawId == 0 {
-		artRawId, uAdd = getArtistIdAddDb(tx, ctx, siteId, artistId.Id)
+		artRawId, uAdd, thumb = getArtistIdAddDb(tx, ctx, siteId, artistId.Id)
 	} else {
 		artRawId = artistId.RawId
 		uAdd = 1
@@ -766,7 +768,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 	}
 
 	for _, data := range item.GetArtists {
-		for _, release := range data.Releases {
+		for _, release := range data.Discography.All.Releases {
 			if release.ID == "" {
 				continue
 			}
@@ -802,13 +804,25 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 	var (
 		processedAlbumIds  []string
 		processedArtistIds []string
-		thumb              []byte
 		artists            []*artist.Artist
 		albums             []*artist.Album
 	)
 
+	resArtist := &artist.Artist{
+		SiteId:   siteId,
+		ArtistId: item.GetArtists[0].ID,
+		Title:    item.GetArtists[0].Title,
+		// Thumbnail: GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1)),
+		UserAdded: true,
+	}
+	if thumb == nil {
+		resArtist.Thumbnail = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
+	} else {
+		resArtist.Thumbnail = thumb
+	}
+
 	for _, data := range item.GetArtists {
-		for _, release := range data.Releases {
+		for _, release := range data.Discography.All.Releases {
 			if release.ID == "" {
 				continue
 			}
@@ -846,22 +860,8 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 							ArtistId: author.ID,
 							Title:    strings.TrimSpace(author.Title),
 						}
-						if isAdd && art.GetArtistId() == artistId.Id && art.Thumbnail == nil {
-							art.Thumbnail = GetThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
-							art.UserAdded = true
-							resArtist = art
-						}
 						artists = append(artists, art)
 						processedArtistIds = append(processedArtistIds, author.ID)
-					} else if artRawId != 0 && author.ID == artistId.Id && thumb == nil && resArtist == nil {
-						thumb = GetThumb(ctx, strings.Replace(author.Image.Src, "{size}", thumbSize, 1))
-						resArtist = &artist.Artist{
-							SiteId:    siteId,
-							ArtistId:  artistId.Id,
-							Title:     author.Title,
-							Thumbnail: thumb,
-							UserAdded: true,
-						}
 					}
 				}
 
@@ -965,7 +965,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 		mAlbum := make(map[string]int)
 
 		for _, data := range item.GetArtists {
-			for _, release := range data.Releases {
+			for _, release := range data.Discography.All.Releases {
 				for _, ar := range release.Artists {
 					if release.ID == "" {
 						continue
@@ -1040,7 +1040,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 		}
 	}
 
-	if isDelete {
+	/*if isDelete {
 		for _, aid := range deletedArtistIds {
 			aff, er := deleteBase(ctx, tx, aid, siteId, false)
 			if er != nil {
@@ -1049,7 +1049,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
 			}
 		}
-	}
+	}*/
 
 	return resArtist, deletedArtistIds, tx.Commit()
 }

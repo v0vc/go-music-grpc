@@ -14,6 +14,37 @@ type Auth struct {
 	} `json:"result,omitempty"`
 }
 
+type ArtistAlbums struct {
+	GetArtists []struct {
+		ID    string `json:"id,omitempty"`
+		Title string `json:"title,omitempty"`
+		Image struct {
+			Src string `json:"src,omitempty"`
+		} `json:"image,omitempty"`
+		Discography struct {
+			All struct {
+				Releases []struct {
+					ID    string `json:"id,omitempty"`
+					Title string `json:"title,omitempty"`
+					Type  string `json:"type,omitempty"`
+					Image struct {
+						Src string `json:"src,omitempty"`
+					} `json:"image,omitempty"`
+					Artists []struct {
+						ID    string `json:"id,omitempty"`
+						Title string `json:"title,omitempty"`
+					} `json:"artists,omitempty"`
+					Date string `json:"date,omitempty"`
+				} `json:"releases,omitempty"`
+				PageInfo struct {
+					EndCursor   string `json:"endCursor,omitempty"`
+					HasNextPage bool   `json:"hasNextPage,omitempty"`
+				} `json:"page_info,omitempty"`
+			} `json:"all,omitempty"`
+		} `json:"discography,omitempty"`
+	} `json:"getArtists,omitempty"`
+}
+
 type ArtistReleases struct {
 	GetArtists []struct {
 		Typename string `json:"__typename,omitempty"`
