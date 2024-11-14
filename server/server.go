@@ -228,7 +228,6 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		artIds = append(artIds, ArtistRawId{Id: artistId})
 	}
 
-	isDelete := len(artIds) == 1
 	var deletedArtIds []string
 	for _, artId := range artIds {
 		wgSync.Add(1)
@@ -237,12 +236,10 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			switch siteId {
 			case 1:
 				// автор со сберзвука
-				art, deletedArtIds, err = SyncArtist(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd(), isDelete)
-				if !isDelete {
-					for _, id := range deletedArtIds {
-						if !slices2.Contains(deletedIds, id) {
-							deletedIds = append(deletedIds, id)
-						}
+				art, deletedArtIds, err = SyncArtist(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
+				for _, id := range deletedArtIds {
+					if !slices2.Contains(deletedIds, id) {
+						deletedIds = append(deletedIds, id)
 					}
 				}
 			case 2:
@@ -266,14 +263,14 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	wgSync.Wait()
 
 	// post actions (switch in future)
-	/*if siteId == 1 && deletedIds != nil {
+	if siteId == 1 && deletedIds != nil {
 		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds)
 		if er != nil {
 			log.Printf("Delete unused artists failed: %v", er)
 		} else {
 			log.Printf("siteId: %v, delete unused artists completed, total : %v\n", siteId, deletedRowCount)
 		}
-	}*/
+	}
 
 	if err != nil {
 		return nil, status.Errorf(
