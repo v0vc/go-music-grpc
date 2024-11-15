@@ -18,10 +18,7 @@ func BenchmarkKitchen(b *testing.B) {
 	if err != nil {
 		b.Error(err)
 	}
-	ui := NewUI(func() {}, page.NewTheme(&page.Config{
-		Theme:    "light",
-		LoadSize: 10,
-	}), 0, 0)
+	ui := NewUI(func() {}, page.NewTheme(&page.Config{Theme: "light", LoadSize: 10, Quality: "mid"}), 0, "mid", 0)
 	gtx := layout.Context{
 		Ops: new(op.Ops),
 		Metric: unit.Metric{
