@@ -264,9 +264,9 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 
 	// post actions (switch in future)
 	if siteId == 1 && deletedIds != nil {
-		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds)
+		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds, false)
 		if er != nil {
-			log.Printf("Delete unused artists failed: %v", er)
+			log.Printf("delete unused artists failed: %v", er)
 		} else {
 			log.Printf("siteId: %v, delete unused artists completed, total : %v\n", siteId, deletedRowCount)
 		}
@@ -398,7 +398,7 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 		switch siteId {
 		case 1:
 			// автор со сберзвука
-			res, err = DeleteArtistsDb(context.WithoutCancel(ctx), siteId, []string{artistId})
+			res, err = DeleteArtistsDb(context.WithoutCancel(ctx), siteId, []string{artistId}, true)
 		case 2:
 			// автор со спотика
 		case 3:

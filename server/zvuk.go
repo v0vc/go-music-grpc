@@ -257,7 +257,7 @@ func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string
 	return mTracks, mAlbum
 }
 
-func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32, isCommit bool) (int64, error) {
+func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32) (int64, error) {
 	var (
 		aff int64
 		err error
@@ -269,20 +269,17 @@ func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32,
 	}
 	rnd := RandStringBytesMask(4)
 
-	execs := []struct {
-		stmt string
-		res  int
-	}{
-		{stmt: fmt.Sprintf("update main.artist set userAdded = 0 where art_id = %d", artId), res: 0},
-		{stmt: fmt.Sprintf("create temporary table _temp_album_%v as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res > 1) except select aa.albumId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = %v and siteId = 1 limit 1)) and a.userAdded = 1 group by aa.albumId;", rnd, artId, artId, artistId), res: 1},
-		{stmt: fmt.Sprintf("delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) and a.userAdded = 1 and a.art_id <> %d group by aa.artistId)) group by aa.artistId);", artId, artId, artId), res: 2},
-		{stmt: fmt.Sprintf("delete from main.album where alb_id in (select albumId from _temp_album_%v);", rnd), res: 3},
-		{stmt: fmt.Sprintf("drop table _temp_album_%v;", rnd), res: 4},
+	execs := []string{
+		fmt.Sprintf("update main.artist set userAdded = 0 where art_id = %d;", artId),
+		fmt.Sprintf("create temporary table _temp_album_%s as select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res = 1) union select albumId from (select aa.albumId, count(aa.artistId) res from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = %d) group by aa.albumId having res > 1) except select aa.albumId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select albumId from main.artistAlbum where artistId = (select art_id from main.artist where artistId = %v and siteId = 1 limit 1)) and a.userAdded = 1 group by aa.albumId;", rnd, artId, artId, artistId),
+		fmt.Sprintf("delete from main.artist where art_id in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) group by aa.artistId except select aa.artistId from main.artistAlbum aa where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId in (select aa.artistId from main.artistAlbum aa join artist a on a.art_id = aa.artistId where aa.albumId in (select aa.albumId from main.artistAlbum aa where aa.artistId = %d) and a.userAdded = 1 and a.art_id <> %d group by aa.artistId)) group by aa.artistId);", artId, artId, artId),
+		fmt.Sprintf("delete from main.album where alb_id in (select albumId from _temp_album_%s);", rnd),
+		fmt.Sprintf("drop table _temp_album_%s;", rnd),
 	}
 
-	for _, exec := range execs {
+	for i, exec := range execs {
 		func() {
-			stmt, er := tx.PrepareContext(ctx, exec.stmt)
+			stmt, er := tx.PrepareContext(ctx, exec)
 			if er != nil {
 				log.Println(er)
 			}
@@ -293,10 +290,10 @@ func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32,
 					log.Println(err)
 				}
 			}(stmt)
-			cc, er := stmt.ExecContext(ctx)
-			if er != nil {
-				log.Println(er)
-			} else if exec.res == 3 {
+			cc, e := stmt.ExecContext(ctx)
+			if e != nil {
+				log.Println(e)
+			} else if i == 2 {
 				aff, err = cc.RowsAffected()
 				if err != nil {
 					log.Println(err)
@@ -304,10 +301,7 @@ func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32,
 			}
 		}()
 	}
-	if isCommit {
-		return aff, tx.Commit()
-	}
-	return aff, err
+	return aff, tx.Commit()
 }
 
 func DownloadTracks(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
@@ -328,7 +322,7 @@ func DownloadTracks(ctx context.Context, siteId uint32, trackIds []string, track
 	}
 
 	mTracks, _ := getTrackFromDb(tx, ctx, siteId, trackIds, false)
-	_, _, token := GetTokenDb(tx, ctx, siteId)
+	token := GetTokenOnlyDb(tx, ctx, siteId)
 	err = tx.Rollback()
 	if err != nil {
 		log.Println(err)
@@ -531,7 +525,7 @@ func GetArtistReleasesFromDb(ctx context.Context, siteId uint32, artistId string
 	return albs, err
 }
 
-func DeleteArtistsDb(ctx context.Context, siteId uint32, artistId []string) (int64, error) {
+func DeleteArtistsDb(ctx context.Context, siteId uint32, artistId []string, isUserAdd bool) (int64, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -549,17 +543,47 @@ func DeleteArtistsDb(ctx context.Context, siteId uint32, artistId []string) (int
 	}
 
 	var deletedRowCount int64
-	for _, aid := range artistId {
-		aff, er := deleteBase(ctx, tx, aid, siteId, false)
+	if isUserAdd {
+		for _, aid := range artistId {
+			aff, er := deleteBase(ctx, tx, aid, siteId)
+			if er != nil {
+				log.Println(er)
+				return 0, tx.Rollback()
+			} else {
+				log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
+				deletedRowCount = deletedRowCount + aff
+			}
+		}
+		return deletedRowCount, err
+	} else {
+		stmt, er := tx.PrepareContext(ctx, fmt.Sprintf("delete from main.artist where artistId in (? %s) and userAdded == 0 and siteId = ?;", strings.Repeat(",?", len(artistId)-1)))
 		if er != nil {
 			log.Println(er)
-			return 0, tx.Rollback()
-		} else {
-			log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
-			deletedRowCount = deletedRowCount + aff
 		}
+
+		defer func(stmt *sql.Stmt) {
+			err = stmt.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(stmt)
+
+		args := make([]interface{}, len(artistId))
+		for i, artId := range artistId {
+			args[i] = artId
+		}
+		args = append(args, siteId)
+
+		cc, er := stmt.ExecContext(ctx, args...)
+		if er != nil {
+			log.Println(er)
+		}
+		deletedRowCount, er = cc.RowsAffected()
+		if er != nil {
+			log.Println(er)
+		}
+		return deletedRowCount, tx.Commit()
 	}
-	return deletedRowCount, tx.Commit()
 }
 
 func GetArtistReleasesIdFromDb(ctx context.Context, siteId uint32, artistId string, newOnly bool) ([]string, error) {
@@ -866,6 +890,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				Title:       strings.TrimSpace(release.Title),
 				ReleaseDate: release.Date,
 				ReleaseType: MapReleaseType(release.Type),
+				// AlbumId: release.ID,
 			}
 			if slices2.Contains(newAlbumIds, release.ID) && !slices2.Contains(processedAlbumIds, release.ID) {
 				alb.AlbumId = release.ID
@@ -885,41 +910,45 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				}
 			}
 
-			if isAdd || alb.AlbumId != "" {
-				sb := make([]string, len(release.Artists))
-				for i, author := range release.Artists {
-					if author.ID == "" {
-						continue
-					}
-					sb[i] = author.Title
-					alb.ArtistIds = append(alb.ArtistIds, author.ID)
+			sb := make([]string, len(release.Artists))
+			for i, author := range release.Artists {
+				if author.ID == "" {
+					continue
+				}
+				sb[i] = author.Title
+				alb.ArtistIds = append(alb.ArtistIds, author.ID)
 
-					if slices2.Contains(newArtistIds, author.ID) && !slices2.Contains(processedArtistIds, author.ID) {
-						art := &artist.Artist{
-							ArtistId: author.ID,
-							Title:    strings.TrimSpace(author.Title),
-						}
-						if isAdd && art.GetArtistId() == artistId.Id && art.Thumbnail == nil {
-							art.Thumbnail = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
-							art.UserAdded = true
-							resArtist = art
-						}
-						artists = append(artists, art)
-						processedArtistIds = append(processedArtistIds, author.ID)
-					} else if artRawId != 0 && author.ID == artistId.Id && resArtist == nil {
+				if slices2.Contains(newArtistIds, author.ID) && !slices2.Contains(processedArtistIds, author.ID) {
+					art := &artist.Artist{
+						ArtistId: author.ID,
+						Title:    strings.TrimSpace(author.Title),
+					}
+					if isAdd && art.GetArtistId() == artistId.Id && art.Thumbnail == nil {
 						if thumb == nil {
-							thumb = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
+							art.Thumbnail = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
+						} else {
+							art.Thumbnail = thumb
 						}
-						resArtist = &artist.Artist{
-							SiteId:    siteId,
-							ArtistId:  artistId.Id,
-							Title:     author.Title,
-							Thumbnail: thumb,
-							UserAdded: true,
-						}
+						art.UserAdded = true
+						resArtist = art
+					}
+					artists = append(artists, art)
+					processedArtistIds = append(processedArtistIds, author.ID)
+				} else if artRawId != 0 && author.ID == artistId.Id && resArtist == nil {
+					if thumb == nil {
+						thumb = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
+					}
+					resArtist = &artist.Artist{
+						SiteId:    siteId,
+						ArtistId:  artistId.Id,
+						Title:     author.Title,
+						Thumbnail: thumb,
+						UserAdded: true,
 					}
 				}
+			}
 
+			if isAdd || alb.AlbumId != "" {
 				alb.SubTitle = strings.Join(sb, ", ")
 				alb.ReleaseDate = strings.Replace(alb.GetReleaseDate(), "T", " ", 1)
 				if !slices2.Contains(alb.ArtistIds, artistId.Id) {
@@ -973,7 +1002,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				if insErr != nil {
 					log.Println(insErr)
 				} else {
-					log.Printf("Processed artist: %v, id: %v \n", art.GetTitle(), artId)
+					log.Printf("processed artist: %v, id: %v \n", art.GetTitle(), artId)
 				}
 				mArtist[art.GetArtistId()] = artId
 			}
@@ -998,7 +1027,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				if err != nil {
 					log.Println(err)
 				} else {
-					log.Printf("Processed album: %v, id: %v \n", album.GetTitle(), albId)
+					log.Printf("processed album: %v, id: %v \n", album.GetTitle(), albId)
 				}
 
 				for _, arId := range album.GetArtistIds() {
@@ -1103,17 +1132,6 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 			log.Println(err)
 		}
 	}
-
-	/*if isDelete {
-		for _, aid := range deletedArtistIds {
-			aff, er := deleteBase(ctx, tx, aid, siteId, false)
-			if er != nil {
-				log.Println(er)
-			} else {
-				log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
-			}
-		}
-	}*/
 
 	return resArtist, deletedArtistIds, tx.Commit()
 }
