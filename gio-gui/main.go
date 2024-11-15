@@ -17,6 +17,7 @@ import (
 const (
 	defaultLoadSize = 30
 	defaultTheme    = "light"
+	defaultQuality  = "mid"
 )
 
 func main() {
@@ -35,15 +36,15 @@ func main() {
 }
 
 func parseConf() *page.Config {
-	conf := page.Config{Theme: defaultTheme, LoadSize: defaultLoadSize}
+	conf := page.Config{Theme: defaultTheme, LoadSize: defaultLoadSize, Quality: defaultQuality}
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Println("no .env file, use default values")
 	} else {
 		loadSize := os.Getenv("LoadSize")
 		if loadSize != "" {
-			loadSizeInt, err := strconv.Atoi(loadSize)
-			if err == nil {
+			loadSizeInt, er := strconv.Atoi(loadSize)
+			if er == nil {
 				conf.LoadSize = loadSizeInt
 			} else {
 				conf.LoadSize = defaultLoadSize
@@ -56,6 +57,12 @@ func parseConf() *page.Config {
 			conf.Theme = themeEnv
 		} else {
 			conf.Theme = defaultTheme
+		}
+		quality := os.Getenv("Quality")
+		if quality != "" {
+			conf.Quality = quality
+		} else {
+			conf.Quality = defaultQuality
 		}
 	}
 	return &conf
@@ -82,7 +89,7 @@ func loop(w *app.Window) error {
 			return e.Err
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
-			router.Layout(gtx, th, conf.LoadSize)
+			router.Layout(gtx, th, conf.LoadSize, conf.Quality)
 			e.Frame(gtx.Ops)
 		}
 	}

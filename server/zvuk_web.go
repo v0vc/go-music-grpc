@@ -389,7 +389,7 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 	}
 	res, err := io.Copy(f, io.TeeReader(do.Body, counter))
 
-	// log.Println("")
+	log.Println("")
 	return humanize.Bytes(uint64(res)), err
 }
 

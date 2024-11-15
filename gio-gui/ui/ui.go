@@ -82,15 +82,17 @@ type UI struct {
 	th                *page.Theme
 	SiteId            uint32
 	LoadSize          int
+	Quality           string
 }
 
 // NewUI constructs a UI and populates it with data.
-func NewUI(invalidator func(), theme *page.Theme, loadSize int, siteId uint32) *UI {
+func NewUI(invalidator func(), theme *page.Theme, loadSize int, quality string, siteId uint32) *UI {
 	var ui UI
 	ui.th = theme
 	ui.Invalidator = invalidator
 	ui.SiteId = siteId
 	ui.LoadSize = loadSize
+	ui.Quality = quality
 
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
@@ -179,7 +181,7 @@ func (ui *UI) MassDownload(siteId uint32) {
 	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
 		return
 	}
-	go curChannel.DownloadAlbum(siteId, curChannel.Selected, "mid")
+	go curChannel.DownloadAlbum(siteId, curChannel.Selected, ui.Quality)
 }
 
 func (ui *UI) SelectAll(value bool) {
@@ -232,7 +234,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 		ch.Content = "invalid url"
 		return
 	} else {
-		ch.Content = fmt.Sprintf("work: %v", artistId)
+		ch.Content = fmt.Sprintf("In work: %v", artistId)
 	}
 
 	start := time.Now()
@@ -408,9 +410,9 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 							alb := i.(model.Message)
 							albumIds = append(albumIds, alb.AlbumId)
 						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, "mid")
+						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Quality)
 					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, "mid")
+						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Quality)
 					}
 				}
 				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
@@ -523,7 +525,7 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 			if ui.DownloadBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, "mid")
+					go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.Quality)
 				}
 			}
 			if elemState.Selected.Update(gtx) {

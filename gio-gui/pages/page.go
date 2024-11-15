@@ -12,7 +12,7 @@ import (
 type Page interface {
 	Actions() []component.AppBarAction
 	Overflow() []component.OverflowAction
-	Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dimensions
+	Layout(gtx layout.Context, th *Theme, loadSize int, quality string) layout.Dimensions
 	NavItem() component.NavItem
 	ClickMainMenu(event component.AppBarEvent)
 }
@@ -22,6 +22,7 @@ type Config struct {
 	Theme string
 	// loadSize specifies maximum number of items to load at a time.
 	LoadSize int
+	Quality  string
 }
 
 type Router struct {
@@ -84,7 +85,7 @@ func (r *Router) SwitchTo(tag interface{}) {
 	r.AppBar.SetActions(p.Actions(), p.Overflow())
 }
 
-func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dimensions {
+func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int, quality string) layout.Dimensions {
 	for _, event := range r.AppBar.Events(gtx) {
 		// switch event := event.(type) {
 		switch event.(type) {
@@ -119,7 +120,7 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, loadSize int) layout.Dime
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				th.Theme.Bg = origBg
-				return r.pages[r.current].Layout(gtx, th, loadSize)
+				return r.pages[r.current].Layout(gtx, th, loadSize, quality)
 			}),
 		)
 	})
