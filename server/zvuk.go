@@ -785,8 +785,6 @@ func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 }
 
 func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, []string, error) {
-	var resArtist *artist.Artist
-
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -881,6 +879,20 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 		}
 	}
 
+	resArtist := &artist.Artist{
+		SiteId:    siteId,
+		ArtistId:  item.GetArtists[0].ID,
+		Title:     item.GetArtists[0].Title,
+		UserAdded: true,
+	}
+	if thumb == nil {
+		thumb = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
+		resArtist.Thumbnail = thumb
+	} else {
+		resArtist.Thumbnail = thumb
+	}
+	artists = append(artists, resArtist)
+
 	for _, data := range item.GetArtists {
 		for _, release := range data.Discography.All.Releases {
 			if release.ID == "" {
@@ -888,9 +900,8 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 			}
 			alb := &artist.Album{
 				Title:       strings.TrimSpace(release.Title),
-				ReleaseDate: release.Date,
+				ReleaseDate: strings.Replace(release.Date, "T", " ", 1),
 				ReleaseType: MapReleaseType(release.Type),
-				// AlbumId: release.ID,
 			}
 			if slices2.Contains(newAlbumIds, release.ID) && !slices2.Contains(processedAlbumIds, release.ID) {
 				alb.AlbumId = release.ID
@@ -917,40 +928,22 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				}
 				sb[i] = author.Title
 				alb.ArtistIds = append(alb.ArtistIds, author.ID)
+				if author.ID == artistId.Id {
+					continue
+				}
 
 				if slices2.Contains(newArtistIds, author.ID) && !slices2.Contains(processedArtistIds, author.ID) {
 					art := &artist.Artist{
 						ArtistId: author.ID,
 						Title:    strings.TrimSpace(author.Title),
 					}
-					if isAdd && art.GetArtistId() == artistId.Id && art.Thumbnail == nil {
-						if thumb == nil {
-							art.Thumbnail = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
-						} else {
-							art.Thumbnail = thumb
-						}
-						art.UserAdded = true
-						resArtist = art
-					}
 					artists = append(artists, art)
 					processedArtistIds = append(processedArtistIds, author.ID)
-				} else if artRawId != 0 && author.ID == artistId.Id && resArtist == nil {
-					if thumb == nil {
-						thumb = GetThumb(ctx, strings.Replace(item.GetArtists[0].Image.Src, "{size}", thumbSize, 1))
-					}
-					resArtist = &artist.Artist{
-						SiteId:    siteId,
-						ArtistId:  artistId.Id,
-						Title:     author.Title,
-						Thumbnail: thumb,
-						UserAdded: true,
-					}
 				}
 			}
 
 			if isAdd || alb.AlbumId != "" {
 				alb.SubTitle = strings.Join(sb, ", ")
-				alb.ReleaseDate = strings.Replace(alb.GetReleaseDate(), "T", " ", 1)
 				if !slices2.Contains(alb.ArtistIds, artistId.Id) {
 					// api bug
 					alb.ArtistIds = append(alb.ArtistIds, artistId.Id)

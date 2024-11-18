@@ -45,32 +45,6 @@ type ArtistAlbums struct {
 	} `json:"getArtists,omitempty"`
 }
 
-type ArtistReleases struct {
-	GetArtists []struct {
-		Typename string `json:"__typename,omitempty"`
-		Releases []struct {
-			Typename string `json:"__typename,omitempty"`
-			Artists  []struct {
-				Typename string `json:"__typename,omitempty"`
-				ID       string `json:"id,omitempty"`
-				Title    string `json:"title,omitempty"`
-				Image    struct {
-					Typename string `json:"__typename,omitempty"`
-					Src      string `json:"src,omitempty"`
-				} `json:"image,omitempty"`
-			} `json:"artists,omitempty"`
-			Date  string `json:"date,omitempty"`
-			ID    string `json:"id,omitempty"`
-			Image struct {
-				Typename string `json:"__typename,omitempty"`
-				Src      string `json:"src,omitempty"`
-			} `json:"image,omitempty"`
-			Title string `json:"title,omitempty"`
-			Type  string `json:"type,omitempty"`
-		} `json:"releases,omitempty"`
-	} `json:"getArtists,omitempty"`
-}
-
 type Release struct {
 	Image struct {
 		Src           string `json:"src,omitempty"`
