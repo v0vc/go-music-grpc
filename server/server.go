@@ -214,7 +214,7 @@ func vacuumDb(ctx context.Context) {
 func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*artist.SyncArtistResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	log.Printf("siteId: %v, sync artist: %v started\n", siteId, artistId)
+	fmt.Printf("siteId: %v, sync artist: %v started\n", siteId, artistId)
 
 	var (
 		artists    []*artist.Artist
@@ -284,7 +284,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 				resCount++
 			}
 		}
-		log.Printf("siteId: %v, sync: %v completed, new : %v\n", siteId, artistId, resCount)
+		fmt.Printf("siteId: %v, sync: %v completed, new : %v\n", siteId, artistId, resCount)
 	}
 
 	return &artist.SyncArtistResponse{
@@ -296,9 +296,9 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
 	if artistId == "" {
-		log.Printf("siteId: %v, read new items started\n", siteId)
+		fmt.Printf("siteId: %v, read new items started\n", siteId)
 	} else {
-		log.Printf("siteId: %v, read items: %v started\n", siteId, artistId)
+		fmt.Printf("siteId: %v, read items: %v started\n", siteId, artistId)
 	}
 
 	var (
@@ -335,9 +335,9 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 		)
 	} else {
 		if artistId == "" {
-			log.Printf("siteId: %v, read new items completed, total: %v\n", siteId, len(albums))
+			fmt.Printf("siteId: %v, read new items completed, total: %v\n", siteId, len(albums))
 		} else {
-			log.Printf("siteId: %v, read items: %v completed, total: %v\n", siteId, artistId, len(albums))
+			fmt.Printf("siteId: %v, read items: %v completed, total: %v\n", siteId, artistId, len(albums))
 		}
 	}
 
@@ -598,7 +598,7 @@ func (*server) ListArtist(ctx context.Context, req *artist.ListArtistRequest) (*
 	})
 	wgSync.Wait()
 
-	log.Printf("siteId: %v, list completed, total: %v\n", siteId, len(arts))
+	fmt.Printf("siteId: %v, list completed, total: %v\n", siteId, len(arts))
 
 	return &artist.ListArtistResponse{
 		Artists: arts,
@@ -630,7 +630,7 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	resAddress := listenInterface + ":" + port
-	log.Println("grpc-music service started at " + resAddress)
+	fmt.Println("grpc-music service started at " + resAddress)
 
 	lis, err := net.Listen("tcp", resAddress)
 	if err != nil {
@@ -658,7 +658,7 @@ func main() {
 
 	go func() {
 		s := <-sigCh
-		log.Printf("got signal %v, attempting graceful shutdown\n", s)
+		fmt.Printf("got signal %v, attempting graceful shutdown\n", s)
 		vacuumDb(context.Background())
 		newServer.GracefulStop()
 		wg.Done()
@@ -671,6 +671,6 @@ func main() {
 		}
 	}()
 	wg.Wait()
-	log.Println("clean shutdown")
-	log.Println("end of program")
+	fmt.Println("clean shutdown")
+	fmt.Println("end of program")
 }

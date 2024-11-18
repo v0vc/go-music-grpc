@@ -947,9 +947,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				if !slices2.Contains(alb.ArtistIds, artistId.Id) {
 					// api bug
 					alb.ArtistIds = append(alb.ArtistIds, artistId.Id)
-					if resArtist != nil {
-						alb.SubTitle = fmt.Sprintf("%v, %v", alb.SubTitle, resArtist.Title)
-					}
+					alb.SubTitle = fmt.Sprintf("%v, %v", alb.SubTitle, resArtist.Title)
 				}
 				albums = append(albums, alb)
 			}
@@ -995,7 +993,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				if insErr != nil {
 					log.Println(insErr)
 				} else {
-					log.Printf("processed artist: %v, id: %v \n", art.GetTitle(), artId)
+					fmt.Printf("processed artist: %v, id: %v \n", art.GetTitle(), artId)
 				}
 				mArtist[art.GetArtistId()] = artId
 			}
@@ -1020,7 +1018,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 				if err != nil {
 					log.Println(err)
 				} else {
-					log.Printf("processed album: %v, id: %v \n", album.GetTitle(), albId)
+					fmt.Printf("processed album: %v, id: %v \n", album.GetTitle(), albId)
 				}
 
 				for _, arId := range album.GetArtistIds() {
@@ -1042,9 +1040,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 					}
 				}
 			}
-			if resArtist != nil {
-				resArtist.Albums = append(resArtist.Albums, album)
-			}
+			resArtist.Albums = append(resArtist.Albums, album)
 		}
 	} else if artists != nil {
 		log.Printf("siteId: %v, artistId: %d, new relations found, processing..\n", siteId, artRawId)
@@ -1087,7 +1083,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 	}
 
 	if artRawId != 0 && userAdded != 1 && thumb != nil {
-		log.Printf("siteId: %v, artistId: %d, avatar has been updated\n", siteId, artRawId)
+		fmt.Printf("siteId: %v, artistId: %d, avatar has been updated\n", siteId, artRawId)
 		stArtistUpd, _ := tx.PrepareContext(ctx, "update main.artist set userAdded = 1, thumbnail = ? where art_id = ? and siteId = ?;")
 
 		defer func(stArtistUpd *sql.Stmt) {
@@ -1104,7 +1100,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 	}
 
 	if artAlbs != nil {
-		log.Printf("siteId: %v, artistId: %d, relations: %d\n", siteId, artRawId, len(artAlbs))
+		fmt.Printf("siteId: %v, artistId: %d, relations: %d\n", siteId, artRawId, len(artAlbs))
 		sqlStr := fmt.Sprintf("insert into main.artistAlbum(artistId, albumId) values %v on conflict (artistId, albumId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(artAlbs)), ","))
 		stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
 
