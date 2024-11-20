@@ -58,6 +58,7 @@ func main() {
 		id := strings.Trim(strings.TrimSpace(line), "\"")
 		fmt.Printf("started %v \n", id)
 		fmt.Println(id)
+
 		req := &artist.SyncArtistRequest{
 			SiteId:   1,
 			ArtistId: id,

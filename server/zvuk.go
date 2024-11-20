@@ -857,13 +857,13 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 	}
 
 	deletedArtistIds := FindDifference(existArtistIds, netArtistIds)
-	log.Printf("siteId: %v, artistId: %d, deleted: %d\n", siteId, artRawId, len(deletedArtistIds))
+	fmt.Printf("siteId: %v, artistId: %d, deleted: %d\n", siteId, artRawId, len(deletedArtistIds))
 
 	newAlbumIds := FindDifference(netAlbumIds, existAlbumIds)
-	log.Printf("siteId: %v, artistId: %d, new albums: %d\n", siteId, artRawId, len(newAlbumIds))
+	fmt.Printf("siteId: %v, artistId: %d, new albums: %d\n", siteId, artRawId, len(newAlbumIds))
 
 	newArtistIds := FindDifference(netArtistIds, existArtistIds)
-	log.Printf("siteId: %v, artistId: %d, new artists: %d\n", siteId, artRawId, len(newArtistIds))
+	fmt.Printf("siteId: %v, artistId: %d, new artists: %d\n", siteId, artRawId, len(newArtistIds))
 
 	var (
 		artists            []*artist.Artist
@@ -1042,8 +1042,8 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 			}
 			resArtist.Albums = append(resArtist.Albums, album)
 		}
-	} else if artists != nil {
-		log.Printf("siteId: %v, artistId: %d, new relations found, processing..\n", siteId, artRawId)
+	} else if len(artists) > 1 {
+		fmt.Printf("siteId: %v, artistId: %d, new relations found, processing..\n", siteId, artRawId)
 		mAlbum := make(map[string]int)
 
 		for _, data := range item.GetArtists {
@@ -1053,7 +1053,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 						continue
 					}
 
-					for _, art := range artists {
+					for _, art := range artists[1:] {
 						if ar.ID == art.GetArtistId() {
 							alId, ok := mAlbum[release.ID]
 							if !ok {
