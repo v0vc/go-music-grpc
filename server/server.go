@@ -321,7 +321,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	case 4:
 		// автор с ютуба
 		if req.GetNewOnly() {
-			albums, err = GetNewVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
+			albums, err = GetNewVideosFromDb(context.WithoutCancel(ctx))
 		} else {
 			albums, err = GetChannelVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
 		}

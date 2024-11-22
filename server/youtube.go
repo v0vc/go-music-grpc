@@ -13,8 +13,6 @@ import (
 )
 
 func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
-	var resArtist *artist.Artist
-
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -41,10 +39,12 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		artistId.Id = chId
 	}
 
+	fmt.Printf("Channel id is: %v \n", artistId.Id)
+
 	ch, err := getChannel(ctx, artistId.Id, token)
 	if err != nil || len(ch.Items) != 1 {
 		log.Println(err)
-		return resArtist, tx.Rollback()
+		return nil, tx.Rollback()
 	}
 
 	stChannel, err := tx.PrepareContext(ctx, "insert into main.channel(siteId, channelId, title, thumbnail) values (?,?,?,?) on conflict (siteId, channelId) do update set syncState = 1 returning ch_id;")
@@ -64,7 +64,19 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	if insErr != nil {
 		log.Println(insErr)
 	} else {
-		log.Printf("Processed channel: %v, id: %v \n", ch.Items[0].Snippet.Title, chId)
+		fmt.Printf("Processed channel: %v, id: %v \n", ch.Items[0].Snippet.Title, chId)
+	}
+
+	resArtist := &artist.Artist{
+		Id:         0,
+		SiteId:     siteId,
+		ArtistId:   artistId.Id,
+		Title:      ch.Items[0].Snippet.Title,
+		Thumbnail:  chThumb,
+		UserAdded:  true,
+		NewAlbs:    0,
+		Albums:     nil,
+		DeletedAlb: nil,
 	}
 
 	stPlaylist, err := tx.PrepareContext(ctx, "insert into main.playlist(playlistId) values (?) on conflict (playlistId, title) do nothing returning pl_id;")
@@ -84,7 +96,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	if insErr != nil {
 		log.Println(insEr)
 	} else {
-		log.Printf("Processed playlist: %v, id: %v \n", uploadId, plId)
+		fmt.Printf("Processed playlist: %v, id: %v \n", uploadId, plId)
 	}
 
 	stChPl, err := tx.PrepareContext(ctx, "insert into main.channelPlaylist(channelId, playlistId) values (?,?) on conflict do nothing;")
@@ -126,7 +138,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 				videos = append(videos, &vidItem{
 					id:            vid.Snippet.ResourceID.VideoID,
 					title:         vid.Snippet.Title,
-					published:     vid.Snippet.PublishedAt,
+					published:     strings.TrimRight(strings.Replace(vid.Snippet.PublishedAt, "T", " ", 1), "Z"),
 					thumbnailLink: vid.Snippet.Thumbnails.Default.URL,
 				})
 			}
@@ -172,12 +184,28 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	for _, vid := range videos {
 		vThumb := GetThumb(ctx, vid.thumbnailLink)
 		var vidId int
-		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, strings.TrimRight(strings.Replace(vid.published, "T", " ", 1), "Z"), ConvertYoutubeDurationToSec(vid.duration), vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
+		normalDuration := ConvertYoutubeDurationToSec(vid.duration)
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, normalDuration, vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
 		if vidErr != nil {
 			log.Println(vidErr)
 		} else {
-			log.Printf("Processed video: %v \n", vidId)
+			fmt.Printf("Processed video: %v \n", vidId)
 			vidRawIds = append(vidRawIds, vidId)
+			// likes, _ := strconv.Atoi(vid.likeCount)
+			// views, _ := strconv.Atoi(vid.viewCount)
+			date, _ := time.Parse(time.DateTime, vid.published)
+
+			resArtist.Albums = append(resArtist.Albums, &artist.Album{
+				AlbumId:     vid.id,
+				Title:       vid.title,
+				SubTitle:    fmt.Sprintf("%s   %s   Views: %s   Likes: %s", normalDuration, TimeAgo(date), vid.likeCount, vid.viewCount),
+				ReleaseDate: vid.published,
+				ReleaseType: 3,
+				// LikeCount:   int32(likes),
+				// ViewCount:   int32(views),
+				Thumbnail: vThumb,
+				// SyncState:   0,
+			})
 		}
 	}
 
@@ -303,7 +331,7 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 			if er != nil {
 				log.Println(er)
 			} else {
-				alb.SubTitle = fmt.Sprintf("%s  %s  %d  %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
+				alb.SubTitle = fmt.Sprintf("%s   %s   Views: %d   Likes: %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
 			}
 			alb.ReleaseType = 3
 			albs = append(albs, &alb)
@@ -313,7 +341,7 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 	return albs, err
 }
 
-func GetNewVideosFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
+func GetNewVideosFromDb(ctx context.Context) ([]*artist.Album, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)

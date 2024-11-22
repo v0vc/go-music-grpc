@@ -163,7 +163,7 @@ func (r *Room) ClearSync(siteId uint32) {
 	defer r.Unlock()
 
 	res := r.RowTracker.Generator.ClearSync(siteId)
-	r.Content = fmt.Sprintf("sync cleared: %d", res)
+	r.Content = fmt.Sprintf("New items cleared: %d", res)
 	deleted := make([]list.Serial, 0, len(r.RowTracker.Rows))
 
 	for _, i := range r.RowTracker.Rows {

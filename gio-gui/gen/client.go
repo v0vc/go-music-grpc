@@ -94,7 +94,7 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 	}
 
 	if res.GetArtists() == nil {
-		baseRoom.Content = "No artist data"
+		baseRoom.Content = "No data, please add it"
 	}
 
 	rooms.Add(baseRoom)

@@ -118,10 +118,19 @@ func geChannelId(ctx context.Context, token string, id string) (string, error) {
 		}
 	}(response.Body)
 
-	var chId *ChannelId
-	err = json.NewDecoder(response.Body).Decode(&chId)
-	if err != nil || chId == nil {
-		return "", err
+	if strings.HasPrefix(id, "@") {
+		var chId *ChannelIdHandle
+		err = json.NewDecoder(response.Body).Decode(&chId)
+		if err != nil || chId == nil {
+			return "", err
+		}
+		return chId.Items[0].ID, nil
+	} else {
+		var chId *ChannelId
+		err = json.NewDecoder(response.Body).Decode(&chId)
+		if err != nil || chId == nil {
+			return "", err
+		}
+		return chId.Items[0].Snippet.ChannelID, nil
 	}
-	return chId.Items[0].Snippet.ChannelID, nil
 }

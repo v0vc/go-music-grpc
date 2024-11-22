@@ -62,3 +62,9 @@ type ChannelId struct {
 		} `json:"snippet,omitempty"`
 	} `json:"items,omitempty"`
 }
+
+type ChannelIdHandle struct {
+	Items []struct {
+		ID string `json:"id,omitempty"`
+	} `json:"items,omitempty"`
+}
