@@ -320,7 +320,7 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 	}
 
 	if exists {
-		log.Println("Track already exists locally.")
+		fmt.Println("Track already exists locally, skipped..")
 		return
 	}
 

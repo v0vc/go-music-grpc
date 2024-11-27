@@ -62,7 +62,7 @@ func sanitize(filename string, isFolder bool) string {
 		regexStr = `[\/:*?"><|]`
 	}
 	str := regexp.MustCompile(regexStr).ReplaceAllString(filename, "_")
-	return strings.TrimRightFunc(str, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) })
+	return strings.TrimRightFunc(str, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) && !unicode.IsPunct(r) })
 }
 
 func ParseTemplate(tags map[string]string, defTemplate string) string {
