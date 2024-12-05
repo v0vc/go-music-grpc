@@ -139,7 +139,7 @@ func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId i
 	case err != nil:
 		log.Println(err)
 	default:
-		log.Printf("siteId: %v, artist db id is %d\n", siteId, artRawId)
+		fmt.Printf("siteId: %v, artist db id is %d\n", siteId, artRawId)
 	}
 
 	return artRawId, userAdded, thumbnail

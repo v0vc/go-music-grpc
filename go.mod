@@ -15,8 +15,8 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/panjf2000/ants/v2 v2.10.0
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
-	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
-	golang.org/x/exp/shiny v0.0.0-20241108190413-2d47ceb2692f
+	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d
+	golang.org/x/exp/shiny v0.0.0-20241204233417-43b7b7cde48d
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.2
 )
@@ -26,9 +26,9 @@ require (
 	gioui.org/shader v1.0.8 // indirect
 	github.com/go-text/typesetting v0.1.1 // indirect
 	golang.org/x/image v0.21.0 // indirect
-	golang.org/x/net v0.31.0 // indirect
-	golang.org/x/sync v0.9.0 // indirect
-	golang.org/x/sys v0.27.0 // indirect
-	golang.org/x/text v0.20.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241118233622-e639e219e697 // indirect
+	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241202173237-19429a94021a // indirect
 )

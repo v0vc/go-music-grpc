@@ -299,14 +299,14 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 
 		err = os.MkdirAll(absAlbName, 0o755)
 		if err != nil {
-			log.Println("Failed to create folder.", err)
+			log.Println(trackName+" can't create folder.", err)
 			return
 		}
 
 		coverPath = filepath.Join(absAlbName, "cover.jpg")
 		err = downloadAlbumCover(ctx, albInfo.AlbumCover, coverPath)
 		if err != nil {
-			log.Println("Failed to download cover.", err)
+			log.Println(trackName+" can't download cover.", err)
 			coverPath = ""
 		}
 		mAlbum[albInfo.AlbumId] = absAlbName
@@ -315,33 +315,33 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 	trackPath := filepath.Join(absAlbName, trackName+curQuality.Extension)
 	exists, err := FileExists(trackPath)
 	if err != nil {
-		log.Println("Failed to check if track already exists locally.")
+		log.Println(trackName + " can't check if track already exists locally, skipped..")
 		return
 	}
 
 	if exists {
-		fmt.Println("Track already exists locally, skipped..")
+		fmt.Println(trackName + " exists locally, skipped..")
 		return
 	}
 
 	fmt.Printf("Downloading track %s of %s: %s - %s\n", albInfo.TrackNum, albInfo.TrackTotal, albInfo.TrackTitle, curQuality.Specs)
 	resDown, err := downloadTrack(ctx, trackPath, cdnUrl)
 	if err != nil {
-		log.Println("Failed to download track.", err)
+		log.Println(trackName+" can't download.", err)
 		return
 	}
 	mDownloaded[trackId] = resDown
 
 	err = WriteTags(trackPath, coverPath, curQuality.IsFlac, mTrack)
 	if err != nil {
-		log.Println("Failed to write tags.", err)
+		log.Println(trackName+" can't write tags.", err)
 		return
 	}
 
 	if trTotal == 1 && coverPath != "" {
 		err = os.Remove(coverPath)
 		if err != nil {
-			log.Println("Failed to delete cover.", err)
+			log.Println(trackName+" can't delete cover.", err)
 		}
 	}
 }

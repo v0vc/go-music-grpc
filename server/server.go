@@ -43,6 +43,11 @@ type server struct {
 	artist.ArtistServiceServer
 }
 
+type ArtistRawId struct {
+	RawId          int
+	Id, PlaylistId string
+}
+
 func GetTokenOnlyDb(tx *sql.Tx, ctx context.Context, siteId uint32) string {
 	stmt, err := tx.PrepareContext(ctx, "select token from main.site where site_id = ? limit 1;")
 	if err != nil {
@@ -222,44 +227,50 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		deletedIds []string
 		err        error
 	)
-	if artistId == "-1" {
-		artIds, err = GetArtistIdsFromDb(ctx, siteId)
-	} else {
-		artIds = append(artIds, ArtistRawId{Id: artistId})
-	}
 
 	var deletedArtIds []string
-	for _, artId := range artIds {
-		wgSync.Add(1)
-		var art *artist.Artist
-		_ = pool.Submit(func() {
-			switch siteId {
-			case 1:
-				// автор со сберзвука
+	wgSync.Add(1)
+	var art *artist.Artist
+	_ = pool.Submit(func() {
+		switch siteId {
+		case 1:
+			// автор со сберзвука
+			if artistId == "-1" {
+				artIds, err = GetArtistIdsFromDb(ctx, siteId)
+			} else {
+				artIds = append(artIds, ArtistRawId{Id: artistId})
+			}
+			for _, artId := range artIds {
 				art, deletedArtIds, err = SyncArtist(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
 				for _, id := range deletedArtIds {
 					if !slices2.Contains(deletedIds, id) {
 						deletedIds = append(deletedIds, id)
 					}
 				}
-			case 2:
-				// автор со спотика
-			case 3:
-				// автор с дизера
-			case 4:
-				// автор с ютуба
-				art, err = SyncArtistYou(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
-			}
-			if err == nil {
-				if art != nil {
+				if err != nil {
+					log.Printf("Sync error: %v", err)
+				} else {
 					artists = append(artists, art)
 				}
-			} else {
-				log.Printf("Sync error: %v", err)
 			}
-			wgSync.Done()
-		})
-	}
+		case 2:
+			// автор со спотика
+		case 3:
+			// автор с дизера
+		case 4:
+			// автор с ютуба
+			if artistId == "-1" {
+				artIds, err = GetChannelIdsFromDb(ctx, siteId)
+			} else {
+				artIds = append(artIds, ArtistRawId{Id: artistId})
+			}
+			for _, artId := range artIds {
+				art, err = SyncArtistYou(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
+			}
+		}
+		wgSync.Done()
+	})
+
 	wgSync.Wait()
 
 	// post actions (switch in future)
