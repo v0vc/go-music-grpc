@@ -13,6 +13,7 @@ const (
 	youtubeApi         = "https://www.googleapis.com/youtube/v3/"
 	chanelString       = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
 	uploadString       = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
+	uploadsIdsString   = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet&prettyPrint=false&maxResults=50&fields=nextPageToken,items(snippet(resourceId(videoId)))"
 	statisticString    = "videos?id=[VID]&key=[KEY]&part=contentDetails,statistics&fields=items(id,contentDetails(duration),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
 	channelIdByVideoId = "videos?id=[ID]&key=[KEY]&part=snippet&fields=items(snippet(channelId))&prettyPrint=false"
 	channelIdByHandle  = "channels?forHandle=[ID]&key=[KEY]&part=snippet&fields=items(id)&{PrintType}&prettyPrint=false"
@@ -65,6 +66,31 @@ func geUpload(ctx context.Context, url string) (*Uploads, error) {
 	err = json.NewDecoder(response.Body).Decode(&uploads)
 	if err != nil || uploads == nil {
 		return new(Uploads), err
+	}
+	return uploads, nil
+}
+
+func geUploadIds(ctx context.Context, url string) (*UploadIds, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeApi+url, nil)
+	if err != nil {
+		return new(UploadIds), err
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil || response == nil || response.StatusCode != http.StatusOK {
+		return new(UploadIds), err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
+
+	var uploads *UploadIds
+	err = json.NewDecoder(response.Body).Decode(&uploads)
+	if err != nil || uploads == nil {
+		return new(UploadIds), err
 	}
 	return uploads, nil
 }

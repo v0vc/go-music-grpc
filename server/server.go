@@ -46,6 +46,7 @@ type server struct {
 type ArtistRawId struct {
 	RawId          int
 	Id, PlaylistId string
+	vidIds         []string
 }
 
 func GetTokenOnlyDb(tx *sql.Tx, ctx context.Context, siteId uint32) string {
@@ -273,7 +274,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 
 	wgSync.Wait()
 
-	// post actions (switch in future)
+	// post actions
 	if siteId == 1 && deletedIds != nil {
 		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds, false)
 		if er != nil {

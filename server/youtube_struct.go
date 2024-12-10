@@ -41,6 +41,17 @@ type Uploads struct {
 	} `json:"items,omitempty"`
 }
 
+type UploadIds struct {
+	NextPageToken string `json:"nextPageToken,omitempty"`
+	Items         []struct {
+		Snippet struct {
+			ResourceID struct {
+				VideoID string `json:"videoId,omitempty"`
+			} `json:"resourceId,omitempty"`
+		} `json:"snippet,omitempty"`
+	} `json:"items,omitempty"`
+}
+
 type Statistics struct {
 	Items []struct {
 		ID             string `json:"id,omitempty"`
