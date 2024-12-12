@@ -44,7 +44,7 @@ type server struct {
 }
 
 type ArtistRawId struct {
-	RawId          int
+	RawId, RawPlId int
 	Id, PlaylistId string
 	vidIds         []string
 }

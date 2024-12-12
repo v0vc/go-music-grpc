@@ -27,7 +27,7 @@ func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, err
 
 	var artistIds []ArtistRawId
 
-	stmtArt, err := db.PrepareContext(ctx, "select c.ch_id, c.channelId, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where p.playlistType = 0 and c.siteId = ? group by c.ch_id;")
+	stmtArt, err := db.PrepareContext(ctx, "select c.ch_id, c.channelId, p.pl_id, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where p.playlistType = 0 and c.siteId = ? group by c.ch_id;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -49,7 +49,7 @@ func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, err
 			ids   string
 		)
 
-		if er := rows.Scan(&artId.RawId, &artId.Id, &artId.PlaylistId, &ids); er != nil {
+		if er := rows.Scan(&artId.RawId, &artId.Id, &artId.RawId, &artId.PlaylistId, &ids); er != nil {
 			log.Println(err)
 		} else {
 			artId.vidIds = strings.Split(ids, ",")
@@ -61,7 +61,7 @@ func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, err
 }
 
 func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) ArtistRawId {
-	stmtArt, err := tx.PrepareContext(ctx, "select c.ch_id, c.channelId, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ? and p.playlistType = 0 limit 1;")
+	stmtArt, err := tx.PrepareContext(ctx, "select c.ch_id, c.channelId, p.pl_id, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ? and p.playlistType = 0 limit 1;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -77,7 +77,7 @@ func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId int
 		ids   string
 	)
 
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artId.RawId, &artId.Id, &artId.PlaylistId, &ids)
+	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artId.RawId, &artId.Id, &artId.RawPlId, &artId.PlaylistId, &ids)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		log.Printf("no channel with id %v\n", artistId)
@@ -207,60 +207,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		}
 
 		videos := GetUploadVid(ctx, uploadId, token)
-		stVideo, er := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, thumbnail) values (?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
-		if er != nil {
-			log.Println(er)
-		}
-		defer func(stVideo *sql.Stmt) {
-			err = stVideo.Close()
-			if err != nil {
-				log.Println(err)
-			}
-		}(stVideo)
-
-		var vidRawIds []int
-		for _, vid := range videos {
-			vThumb := GetThumb(ctx, vid.thumbnailLink)
-			var vidId int
-			normalDuration := ConvertYoutubeDurationToSec(vid.duration)
-			vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, normalDuration, vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
-			if vidErr != nil {
-				log.Println(vidErr)
-			} else {
-				fmt.Printf("Processed video: %v \n", vidId)
-				vidRawIds = append(vidRawIds, vidId)
-				date, _ := time.Parse(time.DateTime, vid.published)
-
-				resArtist.Albums = append(resArtist.Albums, &artist.Album{
-					AlbumId:     vid.id,
-					Title:       vid.title,
-					SubTitle:    fmt.Sprintf("%s   %s   Views: %s   Likes: %s", normalDuration, TimeAgo(date), vid.likeCount, vid.viewCount),
-					ReleaseDate: vid.published,
-					ReleaseType: 3,
-					Thumbnail:   vThumb,
-				})
-			}
-		}
-
-		sqlStr := fmt.Sprintf("insert into main.playlistVideo(playlistId, videoId) values %v on conflict (playlistId, videoId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(videos)), ","))
-		stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
-
-		defer func(stArtAlb *sql.Stmt) {
-			err = stArtAlb.Close()
-			if err != nil {
-				log.Println(err)
-			}
-		}(stArtAlb)
-
-		var args []interface{}
-		for _, v := range vidRawIds {
-			args = append(args, plId, v)
-		}
-
-		_, er = stArtAlb.ExecContext(ctx, args...)
-		if er != nil {
-			log.Println(er)
-		}
+		processVideos(ctx, tx, videos, resArtist, plId)
 
 		return resArtist, tx.Commit()
 	} else {
@@ -274,15 +221,74 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			ArtistId: artistId.Id,
 			NewAlbs:  int32(len(newVidIds)),
 		}
+
 		for c := range slices.Chunk(newVidIds, 50) {
 			var sb strings.Builder
 			for _, vid := range c {
 				sb.WriteString(vid + ",")
 			}
-			vids := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
+			videos := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
+			processVideos(ctx, tx, videos, resArtist, artistId.RawPlId)
 		}
 
 		return resArtist, tx.Commit()
+	}
+}
+
+func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist *artist.Artist, plId int) {
+	stVideo, err := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, thumbnail) values (?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stVideo *sql.Stmt) {
+		err = stVideo.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stVideo)
+
+	var vidRawIds []int
+	for _, vid := range videos {
+		vThumb := GetThumb(ctx, vid.thumbnailLink)
+		var vidId int
+		normalDuration := ConvertYoutubeDurationToSec(vid.duration)
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, normalDuration, vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
+		if vidErr != nil {
+			log.Println(vidErr)
+		} else {
+			fmt.Printf("Processed video: %v \n", vidId)
+			vidRawIds = append(vidRawIds, vidId)
+			date, _ := time.Parse(time.DateTime, vid.published)
+
+			resArtist.Albums = append(resArtist.Albums, &artist.Album{
+				AlbumId:     vid.id,
+				Title:       vid.title,
+				SubTitle:    fmt.Sprintf("%s   %s   Views: %s   Likes: %s", normalDuration, TimeAgo(date), vid.likeCount, vid.viewCount),
+				ReleaseDate: vid.published,
+				ReleaseType: 3,
+				Thumbnail:   vThumb,
+			})
+		}
+	}
+
+	sqlStr := fmt.Sprintf("insert into main.playlistVideo(playlistId, videoId) values %v on conflict (playlistId, videoId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(videos)), ","))
+	stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
+
+	defer func(stArtAlb *sql.Stmt) {
+		err = stArtAlb.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stArtAlb)
+
+	var args []interface{}
+	for _, v := range vidRawIds {
+		args = append(args, plId, v)
+	}
+
+	_, err = stArtAlb.ExecContext(ctx, args...)
+	if err != nil {
+		log.Println(err)
 	}
 }
 

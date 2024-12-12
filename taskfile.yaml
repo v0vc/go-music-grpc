@@ -21,8 +21,15 @@ tasks:
     - golangci-lint run -v --timeout 10m
 
   update:
-    - go get gioui.org@latest
-    - go get -u all
+#    - go get gioui.org@latest
+#    - go get -u all
+    - go get github.com/mattn/go-sqlite3@latest
+    - go get golang.org/x/exp@latest
+    - go get golang.org/x/exp/shiny@latest
+    - go get golang.org/x/net@latest
+    - go get google.golang.org/protobuf@latest
+    - go get google.golang.org/genproto@latest
+    - go get google.golang.org/genproto/googleapis/rpc@latest
     - go mod tidy
 
   build:
