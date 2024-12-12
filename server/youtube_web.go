@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
 )
 
@@ -13,13 +15,55 @@ const (
 	youtubeApi         = "https://www.googleapis.com/youtube/v3/"
 	chanelString       = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
 	uploadString       = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
-	uploadsIdsString   = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet&prettyPrint=false&maxResults=50&fields=nextPageToken,items(snippet(resourceId(videoId)))"
+	uploadsIdsString   = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet&fields=nextPageToken,items(snippet(resourceId(videoId)))&maxResults=50&prettyPrint=false"
 	statisticString    = "videos?id=[VID]&key=[KEY]&part=contentDetails,statistics&fields=items(id,contentDetails(duration),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
 	channelIdByVideoId = "videos?id=[ID]&key=[KEY]&part=snippet&fields=items(snippet(channelId))&prettyPrint=false"
 	channelIdByHandle  = "channels?forHandle=[ID]&key=[KEY]&part=snippet&fields=items(id)&{PrintType}&prettyPrint=false"
+	vidByIdsString     = "videos?id=[VID]&key=[KEY]&part=snippet,statistics,contentDetails&fields=items(id,contentDetails(duration),snippet(publishedAt,title,thumbnails(default(url))),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
 )
 
-func getChannel(ctx context.Context, channelId string, apiKey string) (*Channel, error) {
+func GeChannelId(ctx context.Context, token string, id string) (string, error) {
+	var url string
+	if strings.HasPrefix(id, "@") {
+		url = strings.Replace(strings.Replace(channelIdByHandle, "[ID]", id, 1), "[KEY]", token, 1)
+	} else {
+		url = strings.Replace(strings.Replace(channelIdByVideoId, "[ID]", id, 1), "[KEY]", token, 1)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeApi+url, nil)
+	if err != nil {
+		return "", err
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil || response == nil || response.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
+
+	if strings.HasPrefix(id, "@") {
+		var chId *ChannelIdHandle
+		err = json.NewDecoder(response.Body).Decode(&chId)
+		if err != nil || chId == nil {
+			return "", err
+		}
+		return chId.Items[0].ID, nil
+	} else {
+		var chId *ChannelId
+		err = json.NewDecoder(response.Body).Decode(&chId)
+		if err != nil || chId == nil {
+			return "", err
+		}
+		return chId.Items[0].Snippet.ChannelID, nil
+	}
+}
+
+func GetChannel(ctx context.Context, channelId string, apiKey string) (*Channel, error) {
 	url := strings.Replace(strings.Replace(chanelString, "[ID]", channelId, 1), "[KEY]", apiKey, 1)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeApi+url, nil)
 	if err != nil {
@@ -43,6 +87,97 @@ func getChannel(ctx context.Context, channelId string, apiKey string) (*Channel,
 		return new(Channel), err
 	}
 	return channel, nil
+}
+
+func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem {
+	var videos []*vidItem
+	urlUpload := strings.Replace(strings.Replace(uploadString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	i := 0
+	for {
+		upl, e := geUpload(ctx, urlUpload)
+		if e == nil && upl != nil {
+			var sb strings.Builder
+			for _, vid := range upl.Items {
+				sb.WriteString(vid.Snippet.ResourceID.VideoID + ",")
+				videos = append(videos, &vidItem{
+					id:            vid.Snippet.ResourceID.VideoID,
+					title:         vid.Snippet.Title,
+					published:     strings.TrimRight(strings.Replace(vid.Snippet.PublishedAt, "T", " ", 1), "Z"),
+					thumbnailLink: vid.Snippet.Thumbnails.Default.URL,
+				})
+			}
+			urlStat := strings.Replace(strings.Replace(statisticString, "[VID]", strings.TrimRight(sb.String(), ","), 1), "[KEY]", token, 1)
+			stat, ere := geStatistics(ctx, urlStat)
+			if ere == nil && stat != nil {
+				for _, vid := range stat.Items {
+					idx := slices.IndexFunc(videos, func(c *vidItem) bool { return c.id == vid.ID })
+					if idx != -1 {
+						videos[idx].duration = vid.ContentDetails.Duration
+						videos[idx].likeCount = vid.Statistics.LikeCount
+						videos[idx].viewCount = vid.Statistics.ViewCount
+						videos[idx].commentCount = vid.Statistics.CommentCount
+					} else {
+						log.Println("Failed to find video ", vid.ID)
+					}
+				}
+			}
+		}
+		if upl == nil || upl.NextPageToken == "" {
+			break
+		} else {
+			if i == 0 {
+				urlUpload = fmt.Sprintf("%v&pageToken=[PAGE]", urlUpload)
+			}
+			urlUpload = strings.Replace(urlUpload, "[PAGE]", upl.NextPageToken, 1)
+		}
+		i++
+	}
+	return videos
+}
+
+func GetUploadIds(ctx context.Context, uploadId string, token string) []string {
+	var netIds []string
+	urlIdsUpload := strings.Replace(strings.Replace(uploadsIdsString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	i := 0
+	for {
+		upl, e := geUploadIds(ctx, urlIdsUpload)
+		if e == nil && upl != nil {
+			for _, vid := range upl.Items {
+				netIds = append(netIds, vid.Snippet.ResourceID.VideoID)
+			}
+		}
+		if upl == nil || upl.NextPageToken == "" {
+			break
+		} else {
+			if i == 0 {
+				urlIdsUpload = fmt.Sprintf("%v&pageToken=[PAGE]", urlIdsUpload)
+			}
+			urlIdsUpload = strings.Replace(urlIdsUpload, "[PAGE]", upl.NextPageToken, 1)
+		}
+		i++
+	}
+	return netIds
+}
+
+func GetVidByIds(ctx context.Context, vidIds string, token string) []*vidItem {
+	var videos []*vidItem
+	url := strings.Replace(strings.Replace(vidByIdsString, "[ID]", vidIds, 1), "[KEY]", token, 1)
+	vid, err := getVidById(ctx, url)
+	if err == nil && vid != nil {
+		for _, vi := range vid.Items {
+			videos = append(videos, &vidItem{
+				id:            vi.ID,
+				title:         vi.Snippet.Title,
+				published:     strings.TrimRight(strings.Replace(vi.Snippet.PublishedAt, "T", " ", 1), "Z"),
+				duration:      vi.ContentDetails.Duration,
+				likeCount:     vi.Statistics.LikeCount,
+				viewCount:     vi.Statistics.ViewCount,
+				commentCount:  vi.Statistics.CommentCount,
+				thumbnailLink: vi.Snippet.Thumbnails.Default.URL,
+			})
+		}
+	}
+	return videos
 }
 
 func geUpload(ctx context.Context, url string) (*Uploads, error) {
@@ -120,21 +255,14 @@ func geStatistics(ctx context.Context, url string) (*Statistics, error) {
 	return stat, nil
 }
 
-func geChannelId(ctx context.Context, token string, id string) (string, error) {
-	var url string
-	if strings.HasPrefix(id, "@") {
-		url = strings.Replace(strings.Replace(channelIdByHandle, "[ID]", id, 1), "[KEY]", token, 1)
-	} else {
-		url = strings.Replace(strings.Replace(channelIdByVideoId, "[ID]", id, 1), "[KEY]", token, 1)
-	}
-
+func getVidById(ctx context.Context, url string) (*VideoById, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeApi+url, nil)
 	if err != nil {
-		return "", err
+		return new(VideoById), err
 	}
 	response, err := http.DefaultClient.Do(req)
 	if err != nil || response == nil || response.StatusCode != http.StatusOK {
-		return "", err
+		return new(VideoById), err
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -144,19 +272,10 @@ func geChannelId(ctx context.Context, token string, id string) (string, error) {
 		}
 	}(response.Body)
 
-	if strings.HasPrefix(id, "@") {
-		var chId *ChannelIdHandle
-		err = json.NewDecoder(response.Body).Decode(&chId)
-		if err != nil || chId == nil {
-			return "", err
-		}
-		return chId.Items[0].ID, nil
-	} else {
-		var chId *ChannelId
-		err = json.NewDecoder(response.Body).Decode(&chId)
-		if err != nil || chId == nil {
-			return "", err
-		}
-		return chId.Items[0].Snippet.ChannelID, nil
+	var stat *VideoById
+	err = json.NewDecoder(response.Body).Decode(&stat)
+	if err != nil || stat == nil {
+		return new(VideoById), err
 	}
+	return stat, nil
 }

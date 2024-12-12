@@ -79,3 +79,37 @@ type ChannelIdHandle struct {
 		ID string `json:"id,omitempty"`
 	} `json:"items,omitempty"`
 }
+
+type VideoById struct {
+	Items []struct {
+		ID      string `json:"id,omitempty"`
+		Snippet struct {
+			PublishedAt string `json:"publishedAt,omitempty"`
+			Title       string `json:"title,omitempty"`
+			Thumbnails  struct {
+				Default struct {
+					URL string `json:"url,omitempty"`
+				} `json:"default,omitempty"`
+			} `json:"thumbnails,omitempty"`
+		} `json:"snippet,omitempty"`
+		ContentDetails struct {
+			Duration string `json:"duration,omitempty"`
+		} `json:"contentDetails,omitempty"`
+		Statistics struct {
+			ViewCount    string `json:"viewCount,omitempty"`
+			LikeCount    string `json:"likeCount,omitempty"`
+			CommentCount string `json:"commentCount,omitempty"`
+		} `json:"statistics,omitempty"`
+	} `json:"items,omitempty"`
+}
+
+type vidItem struct {
+	id            string
+	title         string
+	published     string
+	duration      string
+	likeCount     string
+	viewCount     string
+	commentCount  string
+	thumbnailLink string
+}

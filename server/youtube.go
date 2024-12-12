@@ -125,7 +125,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	// при добавлении мы поддерживаем все варианты на Ui (ссылка на видео, на канал и тд)
 	if isAdd && strings.HasPrefix(artistId.Id, "@") || len(artistId.Id) == 11 {
 		// с ui пришли либо имя канала с @, либо id видео, найдем id канала
-		chId, er := geChannelId(ctx, token, artistId.Id)
+		chId, er := GeChannelId(ctx, token, artistId.Id)
 		if er != nil {
 			log.Println(er)
 		}
@@ -135,7 +135,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	fmt.Printf("Channel id is: %v \n", artistId.Id)
 
 	if isAdd {
-		ch, er := getChannel(ctx, artistId.Id, token)
+		ch, er := GetChannel(ctx, artistId.Id, token)
 		if er != nil || len(ch.Items) != 1 {
 			log.Println(er)
 			return nil, tx.Rollback()
@@ -206,60 +206,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			log.Println(err)
 		}
 
-		type vidItem struct {
-			id            string
-			title         string
-			published     string
-			duration      string
-			likeCount     string
-			viewCount     string
-			commentCount  string
-			thumbnailLink string
-		}
-		var videos []*vidItem
-
-		urlUpload := strings.Replace(strings.Replace(uploadString, "[ID]", uploadId, 1), "[KEY]", token, 1)
-		i := 0
-		for {
-			upl, e := geUpload(ctx, urlUpload)
-			if e == nil && upl != nil {
-				var sb strings.Builder
-				for _, vid := range upl.Items {
-					sb.WriteString(vid.Snippet.ResourceID.VideoID + ",")
-					videos = append(videos, &vidItem{
-						id:            vid.Snippet.ResourceID.VideoID,
-						title:         vid.Snippet.Title,
-						published:     strings.TrimRight(strings.Replace(vid.Snippet.PublishedAt, "T", " ", 1), "Z"),
-						thumbnailLink: vid.Snippet.Thumbnails.Default.URL,
-					})
-				}
-				urlStat := strings.Replace(strings.Replace(statisticString, "[VID]", strings.TrimRight(sb.String(), ","), 1), "[KEY]", token, 1)
-				stat, ere := geStatistics(ctx, urlStat)
-				if ere == nil && stat != nil {
-					for _, vid := range stat.Items {
-						idx := slices.IndexFunc(videos, func(c *vidItem) bool { return c.id == vid.ID })
-						if idx != -1 {
-							videos[idx].duration = vid.ContentDetails.Duration
-							videos[idx].likeCount = vid.Statistics.LikeCount
-							videos[idx].viewCount = vid.Statistics.ViewCount
-							videos[idx].commentCount = vid.Statistics.CommentCount
-						} else {
-							log.Println("Failed to find video ", vid.ID)
-						}
-					}
-				}
-			}
-			if upl == nil || upl.NextPageToken == "" {
-				break
-			} else {
-				if i == 0 {
-					urlUpload = fmt.Sprintf("%v&pageToken=[PAGE]", urlUpload)
-				}
-				urlUpload = strings.Replace(urlUpload, "[PAGE]", upl.NextPageToken, 1)
-			}
-			i++
-		}
-
+		videos := GetUploadVid(ctx, uploadId, token)
 		stVideo, er := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, thumbnail) values (?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
 		if er != nil {
 			log.Println(er)
@@ -315,39 +262,27 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			log.Println(er)
 		}
 
-		/*for c := range slices.Chunk(uploads, 50) {
-			var sb strings.Builder
-			for _, vid := range c{
-				sb.WriteString(vid.)
-			}
-		}*/
-
 		return resArtist, tx.Commit()
 	} else {
 		// синк
-		var netIds []string
-		urlIdsUpload := strings.Replace(strings.Replace(uploadsIdsString, "[ID]", artistId.PlaylistId, 1), "[KEY]", token, 1)
-		i := 0
-		for {
-			upl, e := geUploadIds(ctx, urlIdsUpload)
-			if e == nil && upl != nil {
-				for _, vid := range upl.Items {
-					netIds = append(netIds, vid.Snippet.ResourceID.VideoID)
-				}
-			}
-			if upl == nil || upl.NextPageToken == "" {
-				break
-			} else {
-				if i == 0 {
-					urlIdsUpload = fmt.Sprintf("%v&pageToken=[PAGE]", urlIdsUpload)
-				}
-				urlIdsUpload = strings.Replace(urlIdsUpload, "[PAGE]", upl.NextPageToken, 1)
-			}
-			i++
-		}
+		netIds := GetUploadIds(ctx, artistId.PlaylistId, token)
 		newVidIds := FindDifference(netIds, artistId.vidIds)
 		fmt.Printf("siteId: %v, channelId: %d, new videos: %d\n", siteId, artistId.RawId, len(newVidIds))
-		return nil, nil
+
+		resArtist := &artist.Artist{
+			SiteId:   siteId,
+			ArtistId: artistId.Id,
+			NewAlbs:  int32(len(newVidIds)),
+		}
+		for c := range slices.Chunk(newVidIds, 50) {
+			var sb strings.Builder
+			for _, vid := range c {
+				sb.WriteString(vid + ",")
+			}
+			vids := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
+		}
+
+		return resArtist, tx.Commit()
 	}
 }
 
