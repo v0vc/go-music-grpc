@@ -207,7 +207,11 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		}
 
 		videos := GetUploadVid(ctx, uploadId, token)
-		processVideos(ctx, tx, videos, resArtist, plId)
+		if videos != nil {
+			processVideos(ctx, tx, videos, resArtist, plId, 0)
+		} else {
+			log.Println("Can't get video from api")
+		}
 
 		return resArtist, tx.Commit()
 	} else {
@@ -228,15 +232,19 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 				sb.WriteString(vid + ",")
 			}
 			videos := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
-			processVideos(ctx, tx, videos, resArtist, artistId.RawPlId)
+			if videos != nil {
+				processVideos(ctx, tx, videos, resArtist, artistId.RawPlId, 1)
+			} else {
+				log.Println("Can't get video from api")
+			}
 		}
 
 		return resArtist, tx.Commit()
 	}
 }
 
-func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist *artist.Artist, plId int) {
-	stVideo, err := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, thumbnail) values (?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
+func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist *artist.Artist, plId int, syncState int32) {
+	stVideo, err := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, syncState, thumbnail) values (?,?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -252,7 +260,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 		vThumb := GetThumb(ctx, vid.thumbnailLink)
 		var vidId int
 		normalDuration := ConvertYoutubeDurationToSec(vid.duration)
-		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, normalDuration, vid.likeCount, vid.viewCount, vid.commentCount, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, normalDuration, vid.likeCount, vid.viewCount, vid.commentCount, syncState, PrepareThumb(vThumb, 15, 64, 64, 90)).Scan(&vidId)
 		if vidErr != nil {
 			log.Println(vidErr)
 		} else {
@@ -267,6 +275,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 				ReleaseDate: vid.published,
 				ReleaseType: 3,
 				Thumbnail:   vThumb,
+				SyncState:   syncState,
 			})
 		}
 	}

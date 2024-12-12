@@ -161,7 +161,7 @@ func GetUploadIds(ctx context.Context, uploadId string, token string) []string {
 
 func GetVidByIds(ctx context.Context, vidIds string, token string) []*vidItem {
 	var videos []*vidItem
-	url := strings.Replace(strings.Replace(vidByIdsString, "[ID]", vidIds, 1), "[KEY]", token, 1)
+	url := strings.Replace(strings.Replace(vidByIdsString, "[VID]", vidIds, 1), "[KEY]", token, 1)
 	vid, err := getVidById(ctx, url)
 	if err == nil && vid != nil {
 		for _, vi := range vid.Items {
