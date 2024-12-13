@@ -208,7 +208,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 
 		videos := GetUploadVid(ctx, uploadId, token)
 		if videos != nil {
-			processVideos(ctx, tx, videos, resArtist, plId, 0)
+			processVideos(ctx, tx, videos, resArtist, plId, artistId.Id, 0)
 		} else {
 			log.Println("Can't get video from api")
 		}
@@ -233,7 +233,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			}
 			videos := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
 			if videos != nil {
-				processVideos(ctx, tx, videos, resArtist, artistId.RawPlId, 1)
+				processVideos(ctx, tx, videos, resArtist, artistId.RawPlId, artistId.Id, 1)
 			} else {
 				log.Println("Can't get video from api")
 			}
@@ -243,7 +243,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	}
 }
 
-func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist *artist.Artist, plId int, syncState int32) {
+func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist *artist.Artist, plId int, channelId string, syncState int32) {
 	stVideo, err := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, syncState, thumbnail) values (?,?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
 	if err != nil {
 		log.Println(err)
@@ -276,6 +276,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 				ReleaseType: 3,
 				Thumbnail:   vThumb,
 				SyncState:   syncState,
+				ArtistIds:   []string{channelId},
 			})
 		}
 	}

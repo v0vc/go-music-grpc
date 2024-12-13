@@ -267,7 +267,6 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 	if client == nil {
 		return
 	}
-	artMap := make(map[string][]model.Message)
 
 	res, err := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 		SiteId:   siteId,
@@ -277,6 +276,7 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 		return
 	}
 
+	artMap := make(map[string][]model.Message)
 	for _, art := range res.GetArtists() {
 		for _, alb := range art.GetAlbums() {
 			serial := g.new.Decrement()

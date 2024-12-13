@@ -265,8 +265,14 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			} else {
 				artIds = append(artIds, ArtistRawId{Id: artistId})
 			}
+
 			for _, artId := range artIds {
 				art, err = SyncArtistYou(context.WithoutCancel(ctx), siteId, artId, req.GetIsAdd())
+				if err != nil {
+					log.Printf("Sync error: %v", err)
+				} else {
+					artists = append(artists, art)
+				}
 			}
 		}
 		wgSync.Done()
