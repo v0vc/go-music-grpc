@@ -145,14 +145,14 @@ func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId i
 	return artRawId, userAdded, thumbnail
 }
 
-func getExistIdsDb(tx *sql.Tx, ctx context.Context, artId int) ([]string, []string) {
+func getExistIdsDb(tx *sql.Tx, ctx context.Context, artId int, siteId uint32) ([]string, []string) {
 	var (
 		existAlbumIds  []string
 		existArtistIds []string
 	)
 
 	if artId != 0 {
-		rows, err := tx.QueryContext(ctx, "select al.albumId, a.artistId res from main.artistAlbum aa join main.artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from main.artistAlbum where artistId = ?);", artId)
+		rows, err := tx.QueryContext(ctx, "select al.albumId, a.artistId from main.artistAlbum aa join main.artist a on a.art_id = aa.artistId join album al on al.alb_id = aa.albumId where aa.albumId in (select albumId from main.artistAlbum where artistId = ?) and a.siteId = ?;", artId, siteId)
 		if err != nil {
 			log.Println(err)
 		}
@@ -832,7 +832,7 @@ func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd 
 	mArtist := make(map[string]int)
 
 	if artRawId != 0 {
-		existAlbumIds, existArtistIds = getExistIdsDb(tx, ctx, artRawId)
+		existAlbumIds, existArtistIds = getExistIdsDb(tx, ctx, artRawId, siteId)
 		mArtist[artistId.Id] = artRawId
 	}
 
