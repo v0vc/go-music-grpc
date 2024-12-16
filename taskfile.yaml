@@ -30,6 +30,8 @@ tasks:
     - go get google.golang.org/protobuf@latest
     - go get google.golang.org/genproto@latest
     - go get google.golang.org/genproto/googleapis/rpc@latest
+#    - go get google.golang.org/grpc@latest
+    - go get golang.org/x/image@latest
     - go mod tidy
 
   build:
