@@ -111,17 +111,6 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	// заберем токен для работы с апи
 	token := GetTokenOnlyDb(tx, ctx, siteId)
 
-	// сначала проверим, есть ли в базе этот канал
-	if artistId.RawId == 0 {
-		// кликнули по конкретному каналу
-		artistId = getChannelIdDb(tx, ctx, siteId, artistId.Id)
-	}
-
-	if artistId.RawId != 0 && isAdd {
-		// пытались добавить существующего, сделаем просто синк
-		isAdd = false
-	}
-
 	// при добавлении мы поддерживаем все варианты на Ui (ссылка на видео, на канал и тд)
 	if isAdd && strings.HasPrefix(artistId.Id, "@") || len(artistId.Id) == 11 {
 		// с ui пришли либо имя канала с @, либо id видео, найдем id канала
@@ -130,6 +119,11 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			log.Println(er)
 		}
 		artistId.Id = chId
+	}
+
+	if artistId.RawId != 0 && isAdd {
+		// пытались добавить существующего, сделаем просто синк
+		isAdd = false
 	}
 
 	fmt.Printf("Channel id is: %v \n", artistId.Id)
@@ -146,9 +140,9 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			log.Println(er)
 		}
 		defer func(stChannel *sql.Stmt) {
-			err = stChannel.Close()
-			if err != nil {
-				log.Println(err)
+			er = stChannel.Close()
+			if er != nil {
+				log.Println(er)
 			}
 		}(stChannel)
 
@@ -166,8 +160,6 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			ArtistId:  artistId.Id,
 			Title:     ch.Items[0].Snippet.Title,
 			Thumbnail: chThumb,
-			UserAdded: true,
-			NewAlbs:   0,
 		}
 
 		stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId) values (?) on conflict (playlistId, title) do nothing returning pl_id;")
@@ -175,9 +167,9 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			log.Println(er)
 		}
 		defer func(stPlaylist *sql.Stmt) {
-			err = stPlaylist.Close()
-			if err != nil {
-				log.Println(err)
+			er = stPlaylist.Close()
+			if er != nil {
+				log.Println(er)
 			}
 		}(stPlaylist)
 
@@ -195,15 +187,15 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			log.Println(er)
 		}
 		defer func(stChPl *sql.Stmt) {
-			err = stChPl.Close()
-			if err != nil {
-				log.Println(err)
+			er = stChPl.Close()
+			if er != nil {
+				log.Println(er)
 			}
 		}(stChPl)
 
-		_, err = stChPl.ExecContext(ctx, chId, plId)
-		if err != nil {
-			log.Println(err)
+		_, er = stChPl.ExecContext(ctx, chId, plId)
+		if er != nil {
+			log.Println(er)
 		}
 
 		videos := GetUploadVid(ctx, uploadId, token)
@@ -216,6 +208,11 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 		return resArtist, tx.Commit()
 	} else {
 		// синк
+		// сначала проверим, есть ли в базе этот канал
+		if artistId.RawId == 0 {
+			// кликнули по конкретному каналу
+			artistId = getChannelIdDb(tx, ctx, siteId, artistId.Id)
+		}
 		netIds := GetUploadIds(ctx, artistId.PlaylistId, token)
 		newVidIds := FindDifference(netIds, artistId.vidIds)
 		fmt.Printf("siteId: %v, channelId: %d, new videos: %d\n", siteId, artistId.RawId, len(newVidIds))

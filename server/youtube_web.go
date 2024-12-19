@@ -91,7 +91,8 @@ func GetChannel(ctx context.Context, channelId string, apiKey string) (*Channel,
 
 func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem {
 	var videos []*vidItem
-	urlUpload := strings.Replace(strings.Replace(uploadString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	urlUploadRaw := strings.Replace(strings.Replace(uploadString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	urlUpload := urlUploadRaw
 	i := 0
 	for {
 		upl, e := geUpload(ctx, urlUpload)
@@ -123,12 +124,11 @@ func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem
 			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
+			fmt.Println("got no nextPageToken, all videos done")
 			break
 		} else {
-			if i == 0 {
-				urlUpload = fmt.Sprintf("%v&pageToken=[PAGE]", urlUpload)
-			}
-			urlUpload = strings.Replace(urlUpload, "[PAGE]", upl.NextPageToken, 1)
+			fmt.Println("nextPageToken: ", upl.NextPageToken)
+			urlUpload = fmt.Sprintf("%s&pageToken=%s", urlUploadRaw, upl.NextPageToken)
 		}
 		i++
 	}
@@ -137,7 +137,8 @@ func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem
 
 func GetUploadIds(ctx context.Context, uploadId string, token string) []string {
 	var netIds []string
-	urlIdsUpload := strings.Replace(strings.Replace(uploadsIdsString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	urlIdsUploadRaw := strings.Replace(strings.Replace(uploadsIdsString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	urlIdsUpload := urlIdsUploadRaw
 	i := 0
 	for {
 		upl, e := geUploadIds(ctx, urlIdsUpload)
@@ -147,12 +148,11 @@ func GetUploadIds(ctx context.Context, uploadId string, token string) []string {
 			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
+			fmt.Println("got no nextPageToken, all videos done")
 			break
 		} else {
-			if i == 0 {
-				urlIdsUpload = fmt.Sprintf("%v&pageToken=[PAGE]", urlIdsUpload)
-			}
-			urlIdsUpload = strings.Replace(urlIdsUpload, "[PAGE]", upl.NextPageToken, 1)
+			fmt.Println("nextPageToken: ", upl.NextPageToken)
+			urlIdsUpload = fmt.Sprintf("%s&pageToken=%s", urlIdsUploadRaw, upl.NextPageToken)
 		}
 		i++
 	}
