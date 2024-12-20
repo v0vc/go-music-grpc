@@ -32,6 +32,8 @@ import (
 const (
 	zvArtistUrl     = "https://zvuk.com/artist/"
 	zvReleaseUrl    = "https://zvuk.com/release/"
+	youVideoUrl     = "https://www.youtube.com/watch?v="
+	youChannelUrl   = "https://www.youtube.com/channel/"
 	zvArtistRegex   = `^https://zvuk.com/artist/(\d+)$`
 	zvReleaseRegex  = `^https://zvuk.com/release/(\d+)$`
 	youVideoRegex   = "^(?:https?:)?(?:\\/\\/)?(?:youtu\\.be\\/|(?:www\\.|m\\.)?youtube\\.com\\/(?:watch|v|embed)(?:\\.php)?(?:\\?.*v=|\\/))([a-zA-Z0-9\\_-]{7,15})(?:[\\?&][a-zA-Z0-9\\_-]+=[a-zA-Z0-9\\_-]+)*(?:[&\\/\\#].*)?$"
@@ -421,6 +423,10 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						gtx.Execute(clipboard.WriteCmd{
 							Data: io.NopCloser(strings.NewReader(zvArtistUrl + ui.ChannelMenuTarget.Id)),
 						})
+					case 4:
+						gtx.Execute(clipboard.WriteCmd{
+							Data: io.NopCloser(strings.NewReader(youChannelUrl + ui.ChannelMenuTarget.Id)),
+						})
 					}
 				}
 				if ui.DeleteBtn.Clicked(gtx) {
@@ -534,6 +540,10 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 					gtx.Execute(clipboard.WriteCmd{
 						Data: io.NopCloser(strings.NewReader(zvReleaseUrl + ui.ContextMenuTarget.AlbumId)),
 					})
+				case 4:
+					gtx.Execute(clipboard.WriteCmd{
+						Data: io.NopCloser(strings.NewReader(youVideoUrl + ui.ContextMenuTarget.AlbumId)),
+					})
 				}
 			}
 			if ui.CopyAlbArtistBtn.Clicked(gtx) {
@@ -546,6 +556,10 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 
 					gtx.Execute(clipboard.WriteCmd{
 						Data: io.NopCloser(strings.NewReader(strings.Join(sb, ", "))),
+					})
+				case 4:
+					gtx.Execute(clipboard.WriteCmd{
+						Data: io.NopCloser(strings.NewReader(youChannelUrl + ui.ContextMenuTarget.ParentId[0])),
 					})
 				}
 			}
