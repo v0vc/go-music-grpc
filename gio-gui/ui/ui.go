@@ -85,6 +85,7 @@ type UI struct {
 	SiteId            uint32
 	LoadSize          int
 	Quality           string
+	RadioButtonsGroup widget.Enum
 }
 
 // NewUI constructs a UI and populates it with data.
@@ -333,14 +334,52 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return lay.Background(ui.th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				// inset := layout.UniformInset(unit.Dp(8))
-				return layout.Inset{
-					Bottom: unit.Dp(8),
-					Top:    unit.Dp(8),
-					Left:   unit.Dp(8),
-					Right:  unit.Dp(8),
-				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return ui.layoutEditor(gtx)
-				})
+
+				if ui.RadioButtonsGroup.Update(gtx) {
+					switch ui.RadioButtonsGroup.Value {
+					case "Views":
+						fmt.Println(ui.RadioButtonsGroup.Value)
+					case "Likes":
+						fmt.Println(ui.RadioButtonsGroup.Value)
+					case "Quality":
+						fmt.Println(ui.RadioButtonsGroup.Value)
+					default:
+						fmt.Println(ui.RadioButtonsGroup.Value)
+					}
+					//gtx.Execute(op.InvalidateCmd{})
+				}
+				if ui.SiteId == 4 {
+					return layout.Inset{
+						Bottom: unit.Dp(8),
+						Top:    unit.Dp(8),
+						Left:   unit.Dp(8),
+						Right:  unit.Dp(8),
+					}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{
+							Axis:      layout.Horizontal,
+							Alignment: layout.Middle,
+						}.Layout(
+							gtx,
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								return ui.layoutEditor(gtx)
+							}),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
+							layout.Rigid(material.RadioButton(ui.th.Theme, &ui.RadioButtonsGroup, "Date", "Date").Layout),
+							layout.Rigid(material.RadioButton(ui.th.Theme, &ui.RadioButtonsGroup, "Views", "Views").Layout),
+							layout.Rigid(material.RadioButton(ui.th.Theme, &ui.RadioButtonsGroup, "Likes", "Likes").Layout),
+							layout.Rigid(material.RadioButton(ui.th.Theme, &ui.RadioButtonsGroup, "Quality", "Quality").Layout),
+						)
+					})
+				} else {
+					return layout.Inset{
+						Bottom: unit.Dp(8),
+						Top:    unit.Dp(8),
+						Left:   unit.Dp(8),
+						Right:  unit.Dp(8),
+					}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return ui.layoutEditor(gtx)
+					})
+				}
 			})
 		}),
 	)
