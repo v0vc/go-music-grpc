@@ -451,7 +451,7 @@ func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, er
 			if er != nil {
 				log.Println(er)
 			} else {
-				alb.SubTitle = fmt.Sprintf("%s  %s  %d  %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
+				alb.SubTitle = fmt.Sprintf("%s   %s   Views: %d   Likes: %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
 			}
 			alb.ReleaseType = 3
 			alb.ArtistIds = []string{parentId}
