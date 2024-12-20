@@ -177,7 +177,7 @@ func toHumanTime(duration int) string {
 			if minutes >= 1 {
 				return fmt.Sprintf("%02d:%02d", minutes, duration-minutes*60)
 			} else {
-				return fmt.Sprintf("%02d", duration)
+				return fmt.Sprintf("00:%02d", duration)
 			}
 		}
 	}

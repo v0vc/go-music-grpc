@@ -346,7 +346,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 					default:
 						fmt.Println(ui.RadioButtonsGroup.Value)
 					}
-					//gtx.Execute(op.InvalidateCmd{})
+					// gtx.Execute(op.InvalidateCmd{})
 				}
 				if ui.SiteId == 4 {
 					return layout.Inset{
