@@ -432,11 +432,38 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						}
 						go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
 					} else {
+						var ids []string
+						for _, data := range ui.ChannelMenuTarget.RowTracker.Rows {
+							switch el := data.(type) {
+							case model.Message:
+								ids = append(ids, el.AlbumId)
+							}
+						}
+						curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Room.Count)
 						ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 						if ui.ChannelMenuTarget.Interact.Active {
 							ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentRow, nil)
 						}
 						ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
+						ch := ui.Rooms.GetBaseChannel()
+						if ch != nil {
+							curBaseCount, _ := strconv.Atoi(ch.Room.Count)
+							if curBaseCount >= curCount {
+								if curBaseCount-curCount == 0 {
+									ch.Room.Count = ""
+								} else {
+									ch.Room.Count = strconv.Itoa(curBaseCount - curCount)
+								}
+							}
+							for _, data := range ch.RowTracker.Rows {
+								switch el := data.(type) {
+								case model.Message:
+									if slices.Contains(ids, el.AlbumId) {
+										ch.DeleteRow(el.Serial())
+									}
+								}
+							}
+						}
 					}
 				}
 				r := ui.Rooms.Index(ii)
