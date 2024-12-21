@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -144,9 +145,9 @@ func NewUI(invalidator func(), theme *page.Theme, loadSize int, quality string, 
 	g := &gen.Generator{}
 
 	// Generate most of the model data.
-	rooms, err := g.GetChannels(siteId)
+	rooms, _ := g.GetChannels(siteId)
 	MapDto(&ui, rooms, nil, g)
-	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentRow, err)
+	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentRow, false)
 	return &ui
 }
 
@@ -250,7 +251,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 	}
 
 	MapDto(ui, channels, albums, g)
-	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentRow, nil)
+	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentRow, false)
 }
 
 // Layout the application UI.
@@ -265,7 +266,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, nil)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, false)
 			ui.InsideRoom = true
 			break
 		}
@@ -333,22 +334,49 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return lay.Background(ui.th.Palette.BgSecondary).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				// inset := layout.UniformInset(unit.Dp(8))
-
-				if ui.RadioButtonsGroup.Update(gtx) {
-					switch ui.RadioButtonsGroup.Value {
-					case "Views":
-						fmt.Println(ui.RadioButtonsGroup.Value)
-					case "Likes":
-						fmt.Println(ui.RadioButtonsGroup.Value)
-					case "Quality":
-						fmt.Println(ui.RadioButtonsGroup.Value)
-					default:
-						fmt.Println(ui.RadioButtonsGroup.Value)
-					}
-					// gtx.Execute(op.InvalidateCmd{})
-				}
 				if ui.SiteId == 4 {
+					if ui.RadioButtonsGroup.Update(gtx) {
+						vid := make([]model.Message, 0)
+						for _, i := range room.RowTracker.Rows {
+							vid = append(vid, i.(model.Message))
+						}
+						switch ui.RadioButtonsGroup.Value {
+						case "Date":
+							sort.Slice(vid, func(i, j int) bool {
+								return vid[i].SentAt.After(vid[j].SentAt)
+							})
+						case "Views":
+							sort.Slice(vid, func(i, j int) bool {
+								return vid[i].Views > vid[j].Views
+							})
+						case "Likes":
+							sort.Slice(vid, func(i, j int) bool {
+								return vid[i].Likes > vid[j].Likes
+							})
+						case "Quality":
+							sort.Slice(vid, func(i, j int) bool {
+								return vid[i].Quality > vid[j].Quality
+							})
+						default:
+							sort.Slice(vid, func(i, j int) bool {
+								return vid[i].SentAt.Before(vid[j].SentAt)
+							})
+						}
+
+						resp := make([]list.Serial, 0)
+						for _, i := range room.RowTracker.Rows {
+							resp = append(resp, i.Serial())
+						}
+						room.RowTracker.DeleteAll()
+						room.ListState.Modify(nil, nil, resp)
+
+						res := make([]list.Element, 0)
+						for i, j := range vid {
+							j.SerialID = fmt.Sprintf("%05d", i+1)
+							res = append(res, j)
+						}
+						room.RowTracker.AddAll(res)
+					}
 					return layout.Inset{
 						Bottom: unit.Dp(8),
 						Top:    unit.Dp(8),
@@ -487,7 +515,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Room.Count)
 						ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 						if ui.ChannelMenuTarget.Interact.Active {
-							ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentRow, nil)
+							ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentRow, false)
 						}
 						ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 						ch := ui.Rooms.GetBaseChannel()
@@ -542,7 +570,7 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 						go active.RunSearch(editor.Text())
 						if editor.Text() == "" {
 							ui.Rooms.Active().Loaded = false
-							ui.Rooms.SelectAndFill(ui.SiteId, ui.Rooms.active, nil, ui.Invalidator, ui.presentRow, nil)
+							ui.Rooms.SelectAndFill(ui.SiteId, ui.Rooms.active, nil, ui.Invalidator, ui.presentRow, false)
 						}
 						break
 					}

@@ -28,6 +28,7 @@ message Album {
   bytes thumbnail = 9;
   int32 syncState = 10;
   repeated string artistIds = 11;
+  float quality = 12;
 }
 
 message Track {

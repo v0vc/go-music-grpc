@@ -38,6 +38,13 @@ func (rt *RowTracker) Add(r list.Element) {
 	rt.Unlock()
 }
 
+func (rt *RowTracker) AddAll(r []list.Element) {
+	rt.Lock()
+	rt.Rows = append(rt.Rows, r...)
+	rt.reindex()
+	rt.Unlock()
+}
+
 // Latest returns the latest element, or nil.
 func (rt *RowTracker) Latest() list.Element {
 	rt.Lock()
@@ -109,6 +116,16 @@ func (rt *RowTracker) Delete(serial list.Serial) {
 	rt.reindex()
 }
 
+func (rt *RowTracker) DeleteAll() {
+	rt.Lock()
+	defer rt.Unlock()
+	for _, row := range rt.Rows {
+		idx := rt.SerialToIndex[row.Serial()]
+		sliceRemove(&rt.Rows, idx)
+	}
+	rt.reindex()
+}
+
 func (rt *RowTracker) reindex() {
 	sort.Slice(rt.Rows, func(i, j int) bool {
 		return rowLessThan(rt.Rows[i], rt.Rows[j])
@@ -124,12 +141,6 @@ func (rt *RowTracker) reindex() {
 func dupSlice(in []list.Element) []list.Element {
 	out := make([]list.Element, len(in))
 	copy(out, in)
-	/*for i := range in {
-		out[i] = in[i]
-	}*/
-	/*	sort.Slice(out, func(i, j int) bool {
-		return out[j].Serial() > out[i].Serial()
-	})*/
 	return out
 }
 

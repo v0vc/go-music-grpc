@@ -189,7 +189,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	AddAlbumsToUi(rooms, res, r, start)
 }
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, err error) {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -210,23 +210,36 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 	}
 
 	channel := r.List[r.active]
-	if err == nil {
-		if albs == nil {
-			if channel.Room.IsBase {
-				albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
-				count := len(albs)
-				if count > 0 {
-					channel.Count = strconv.Itoa(count)
-				}
-			} else {
-				albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
-			}
-		}
 
-		for _, alb := range albs {
-			channel.RowTracker.Add(alb)
+	if isClean {
+		resp := make([]list.Serial, 0)
+		for _, i := range channel.RowTracker.Rows {
+			resp = append(resp, i.Serial())
+		}
+		channel.RowTracker.DeleteAll()
+		channel.ListState.Modify(nil, nil, resp)
+	}
+
+	if albs == nil {
+		if channel.Room.IsBase {
+			albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
+			count := len(albs)
+			if count > 0 {
+				channel.Count = strconv.Itoa(count)
+			}
+		} else {
+			albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
 		}
 	}
+	res := make([]list.Element, 0)
+	for _, j := range albs {
+		res = append(res, j)
+	}
+	channel.RowTracker.AddAll(res)
+	/*for _, alb := range albs {
+		channel.RowTracker.Add(alb)
+	}*/
+
 	lm := list.NewManager(len(albs),
 		list.Hooks{
 			// Define an allocator function that can instantiate the appropriate
