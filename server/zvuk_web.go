@@ -292,9 +292,9 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 			albName = albName[:120]
 		}
 		if trTotal == 1 {
-			absAlbName = filepath.Join(DownloadDir, albName)
+			absAlbName = filepath.Join(ZvukDir, albName)
 		} else {
-			absAlbName = filepath.Join(DownloadDir, albInfo.ArtistTitle, albName)
+			absAlbName = filepath.Join(ZvukDir, albInfo.ArtistTitle, albName)
 		}
 
 		err = os.MkdirAll(absAlbName, 0o755)

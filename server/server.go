@@ -34,9 +34,9 @@ const (
 )
 
 var (
-	DownloadDir string
-	wgSync      sync.WaitGroup
-	pool        *ants.MultiPool
+	ZvukDir string
+	wgSync  sync.WaitGroup
+	pool    *ants.MultiPool
 )
 
 type server struct {
@@ -639,9 +639,9 @@ func main() {
 	if listenInterface == "" {
 		listenInterface = defaultInterface
 	}
-	DownloadDir = os.Getenv("BASEDIR")
-	if DownloadDir == "" {
-		DownloadDir, _ = os.UserHomeDir()
+	ZvukDir = os.Getenv("ZVUKDIR")
+	if ZvukDir == "" {
+		ZvukDir, _ = os.UserHomeDir()
 	}
 
 	// if we crash the go code, we get the file name and line number
