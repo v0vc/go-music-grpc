@@ -7,11 +7,16 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
+
+	"github.com/dustin/go-humanize"
+	"github.com/wader/goutubedl"
 )
 
 const (
+	youtubeVideo       = "https://www.youtube.com/watch?v="
 	youtubeApi         = "https://www.googleapis.com/youtube/v3/"
 	chanelString       = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
 	uploadString       = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
@@ -178,6 +183,43 @@ func GetVidByIds(ctx context.Context, vidIds string, token string) []*vidItem {
 		}
 	}
 	return videos
+}
+
+func DownloadVideo(ctx context.Context, videoPath, id string) (string, error) {
+	url := youtubeVideo + id
+
+	result, err := goutubedl.New(ctx, url, goutubedl.Options{})
+	if err != nil {
+		log.Println(err)
+	}
+
+	downloadResult, err := result.Download(ctx, "best")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(downloadResult *goutubedl.DownloadResult) {
+		er := downloadResult.Close()
+		if er != nil {
+			log.Println(er)
+		}
+	}(downloadResult)
+
+	f, err := os.OpenFile(videoPath, os.O_CREATE|os.O_WRONLY, 0o755)
+	if err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	defer func(f *os.File) {
+		er := f.Close()
+		if er != nil {
+			log.Println(er)
+		}
+	}(f)
+
+	res, err := io.Copy(f, downloadResult)
+	fmt.Println()
+	return humanize.Bytes(uint64(res)), err
 }
 
 func geUpload(ctx context.Context, url string) (*Uploads, error) {

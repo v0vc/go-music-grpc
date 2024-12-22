@@ -15,6 +15,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/panjf2000/ants/v2 v2.10.0
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
+	github.com/wader/goutubedl v0.0.0-20241213163500-8ebc956d58c3
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 	golang.org/x/exp/shiny v0.0.0-20241217172543-b2144cdd0a67
 	google.golang.org/grpc v1.68.1

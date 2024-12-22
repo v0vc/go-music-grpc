@@ -34,9 +34,9 @@ const (
 )
 
 var (
-	ZvukDir string
-	wgSync  sync.WaitGroup
-	pool    *ants.MultiPool
+	ZvukDir, YouDir string
+	wgSync          sync.WaitGroup
+	pool            *ants.MultiPool
 )
 
 type server struct {
@@ -499,6 +499,9 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 		// "артист со спотика"
 	case 3:
 		// "артист с дизера"
+	case 4:
+		// автор с ютуба
+		resDown, err = DownloadVideos(context.WithoutCancel(ctx), albIds, req.GetTrackQuality())
 	}
 
 	if err != nil {
@@ -642,6 +645,10 @@ func main() {
 	ZvukDir = os.Getenv("ZVUKDIR")
 	if ZvukDir == "" {
 		ZvukDir, _ = os.UserHomeDir()
+	}
+	YouDir = os.Getenv("YOUDIR")
+	if YouDir == "" {
+		YouDir, _ = os.UserHomeDir()
 	}
 
 	// if we crash the go code, we get the file name and line number

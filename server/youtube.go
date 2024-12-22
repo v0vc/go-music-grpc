@@ -506,3 +506,17 @@ func DeleteChannelDb(ctx context.Context, siteId uint32, artistId []string) (int
 
 	return deletedRowCount, tx.Commit()
 }
+
+func DownloadVideos(ctx context.Context, albIds []string, trackQuality string) (map[string]string, error) {
+	mDownloaded := make(map[string]string)
+	for _, id := range albIds {
+		resDown, err := DownloadVideo(ctx, YouDir, id)
+		if err != nil {
+			log.Println(id+" can't download.", err)
+			return nil, err
+		} else {
+			mDownloaded[id] = resDown
+		}
+	}
+	return mDownloaded, nil
+}
