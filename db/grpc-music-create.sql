@@ -31,24 +31,6 @@ CREATE TABLE artistAlbum (
     albumId INTEGER REFERENCES album (alb_id) ON DELETE CASCADE,
     UNIQUE(artistId,albumId)
 );
-CREATE TABLE track (
-    trk_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    trackId TEXT NOT NULL,
-    title TEXT NOT NULL,
-    hasFlac INTEGER,
-    hasLyric INTEGER,
-    quality TEXT NULL,
-    condition TEXT NULL,
-    genre TEXT NULL,
-    trackNum INTEGER,
-    duration INTEGER,
-    UNIQUE(trackId,title)
-);
-CREATE TABLE albumTrack (
-    albumId INTEGER REFERENCES album (alb_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    trackId INTEGER REFERENCES track (trk_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    UNIQUE(albumId,trackId)
-);
 CREATE TABLE channel (
     ch_id INTEGER PRIMARY KEY AUTOINCREMENT,
     siteId INTEGER REFERENCES site (site_id) ON UPDATE CASCADE ON DELETE RESTRICT,

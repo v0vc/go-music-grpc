@@ -50,7 +50,22 @@ type ArtistRawId struct {
 	vidIds         []string
 }
 
-func GetTokenOnlyDb(tx *sql.Tx, ctx context.Context, siteId uint32) string {
+func GetTokenOnlyDbWoTx(ctx context.Context, siteId uint32) string {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
 	stmt, err := tx.PrepareContext(ctx, "select token from main.site where site_id = ? limit 1;")
 	if err != nil {
 		log.Println(err)
@@ -75,8 +90,8 @@ func GetTokenOnlyDb(tx *sql.Tx, ctx context.Context, siteId uint32) string {
 	return token.String
 }
 
-func GetTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string, string) {
-	stmt, err := tx.PrepareContext(ctx, "select login, pass, token from main.site where site_id = ? limit 1;")
+func GetTokenOnlyDb(tx *sql.Tx, ctx context.Context, siteId uint32) string {
+	stmt, err := tx.PrepareContext(ctx, "select token from main.site where site_id = ? limit 1;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -87,12 +102,8 @@ func GetTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 		}
 	}(stmt)
 
-	var (
-		token sql.NullString
-		login sql.NullString
-		pass  sql.NullString
-	)
-	err = stmt.QueryRowContext(ctx, siteId).Scan(&login, &pass, &token)
+	var token sql.NullString
+	err = stmt.QueryRowContext(ctx, siteId).Scan(&token)
 
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -101,23 +112,7 @@ func GetTokenDb(tx *sql.Tx, ctx context.Context, siteId uint32) (string, string,
 		log.Println(err)
 	}
 
-	return login.String, pass.String, token.String
-}
-
-func UpdateTokenDb(tx *sql.Tx, ctx context.Context, token string, siteId uint32) {
-	stmtUpdToken, err := tx.PrepareContext(ctx, "update main.site set token = ? where site_id = ?;")
-	if err != nil {
-		log.Println(err)
-	}
-
-	defer func(stmtUpdToken *sql.Stmt) {
-		err = stmtUpdToken.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stmtUpdToken)
-
-	_, _ = stmtUpdToken.ExecContext(ctx, token, siteId)
+	return token.String
 }
 
 func ClearSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
@@ -527,23 +522,24 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 
 	var (
 		err     error
-		albIds  []string
 		resDown map[string]string
 	)
 
 	switch siteId {
 	case 1:
 		// mid, high, flac
-		albIds, _ = GetArtistReleasesIdFromDb(ctx, siteId, artistId, false)
+		albIds, _ := GetArtistReleasesIdFromDb(ctx, siteId, artistId, false)
+		resDown, err = DownloadAlbum(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
 	case 2:
 		// "артист со спотика"
 	case 3:
 		// "артист с дизера"
 	case 4:
 		// автор с ютуба
-		albIds, _ = GetChannelVideosIdFromDb(ctx, siteId, artistId, false)
+		vidIds, _ := GetChannelVideosIdFromDb(ctx, siteId, artistId, false)
+		resDown, err = DownloadVideos(context.WithoutCancel(ctx), vidIds, req.GetTrackQuality())
 	}
-	resDown, err = DownloadAlbum(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+
 	if err != nil {
 		log.Printf("Download error: %v", err)
 		return nil, status.Errorf(
@@ -555,41 +551,6 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 	}
 
 	return &artist.DownloadAlbumsResponse{
-		Downloaded: resDown,
-	}, nil
-}
-
-func (*server) DownloadTracks(ctx context.Context, req *artist.DownloadTracksRequest) (*artist.DownloadTracksResponse, error) {
-	siteId := req.GetSiteId()
-	trackIds := req.GetTrackIds()
-	fmt.Printf("siteId: %v, download tracks %v started\n", siteId, trackIds)
-
-	var (
-		err     error
-		resDown map[string]string
-	)
-
-	switch siteId {
-	case 1:
-		// mid, high, flac
-		resDown, err = DownloadTracks(context.WithoutCancel(ctx), siteId, trackIds, req.GetTrackQuality())
-	case 2:
-		// "артист со спотика"
-	case 3:
-		// "артист с дизера"
-	}
-
-	if err != nil {
-		log.Printf("Download error: %v", err)
-		return nil, status.Errorf(
-			codes.Internal,
-			"Internal error",
-		)
-	} else {
-		fmt.Printf("siteId: %v, download tracks %v completed, total: %v\n", siteId, trackIds, len(resDown))
-	}
-
-	return &artist.DownloadTracksResponse{
 		Downloaded: resDown,
 	}, nil
 }

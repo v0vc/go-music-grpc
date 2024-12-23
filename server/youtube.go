@@ -574,10 +574,10 @@ func DeleteChannelDb(ctx context.Context, siteId uint32, artistId []string) (int
 	return deletedRowCount, tx.Commit()
 }
 
-func DownloadVideos(ctx context.Context, albIds []string, quality string) (map[string]string, error) {
+func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[string]string, error) {
 	mDownloaded := make(map[string]string)
 
-	for _, id := range albIds {
+	for _, id := range vidIds {
 		res := strings.Split(id, ";")
 		if len(res) != 3 {
 			log.Println("Invalid ui param:", id)

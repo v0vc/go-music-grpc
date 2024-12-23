@@ -54,7 +54,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return http.DefaultTransport.RoundTrip(req)
 }
 
-func getTokenFromSite(ctx context.Context, email, password string) (string, error) {
+/*func getTokenFromSite(ctx context.Context, email, password string) (string, error) {
 	data := url.Values{}
 	data.Set("email", email)
 	data.Set("password", password)
@@ -87,13 +87,13 @@ func getTokenFromSite(ctx context.Context, email, password string) (string, erro
 		return "", err
 	}
 	return obj.Result.Token, nil
-}
+}*/
 
-func getAlbumTracks(ctx context.Context, albumId, token, email, password string) (*ReleaseInfo, string, bool, error) {
+func getAlbumTracks(ctx context.Context, albumId, token string) (*ReleaseInfo, error, bool) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+apiRelease, nil)
 	if err != nil {
 		log.Println(err)
-		return nil, "", false, err
+		return nil, err, false
 	}
 
 	query := url.Values{}
@@ -105,7 +105,7 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 	do, err := client.Do(req)
 	if err != nil || do == nil {
 		log.Println(err)
-		return nil, "", false, err
+		return nil, err, false
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -115,24 +115,16 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 		}
 	}(do.Body)
 
-	needTokenUpd := false
-
 	switch do.StatusCode {
 	case http.StatusTeapot:
-		return nil, "", false, nil
+		log.Println("Got status: Teapot, too many requests, throttling started..")
+		return nil, nil, true
 	case http.StatusUnauthorized:
-		log.Printf("Try to renew access token...")
-		token, err = getTokenFromSite(ctx, email, password)
-		if err == nil {
-			log.Printf("Token was updated successfully.")
-			needTokenUpd = true
-		} else {
-			log.Println("Can't get new token", err)
-		}
-		return nil, token, needTokenUpd, nil
+		log.Println("Try to renew access token...")
+		return nil, nil, false
 	case http.StatusForbidden:
-		log.Printf("Something was changed in api, please report. Exit...")
-		return nil, "", false, nil
+		log.Println("Something was changed in api, please report. Exit...")
+		return nil, nil, false
 	case http.StatusOK:
 		var obj ReleaseInfo
 
@@ -140,9 +132,9 @@ func getAlbumTracks(ctx context.Context, albumId, token, email, password string)
 		if err != nil {
 			log.Println("Can't decode response from api: ", err)
 		}
-		return &obj, token, needTokenUpd, err
+		return &obj, err, true
 	default:
-		return nil, "", false, err
+		return nil, err, false
 	}
 }
 

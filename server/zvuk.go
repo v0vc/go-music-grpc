@@ -14,20 +14,6 @@ import (
 	"github.com/v0vc/go-music-grpc/artist"
 )
 
-/*func runExec(tx *sql.Tx, ctx context.Context, ids []string, command string) {
-	if ids != nil {
-		stDelete, err := tx.PrepareContext(ctx, command)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer stDelete.Close()
-
-		for _, id := range ids {
-			_, _ = stDelete.ExecContext(ctx, id)
-		}
-	}
-}*/
-
 func getAlbumIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, albumId string) int {
 	stmtAlb, err := tx.PrepareContext(ctx, "select aa.albumId from main.artistAlbum aa join album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? limit 1;")
 	if err != nil {
@@ -186,77 +172,6 @@ func getExistIdsDb(tx *sql.Tx, ctx context.Context, artId int, siteId uint32) ([
 	return existAlbumIds, existArtistIds
 }
 
-func getTrackFromDb(tx *sql.Tx, ctx context.Context, siteId uint32, ids []string, isAlbum bool) (map[string]*AlbumInfo, []string) {
-	var sqlStr string
-
-	if len(ids) == 1 {
-		if isAlbum {
-			sqlStr = "select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.albumId in (select alb_id from album where albumId = ? limit 1) and ar.siteId = ? group by at.trackId;"
-		} else {
-			sqlStr = "select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.trackId in (select trk_id from track where trackId = ? limit 1) and ar.siteId = ? group by at.trackId;"
-		}
-	} else {
-		if isAlbum {
-			sqlStr = fmt.Sprintf("select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.albumId in (select alb_id from album where albumId in (? %v)) and ar.siteId = ? group by at.trackId;", strings.Repeat(",?", len(ids)-1))
-		} else {
-			sqlStr = fmt.Sprintf("select group_concat(ar.title, ', '), a.title, a.albumId, a.releaseDate, t.trackId, t.trackNum, a.trackTotal, t.title, t.genre from main.albumTrack at join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = aa.albumId join main.artist ar on ar.art_id = aA.artistId join main.track t on t.trk_id = at.trackId where at.trackId in (select trk_id from track where trackId in (? %v)) and ar.siteId = ? group by at.trackId;", strings.Repeat(",?", len(ids)-1))
-		}
-	}
-
-	stRows, err := tx.PrepareContext(ctx, sqlStr)
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	args := make([]interface{}, len(ids))
-	for i, trackId := range ids {
-		args[i] = trackId
-	}
-
-	args = append(args, siteId)
-	rows, err := stRows.QueryContext(ctx, args...)
-	if err != nil {
-		log.Println(err)
-	}
-
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(rows)
-
-	mTracks := make(map[string]*AlbumInfo)
-
-	var mAlbum []string
-
-	for rows.Next() {
-		var (
-			trackId string
-			alb     AlbumInfo
-		)
-		if er := rows.Scan(&alb.ArtistTitle, &alb.AlbumTitle, &alb.AlbumId, &alb.AlbumYear, &alb.AlbumCover, &trackId, &alb.TrackNum, &alb.TrackTotal, &alb.TrackTitle, &alb.TrackGenre); er != nil {
-			log.Println(er)
-		} else {
-			_, ok := mTracks[trackId]
-			if !ok {
-				mTracks[trackId] = &alb
-			}
-			if isAlbum && !slices2.Contains(mAlbum, alb.AlbumId) {
-				mAlbum = append(mAlbum, alb.AlbumId)
-			}
-		}
-	}
-
-	return mTracks, mAlbum
-}
-
 func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32) (int64, error) {
 	var (
 		aff int64
@@ -304,81 +219,19 @@ func deleteBase(ctx context.Context, tx *sql.Tx, artistId string, siteId uint32)
 	return aff, tx.Commit()
 }
 
-func DownloadTracks(ctx context.Context, siteId uint32, trackIds []string, trackQuality string) (map[string]string, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=ro", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		log.Println(err)
-	}
-
-	mTracks, _ := getTrackFromDb(tx, ctx, siteId, trackIds, false)
-	token := GetTokenOnlyDb(tx, ctx, siteId)
-	err = tx.Rollback()
-	if err != nil {
-		log.Println(err)
-	}
-	mDownloaded := make(map[string]string)
-
-	for _, trackId := range trackIds {
-		albInfo, dbExist := mTracks[trackId]
-		if dbExist {
-			downloadFiles(ctx, trackId, token, trackQuality, albInfo, mDownloaded)
-		} else {
-			log.Println("Track not found in database, please sync")
-			// нет в базе, можно продумать как формировать пути скачивания без данных в базе, типа лить в базовую папку без прохода по темплейтам альбома, хз
-		}
-
-		RandomPause(3, 7)
-	}
-
-	return mDownloaded, err
-}
-
 func DownloadAlbum(ctx context.Context, siteId uint32, albIds []string, trackQuality string) (map[string]string, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		log.Println(err)
-	}
-
-	mTracks, dbAlbums := getTrackFromDb(tx, ctx, siteId, albIds, true)
-	login, pass, token := GetTokenDb(tx, ctx, siteId)
-
+	token := GetTokenOnlyDbWoTx(ctx, siteId)
 	mDownloaded := make(map[string]string)
+	mTracks := make(map[string]*AlbumInfo)
 
-	notDbAlbumIds := FindDifference(albIds, dbAlbums)
-	for _, albumId := range notDbAlbumIds {
+	for _, albumId := range albIds {
 		var tryCount int
 	L1:
-		item, tokenNew, needTokenUpd, er := getAlbumTracks(ctx, albumId, token, login, pass)
-		if er != nil {
-			return mDownloaded, er
+		item, err, canContinue := getAlbumTracks(ctx, albumId, token)
+		if err != nil && !canContinue {
+			return mDownloaded, err
 		}
-		if needTokenUpd {
-			UpdateTokenDb(tx, ctx, tokenNew, siteId)
-		}
-
-		if item == nil {
+		if item == nil && canContinue {
 			tryCount += 1
 			if tryCount == 4 {
 				continue
@@ -388,7 +241,10 @@ func DownloadAlbum(ctx context.Context, siteId uint32, albIds []string, trackQua
 
 			goto L1
 		}
-
+		if item == nil {
+			log.Println("Can't get release info from api, skipped..")
+			continue
+		}
 		for trId, track := range item.Result.Tracks {
 			if trId != "" {
 				_, ok := mTracks[trId]
@@ -408,16 +264,12 @@ func DownloadAlbum(ctx context.Context, siteId uint32, albIds []string, trackQua
 			}
 		}
 	}
-	err = tx.Commit()
-	if err != nil {
-		log.Println(err)
-	}
 
 	for trackId, albInfo := range mTracks {
 		downloadFiles(ctx, trackId, token, trackQuality, albInfo, mDownloaded)
 		RandomPause(3, 7)
 	}
-	return mDownloaded, err
+	return mDownloaded, nil
 }
 
 func GetNewReleasesFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {

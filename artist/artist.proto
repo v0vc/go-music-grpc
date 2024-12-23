@@ -106,12 +106,6 @@ message DownloadAlbumsResponse {
   map<string, string> Downloaded = 1;
 }
 
-message DownloadTracksRequest {
-  uint32 siteId = 1;
-  repeated string trackIds = 2;
-  string trackQuality = 3;
-}
-
 message DownloadTracksResponse {
   map<string, string> Downloaded = 1;
 }
@@ -132,6 +126,5 @@ service ArtistService {
   rpc ClearSync (ClearSyncRequest) returns (ClearSyncResponse);
   rpc DownloadAlbums (DownloadAlbumsRequest) returns (DownloadAlbumsResponse);
   rpc DownloadArtist (DownloadArtistRequest) returns (DownloadAlbumsResponse);
-  rpc DownloadTracks(DownloadTracksRequest) returns (DownloadTracksResponse);
   rpc ListArtist (ListArtistRequest) returns (ListArtistResponse);
 }
