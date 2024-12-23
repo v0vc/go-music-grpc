@@ -80,23 +80,24 @@ type UI struct {
 	// menu is currently acting.
 	ContextMenuTarget *model.Message
 
-	ChannelMenuTarget *Room
-	Invalidator       func()
-	th                *page.Theme
-	SiteId            uint32
-	LoadSize          int
-	Quality           string
-	RadioButtonsGroup widget.Enum
+	ChannelMenuTarget       *Room
+	Invalidator             func()
+	th                      *page.Theme
+	SiteId                  uint32
+	LoadSize                int
+	ZvukQuality, YouQuality string
+	RadioButtonsGroup       widget.Enum
 }
 
 // NewUI constructs a UI and populates it with data.
-func NewUI(invalidator func(), theme *page.Theme, loadSize int, quality string, siteId uint32) *UI {
+func NewUI(invalidator func(), theme *page.Theme, loadSize int, zvukQuality string, youQuality string, siteId uint32) *UI {
 	var ui UI
 	ui.th = theme
 	ui.Invalidator = invalidator
 	ui.SiteId = siteId
 	ui.LoadSize = loadSize
-	ui.Quality = quality
+	ui.ZvukQuality = zvukQuality
+	ui.YouQuality = youQuality
 
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx layout.Context) layout.Dimensions{
@@ -185,7 +186,8 @@ func (ui *UI) MassDownload(siteId uint32) {
 	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
 		return
 	}
-	go curChannel.DownloadAlbum(siteId, curChannel.Selected, ui.Quality)
+	// TODO ids
+	go curChannel.DownloadAlbum(siteId, curChannel.Selected, ui.ZvukQuality)
 }
 
 func (ui *UI) SelectAll(value bool) {
@@ -200,6 +202,7 @@ func (ui *UI) SelectAll(value bool) {
 					elemState.Selected.Value = value
 				}
 				if value {
+					// TODO ids
 					curChannel.Selected = append(curChannel.Selected, el.AlbumId)
 				}
 			}
@@ -475,13 +478,14 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					channel := ui.ChannelMenuTarget
 					if channel.Loaded {
 						var albumIds []string
+						// TODO ids
 						for _, i := range channel.RowTracker.Rows {
 							alb := i.(model.Message)
 							albumIds = append(albumIds, alb.AlbumId)
 						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Quality)
+						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.ZvukQuality)
 					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Quality)
+						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.ZvukQuality)
 					}
 				}
 				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
@@ -633,7 +637,12 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 			if ui.DownloadBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.Quality)
+					switch ui.SiteId {
+					case 1:
+						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.ZvukQuality)
+					case 4:
+						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + strings.TrimSpace(strings.ReplaceAll(ui.ContextMenuTarget.Title, ";", " "))}, ui.YouQuality)
+					}
 				}
 			}
 			if elemState.Selected.Update(gtx) {

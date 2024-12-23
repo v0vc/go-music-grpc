@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	defaultLoadSize = 30
-	defaultTheme    = "light"
-	defaultQuality  = "mid"
+	defaultLoadSize    = 30
+	defaultTheme       = "light"
+	defaultZvukQuality = "mid"
+	defaultYouQuality  = "best"
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 }
 
 func parseConf() *page.Config {
-	conf := page.Config{Theme: defaultTheme, LoadSize: defaultLoadSize, Quality: defaultQuality}
+	conf := page.Config{Theme: defaultTheme, LoadSize: defaultLoadSize, ZvukQuality: defaultZvukQuality, YouQuality: defaultYouQuality}
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Println("no .env file, use default values")
@@ -58,11 +59,17 @@ func parseConf() *page.Config {
 		} else {
 			conf.Theme = defaultTheme
 		}
-		quality := os.Getenv("Quality")
-		if quality != "" {
-			conf.Quality = quality
+		zvukQuality := os.Getenv("ZvukQuality")
+		if zvukQuality != "" {
+			conf.ZvukQuality = zvukQuality
 		} else {
-			conf.Quality = defaultQuality
+			conf.ZvukQuality = defaultZvukQuality
+		}
+		youQuality := os.Getenv("YouQuality")
+		if youQuality != "" {
+			conf.YouQuality = youQuality
+		} else {
+			conf.YouQuality = defaultYouQuality
 		}
 	}
 	return &conf
@@ -89,7 +96,7 @@ func loop(w *app.Window) error {
 			return e.Err
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
-			router.Layout(gtx, th, conf.LoadSize, conf.Quality)
+			router.Layout(gtx, th, conf.LoadSize, conf.ZvukQuality, conf.YouQuality)
 			e.Frame(gtx.Ops)
 		}
 	}

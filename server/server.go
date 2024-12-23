@@ -34,9 +34,10 @@ const (
 )
 
 var (
-	ZvukDir, YouDir string
-	wgSync          sync.WaitGroup
-	pool            *ants.MultiPool
+	YouDir  string
+	ZvukDir string
+	wgSync  sync.WaitGroup
+	pool    *ants.MultiPool
 )
 
 type server struct {
@@ -511,7 +512,7 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 			"Internal error",
 		)
 	} else {
-		fmt.Printf("siteId: %v, download albums %v completed, total: %v\n", siteId, albIds, len(resDown))
+		fmt.Printf("siteId: %v, download %v completed, total: %v\n", siteId, albIds, len(resDown))
 	}
 
 	return &artist.DownloadAlbumsResponse{

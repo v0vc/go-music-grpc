@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -507,16 +510,50 @@ func DeleteChannelDb(ctx context.Context, siteId uint32, artistId []string) (int
 	return deletedRowCount, tx.Commit()
 }
 
-func DownloadVideos(ctx context.Context, albIds []string, trackQuality string) (map[string]string, error) {
+func DownloadVideos(ctx context.Context, albIds []string, quality string) (map[string]string, error) {
 	mDownloaded := make(map[string]string)
+
 	for _, id := range albIds {
-		resDown, err := DownloadVideo(ctx, YouDir, id)
+		res := strings.Split(id, ";")
+		if len(res) != 3 {
+			log.Println("Invalid ui param:", id)
+			continue
+		}
+		chId := res[0]
+		videoId := res[1]
+		title := res[2]
+
+		mChannel := make(map[string]string)
+		absChannelName, exist := mChannel[chId]
+		if !exist {
+			absChannelName = filepath.Join(YouDir, chId)
+			err := os.MkdirAll(absChannelName, 0o755)
+			if err != nil {
+				log.Println(chId+" can't create folder.", err)
+				continue
+			}
+			mChannel[chId] = absChannelName
+		}
+
+		filename := path.Clean(filepath.Join(absChannelName, title+".mp4"))
+		exists, err := FileExists(filename)
 		if err != nil {
-			log.Println(id+" can't download.", err)
+			log.Println(filename + " can't check if video already exists locally, skipped..")
+			continue
+		}
+		if exists {
+			fmt.Println(filename + " exists locally, skipped..")
+			continue
+		}
+
+		resDown, err := DownloadVideo(ctx, filename, videoId, quality)
+		if err != nil {
+			log.Println(title+" can't download.", err)
 			return nil, err
 		} else {
 			mDownloaded[id] = resDown
 		}
 	}
+
 	return mDownloaded, nil
 }

@@ -185,7 +185,7 @@ func GetVidByIds(ctx context.Context, vidIds string, token string) []*vidItem {
 	return videos
 }
 
-func DownloadVideo(ctx context.Context, videoPath, id string) (string, error) {
+func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, error) {
 	url := youtubeVideo + id
 
 	result, err := goutubedl.New(ctx, url, goutubedl.Options{})
@@ -193,7 +193,7 @@ func DownloadVideo(ctx context.Context, videoPath, id string) (string, error) {
 		log.Println(err)
 	}
 
-	downloadResult, err := result.Download(ctx, "best")
+	downloadResult, err := result.Download(ctx, quality)
 	if err != nil {
 		log.Println(err)
 	}
