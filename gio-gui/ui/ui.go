@@ -186,8 +186,14 @@ func (ui *UI) MassDownload(siteId uint32) {
 	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
 		return
 	}
-	// TODO ids
-	go curChannel.DownloadAlbum(siteId, curChannel.Selected, ui.ZvukQuality)
+	var quality string
+	switch ui.SiteId {
+	case 1:
+		quality = ui.ZvukQuality
+	case 4:
+		quality = ui.YouQuality
+	}
+	go curChannel.DownloadAlbum(siteId, curChannel.Selected, quality)
 }
 
 func (ui *UI) SelectAll(value bool) {
@@ -202,8 +208,12 @@ func (ui *UI) SelectAll(value bool) {
 					elemState.Selected.Value = value
 				}
 				if value {
-					// TODO ids
-					curChannel.Selected = append(curChannel.Selected, el.AlbumId)
+					switch ui.SiteId {
+					case 1:
+						curChannel.Selected = append(curChannel.Selected, el.AlbumId)
+					case 4:
+						curChannel.Selected = append(curChannel.Selected, el.ParentId[0]+";"+el.AlbumId+";"+el.Title)
+					}
 				}
 			}
 		}
@@ -476,16 +486,27 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 				}
 				if ui.DownloadChannelBtn.Clicked(gtx) {
 					channel := ui.ChannelMenuTarget
+					var quality string
+					switch ui.SiteId {
+					case 1:
+						quality = ui.ZvukQuality
+					case 4:
+						quality = ui.YouQuality
+					}
 					if channel.Loaded {
 						var albumIds []string
-						// TODO ids
 						for _, i := range channel.RowTracker.Rows {
 							alb := i.(model.Message)
-							albumIds = append(albumIds, alb.AlbumId)
+							switch ui.SiteId {
+							case 1:
+								albumIds = append(albumIds, alb.AlbumId)
+							case 4:
+								albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+							}
 						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.ZvukQuality)
+						go channel.DownloadAlbum(ui.SiteId, albumIds, quality)
 					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.ZvukQuality)
+						go channel.DownloadArtist(ui.SiteId, channel.Id, quality)
 					}
 				}
 				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
@@ -641,7 +662,7 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 					case 1:
 						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.ZvukQuality)
 					case 4:
-						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + strings.TrimSpace(strings.ReplaceAll(ui.ContextMenuTarget.Title, ";", " "))}, ui.YouQuality)
+						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.YouQuality)
 					}
 				}
 			}

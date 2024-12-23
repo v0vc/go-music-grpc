@@ -63,7 +63,7 @@ func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, err
 	return artistIds, err
 }
 
-func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId interface{}) ArtistRawId {
+func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId interface{}) ArtistRawId {
 	stmtArt, err := tx.PrepareContext(ctx, "select c.ch_id, c.channelId, p.pl_id, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ? and p.playlistType = 0 limit 1;")
 	if err != nil {
 		log.Println(err)
@@ -80,10 +80,10 @@ func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId int
 		ids   string
 	)
 
-	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artId.RawId, &artId.Id, &artId.RawPlId, &artId.PlaylistId, &ids)
+	err = stmtArt.QueryRowContext(ctx, channelId, siteId).Scan(&artId.RawId, &artId.Id, &artId.RawPlId, &artId.PlaylistId, &ids)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		log.Printf("no channel with id %v\n", artistId)
+		log.Printf("no channel with id %v\n", channelId)
 	case err != nil:
 		log.Println(err)
 	default:
@@ -94,7 +94,7 @@ func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId int
 	return artId
 }
 
-func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, error) {
+func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, isAdd bool) (*artist.Artist, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -115,24 +115,24 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	token := GetTokenOnlyDb(tx, ctx, siteId)
 
 	// при добавлении мы поддерживаем все варианты на Ui (ссылка на видео, на канал и тд)
-	if isAdd && strings.HasPrefix(artistId.Id, "@") || len(artistId.Id) == 11 {
+	if isAdd && strings.HasPrefix(channelId.Id, "@") || len(channelId.Id) == 11 {
 		// с ui пришли либо имя канала с @, либо id видео, найдем id канала
-		chId, er := GeChannelId(ctx, token, artistId.Id)
+		chId, er := GeChannelId(ctx, token, channelId.Id)
 		if er != nil {
 			log.Println(er)
 		}
-		artistId.Id = chId
+		channelId.Id = chId
 	}
 
-	if artistId.RawId != 0 && isAdd {
+	if channelId.RawId != 0 && isAdd {
 		// пытались добавить существующего, сделаем просто синк
 		isAdd = false
 	}
 
-	fmt.Printf("Channel id is: %v \n", artistId.Id)
+	fmt.Printf("Channel id is: %v \n", channelId.Id)
 
 	if isAdd {
-		ch, er := GetChannel(ctx, artistId.Id, token)
+		ch, er := GetChannel(ctx, channelId.Id, token)
 		if er != nil || len(ch.Items) != 1 {
 			log.Println(er)
 			return nil, tx.Rollback()
@@ -151,7 +151,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 
 		var chId int
 		chThumb := GetThumb(ctx, ch.Items[0].Snippet.Thumbnails.Default.URL)
-		insErr := stChannel.QueryRowContext(ctx, siteId, artistId.Id, ch.Items[0].Snippet.Title, chThumb).Scan(&chId)
+		insErr := stChannel.QueryRowContext(ctx, siteId, channelId.Id, ch.Items[0].Snippet.Title, chThumb).Scan(&chId)
 		if insErr != nil {
 			log.Println(insErr)
 		} else {
@@ -160,7 +160,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 
 		resArtist := &artist.Artist{
 			SiteId:    siteId,
-			ArtistId:  artistId.Id,
+			ArtistId:  channelId.Id,
 			Title:     ch.Items[0].Snippet.Title,
 			Thumbnail: chThumb,
 		}
@@ -203,7 +203,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 
 		videos := GetUploadVid(ctx, uploadId, token)
 		if videos != nil {
-			processVideos(ctx, tx, videos, resArtist, plId, artistId.Id, 0)
+			processVideos(ctx, tx, videos, resArtist, plId, channelId.Id, 0)
 		} else {
 			log.Println("Can't get video from api")
 		}
@@ -212,17 +212,17 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 	} else {
 		// синк
 		// сначала проверим, есть ли в базе этот канал
-		if artistId.RawId == 0 {
+		if channelId.RawId == 0 {
 			// кликнули по конкретному каналу
-			artistId = getChannelIdDb(tx, ctx, siteId, artistId.Id)
+			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id)
 		}
-		netIds := GetUploadIds(ctx, artistId.PlaylistId, token)
-		newVidIds := FindDifference(netIds, artistId.vidIds)
-		fmt.Printf("siteId: %v, channelId: %d, new videos: %d\n", siteId, artistId.RawId, len(newVidIds))
+		netIds := GetUploadIds(ctx, channelId.PlaylistId, token)
+		newVidIds := FindDifference(netIds, channelId.vidIds)
+		fmt.Printf("siteId: %v, channelId: %d, new videos: %d\n", siteId, channelId.RawId, len(newVidIds))
 
 		resArtist := &artist.Artist{
 			SiteId:   siteId,
-			ArtistId: artistId.Id,
+			ArtistId: channelId.Id,
 			NewAlbs:  int32(len(newVidIds)),
 		}
 
@@ -233,7 +233,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, artistId ArtistRawId, isA
 			}
 			videos := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
 			if videos != nil {
-				processVideos(ctx, tx, videos, resArtist, artistId.RawPlId, artistId.Id, 1)
+				processVideos(ctx, tx, videos, resArtist, channelId.RawPlId, channelId.Id, 1)
 			} else {
 				log.Println("Can't get video from api")
 			}
@@ -348,7 +348,7 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	return arts, err
 }
 
-func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string) ([]*artist.Album, error) {
+func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string) ([]*artist.Album, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -371,7 +371,7 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 		}
 	}(stRows)
 
-	rows, err := stRows.QueryContext(ctx, artistId, siteId)
+	rows, err := stRows.QueryContext(ctx, channelId, siteId)
 	if err != nil {
 		log.Println(err)
 	}
@@ -397,12 +397,76 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, artistId string)
 				alb.SubTitle = fmt.Sprintf("%s   %s   Views: %d   Likes: %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
 			}
 			alb.ReleaseType = 3
-			alb.ArtistIds = []string{artistId}
+			alb.ArtistIds = []string{channelId}
 			albs = append(albs, &alb)
 		}
 	}
 
 	return albs, err
+}
+
+func GetChannelVideosIdFromDb(ctx context.Context, siteId uint32, channelId string, newOnly bool) ([]string, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	var str string
+
+	if newOnly {
+		str = "select v.videoId, v.title from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where v.syncState = 1 and siteId = ?;"
+	} else {
+		str = "select v.videoId, v.title from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ?;"
+	}
+	stRows, err := db.PrepareContext(ctx, str)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	var rows *sql.Rows
+	if newOnly {
+		rows, err = stRows.QueryContext(ctx, siteId)
+	} else {
+		rows, err = stRows.QueryContext(ctx, channelId, siteId)
+	}
+
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	var albIds []string
+
+	for rows.Next() {
+		var (
+			vidId    string
+			vidTitle string
+		)
+		if err = rows.Scan(&vidId, &vidTitle); err != nil {
+			log.Println(err)
+		} else {
+			albIds = append(albIds, channelId+";"+vidId+";"+vidTitle)
+		}
+	}
+
+	return albIds, err
 }
 
 func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {

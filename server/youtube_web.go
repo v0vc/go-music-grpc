@@ -107,7 +107,7 @@ func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem
 				sb.WriteString(vid.Snippet.ResourceID.VideoID + ",")
 				videos = append(videos, &vidItem{
 					id:            vid.Snippet.ResourceID.VideoID,
-					title:         vid.Snippet.Title,
+					title:         strings.TrimSpace(strings.ReplaceAll(vid.Snippet.Title, ";", ".")),
 					published:     strings.TrimRight(strings.Replace(vid.Snippet.PublishedAt, "T", " ", 1), "Z"),
 					thumbnailLink: vid.Snippet.Thumbnails.Default.URL,
 				})

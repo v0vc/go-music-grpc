@@ -527,22 +527,23 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 
 	var (
 		err     error
+		albIds  []string
 		resDown map[string]string
 	)
 
 	switch siteId {
 	case 1:
 		// mid, high, flac
-		albIds, _ := GetArtistReleasesIdFromDb(ctx, siteId, artistId, false)
-		resDown, err = DownloadAlbum(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
+		albIds, _ = GetArtistReleasesIdFromDb(ctx, siteId, artistId, false)
 	case 2:
 		// "артист со спотика"
 	case 3:
 		// "артист с дизера"
 	case 4:
 		// автор с ютуба
+		albIds, _ = GetChannelVideosIdFromDb(ctx, siteId, artistId, false)
 	}
-
+	resDown, err = DownloadAlbum(context.WithoutCancel(ctx), siteId, albIds, req.GetTrackQuality())
 	if err != nil {
 		log.Printf("Download error: %v", err)
 		return nil, status.Errorf(
