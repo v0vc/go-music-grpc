@@ -669,13 +669,20 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 			if elemState.Selected.Update(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
+					var idItem string
+					switch ui.SiteId {
+					case 1:
+						idItem = el.AlbumId
+					case 4:
+						idItem = el.ParentId[0] + ";" + el.AlbumId + ";" + el.Title
+					}
 					if elemState.Selected.Value {
-						if !slices2.Contains(active.Selected, el.AlbumId) {
-							active.Selected = append(active.Selected, el.AlbumId)
+						if !slices2.Contains(active.Selected, idItem) {
+							active.Selected = append(active.Selected, idItem)
 						}
 					} else {
 						for i, v := range active.Selected {
-							if v == el.AlbumId {
+							if v == idItem {
 								active.Selected = append(active.Selected[:i], active.Selected[i+1:]...)
 								break
 							}
