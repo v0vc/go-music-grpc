@@ -413,7 +413,7 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 		}
 
 		if do.StatusCode != http.StatusOK {
-			return "", do.Body.Close()
+			return "", fmt.Errorf(fmt.Sprintf("Status code:  %d", do.StatusCode))
 		}
 
 		break
