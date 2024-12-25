@@ -480,8 +480,7 @@ func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*ar
 func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsRequest) (*artist.DownloadAlbumsResponse, error) {
 	siteId := req.GetSiteId()
 	albIds := req.GetAlbumIds()
-	fmt.Printf("siteId: %v, download albums %v started\n", siteId, albIds)
-
+	fmt.Printf("siteId: %v, download %v started\n", siteId, albIds)
 	var (
 		err     error
 		resDown map[string]string
@@ -518,7 +517,7 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistRequest) (*artist.DownloadAlbumsResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
-	fmt.Printf("siteId: %v, download artist %v started\n", siteId, artistId)
+	fmt.Printf("siteId: %v, download author %v started\n", siteId, artistId)
 
 	var (
 		err     error

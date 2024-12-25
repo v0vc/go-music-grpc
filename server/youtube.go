@@ -599,7 +599,12 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 			mChannel[chId] = absChannelName
 		}
 
-		filename := path.Clean(filepath.Join(absChannelName, title+".mp4"))
+		var ext = ".mp4"
+		if quality == "audio" {
+			ext = ".mp3"
+		}
+
+		filename := path.Clean(filepath.Join(absChannelName, title+ext))
 		exists, err := FileExists(filename)
 		if err != nil {
 			log.Println(filename + " can't check if video already exists locally, skipped..")
@@ -613,7 +618,7 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 		resDown, err := DownloadVideo(ctx, filename, videoId, quality)
 		if err != nil {
 			log.Println(title+" can't download.", err)
-			return nil, err
+			continue
 		} else {
 			mDownloaded[id] = resDown
 		}

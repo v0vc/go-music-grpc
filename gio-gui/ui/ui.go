@@ -69,9 +69,9 @@ type UI struct {
 	// Used to decide when to render the sidebar on small viewports.
 	InsideRoom bool
 	// channel menu
-	SyncBtn, DownloadChannelBtn, CopyChannelBtn, DeleteBtn widget.Clickable
+	SyncBtn, DownloadChannelBtn, DownloadChannelLowBtn, CopyChannelBtn, DeleteBtn widget.Clickable
 	// message menu
-	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn widget.Clickable
+	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn, DownloadLowBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
 	MessageMenu component.MenuState
 	// ChannelMenu is the context menu available on channel.
@@ -80,69 +80,137 @@ type UI struct {
 	// menu is currently acting.
 	ContextMenuTarget *model.Message
 
-	ChannelMenuTarget       *Room
-	Invalidator             func()
-	th                      *page.Theme
-	SiteId                  uint32
-	LoadSize                int
-	ZvukQuality, YouQuality string
-	RadioButtonsGroup       widget.Enum
+	ChannelMenuTarget *Room
+	Invalidator       func()
+	th                *page.Theme
+	SiteId            uint32
+	LoadSize          int
+	ZvukQuality       string
+	RadioButtonsGroup widget.Enum
+}
+
+func createMessageMenu(ui *UI) component.MenuState {
+	switch ui.SiteId {
+	case 1:
+		return component.MenuState{
+			Options: []func(gtx layout.Context) layout.Dimensions{
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
+					item.Icon = icon.DownloadIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Link")
+					item.Icon = icon.CopyIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.CopyAlbArtistBtn, "Copy Author")
+					item.Icon = icon.CopyIcon
+					return item.Layout(gtx)
+				},
+			},
+		}
+	case 4:
+		return component.MenuState{
+			Options: []func(gtx layout.Context) layout.Dimensions{
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
+					item.Icon = icon.DownloadIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadLowBtn, "Download MP3")
+					item.Icon = icon.AudioTrackIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Link")
+					item.Icon = icon.CopyIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.CopyAlbArtistBtn, "Copy Author")
+					item.Icon = icon.CopyIcon
+					return item.Layout(gtx)
+				},
+			},
+		}
+	}
+	return component.MenuState{}
+}
+
+func createChannelMenu(ui *UI) component.MenuState {
+	switch ui.SiteId {
+	case 1:
+		return component.MenuState{
+			Options: []func(gtx layout.Context) layout.Dimensions{
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.SyncBtn, "Sync")
+					item.Icon = icon.SyncIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
+					item.Icon = icon.DeleteIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelBtn, "Download")
+					item.Icon = icon.DownloadIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.CopyChannelBtn, "Copy")
+					item.Icon = icon.CopyIcon
+					return item.Layout(gtx)
+				},
+			},
+		}
+	case 4:
+		return component.MenuState{
+			Options: []func(gtx layout.Context) layout.Dimensions{
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.SyncBtn, "Sync")
+					item.Icon = icon.SyncIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
+					item.Icon = icon.DeleteIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelBtn, "Download")
+					item.Icon = icon.DownloadIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelLowBtn, "Download MP3")
+					item.Icon = icon.AudioTrackIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.CopyChannelBtn, "Copy")
+					item.Icon = icon.CopyIcon
+					return item.Layout(gtx)
+				},
+			},
+		}
+	}
+	return component.MenuState{}
 }
 
 // NewUI constructs a UI and populates it with data.
-func NewUI(invalidator func(), theme *page.Theme, loadSize int, zvukQuality string, youQuality string, siteId uint32) *UI {
+func NewUI(invalidator func(), theme *page.Theme, loadSize int, zvukQuality string, siteId uint32) *UI {
 	var ui UI
 	ui.th = theme
 	ui.Invalidator = invalidator
 	ui.SiteId = siteId
 	ui.LoadSize = loadSize
 	ui.ZvukQuality = zvukQuality
-	ui.YouQuality = youQuality
-
-	ui.MessageMenu = component.MenuState{
-		Options: []func(gtx layout.Context) layout.Dimensions{
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
-				item.Icon = icon.DownloadIcon
-				return item.Layout(gtx)
-			},
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Link")
-				item.Icon = icon.CopyIcon
-				return item.Layout(gtx)
-			},
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyAlbArtistBtn, "Copy Author")
-				item.Icon = icon.CopyIcon
-				return item.Layout(gtx)
-			},
-		},
-	}
-	ui.ChannelMenu = component.MenuState{
-		Options: []func(gtx layout.Context) layout.Dimensions{
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.SyncBtn, "Sync")
-				item.Icon = icon.SyncIcon
-				return item.Layout(gtx)
-			},
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DeleteBtn, "Delete")
-				item.Icon = icon.DeleteIcon
-				return item.Layout(gtx)
-			},
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelBtn, "Download")
-				item.Icon = icon.DownloadIcon
-				return item.Layout(gtx)
-			},
-			func(gtx layout.Context) layout.Dimensions {
-				item := component.MenuItem(ui.th.Theme, &ui.CopyChannelBtn, "Copy")
-				item.Icon = icon.CopyIcon
-				return item.Layout(gtx)
-			},
-		},
-	}
-
+	ui.MessageMenu = createMessageMenu(&ui)
+	ui.ChannelMenu = createChannelMenu(&ui)
 	g := &gen.Generator{}
 
 	// Generate most of the model data.
@@ -191,7 +259,7 @@ func (ui *UI) MassDownload(siteId uint32) {
 	case 1:
 		quality = ui.ZvukQuality
 	case 4:
-		quality = ui.YouQuality
+		quality = "video"
 	}
 	go curChannel.DownloadAlbum(siteId, curChannel.Selected, quality)
 }
@@ -491,7 +559,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					case 1:
 						quality = ui.ZvukQuality
 					case 4:
-						quality = ui.YouQuality
+						quality = "video"
 					}
 					if channel.Loaded {
 						var albumIds []string
@@ -507,6 +575,19 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						go channel.DownloadAlbum(ui.SiteId, albumIds, quality)
 					} else {
 						go channel.DownloadArtist(ui.SiteId, channel.Id, quality)
+					}
+				}
+				if ui.DownloadChannelLowBtn.Clicked(gtx) {
+					channel := ui.ChannelMenuTarget
+					if channel.Loaded {
+						var albumIds []string
+						for _, i := range channel.RowTracker.Rows {
+							alb := i.(model.Message)
+							albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+						}
+						go channel.DownloadAlbum(ui.SiteId, albumIds, "audio") // TODO
+					} else {
+						go channel.DownloadArtist(ui.SiteId, channel.Id, "audio") // TODO
 					}
 				}
 				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
@@ -645,7 +726,6 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 					for _, artId := range ui.ContextMenuTarget.ParentId {
 						sb = append(sb, zvArtistUrl+artId)
 					}
-
 					gtx.Execute(clipboard.WriteCmd{
 						Data: io.NopCloser(strings.NewReader(strings.Join(sb, ", "))),
 					})
@@ -662,10 +742,17 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 					case 1:
 						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.ZvukQuality)
 					case 4:
-						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.YouQuality)
+						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, "video")
 					}
 				}
 			}
+			if ui.DownloadLowBtn.Clicked(gtx) {
+				active := ui.Rooms.Active()
+				if active != nil {
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, "audio") // TODO
+				}
+			}
+
 			if elemState.Selected.Update(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {

@@ -191,9 +191,10 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, 
 	result, err := goutubedl.New(ctx, url, goutubedl.Options{})
 	if err != nil {
 		log.Println(err)
+		return "0", err
 	}
 
-	downloadResult, err := result.Download(ctx, quality)
+	downloadResult, err := result.Download(ctx, "best")
 	if err != nil {
 		log.Println(err)
 	}
