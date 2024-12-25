@@ -194,7 +194,7 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, 
 		return "0", err
 	}
 
-	var format = "best"
+	format := "best"
 	if quality == "audio" {
 		format = "bestaudio"
 	}

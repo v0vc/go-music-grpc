@@ -599,7 +599,7 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 			mChannel[chId] = absChannelName
 		}
 
-		var ext = ".mp4"
+		ext := ".mp4"
 		if quality == "audio" {
 			ext = ".mp3"
 		}
