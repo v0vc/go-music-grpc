@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -599,7 +598,7 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 			mChannel[chId] = absChannelName
 		}
 
-		ext := ".mp4"
+		/*ext := ".mp4"
 		if quality == "audio" {
 			ext = ".mp3"
 		}
@@ -613,9 +612,9 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 		if exists {
 			fmt.Println(filename + " exists locally, skipped..")
 			continue
-		}
+		}*/
 
-		resDown, err := DownloadVideo(ctx, filename, videoId, quality)
+		resDown, err := DownloadVideo(ctx, absChannelName, videoId, quality)
 		if err != nil {
 			log.Println(title+" can't download.", err)
 			continue

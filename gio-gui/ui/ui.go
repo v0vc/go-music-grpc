@@ -71,7 +71,7 @@ type UI struct {
 	// channel menu
 	SyncBtn, DownloadChannelBtn, DownloadChannelLowBtn, CopyChannelBtn, DeleteBtn widget.Clickable
 	// message menu
-	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn, DownloadLowBtn widget.Clickable
+	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn, DownloadLowBtn, DownloadHqBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
 	MessageMenu component.MenuState
 	// ChannelMenu is the context menu available on channel.
@@ -122,6 +122,11 @@ func createMessageMenu(ui *UI) component.MenuState {
 				func(gtx layout.Context) layout.Dimensions {
 					item := component.MenuItem(ui.th.Theme, &ui.DownloadLowBtn, "Download MP3")
 					item.Icon = icon.AudioTrackIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadHqBtn, "Download HQ")
+					item.Icon = icon.HighQualityIcon
 					return item.Layout(gtx)
 				},
 				func(gtx layout.Context) layout.Dimensions {
@@ -750,6 +755,12 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 				active := ui.Rooms.Active()
 				if active != nil {
 					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, "audio") // TODO
+				}
+			}
+			if ui.DownloadHqBtn.Clicked(gtx) {
+				active := ui.Rooms.Active()
+				if active != nil {
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, "videoHq") // TODO
 				}
 			}
 

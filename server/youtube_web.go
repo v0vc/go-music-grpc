@@ -11,8 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/dustin/go-humanize"
-	"github.com/wader/goutubedl"
+	"github.com/lrstanley/go-ytdlp"
 )
 
 const (
@@ -186,9 +185,37 @@ func GetVidByIds(ctx context.Context, vidIds string, token string) []*vidItem {
 }
 
 func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, error) {
-	url := youtubeVideo + id
+	install, err := ytdlp.Install(ctx, &ytdlp.InstallOptions{AllowVersionMismatch: true})
+	if err != nil {
+		return "-1", err
+	}
+	fmt.Println(install.Executable + ":" + install.Version)
 
-	result, err := goutubedl.New(ctx, url, goutubedl.Options{Type: 1})
+	format := "best"
+	if quality == "audio" {
+		format = "bestaudio"
+	}
+	if quality == "videoHq" {
+		format = "bestvideo+bestaudio"
+	}
+	dl := ytdlp.New().
+		FormatSort("res,ext:mp4:m4a").
+		//RecodeVideo("mp4").
+		//ExtractAudio().
+		//RestrictFilenames().
+		Format(format).
+		Output(videoPath + string(os.PathSeparator) + "%(title)s.%(ext)s")
+
+	res, err := dl.Run(ctx, youtubeVideo+id)
+	if err != nil {
+		log.Println(err)
+		return "-1", err
+	}
+	fmt.Println(res.String())
+
+	return id, nil
+
+	/*result, err := goutubedl.New(ctx, url, goutubedl.Options{Type: 1})
 	if err != nil {
 		log.Println(err)
 		return "0", err
@@ -225,7 +252,7 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, 
 
 	res, err := io.Copy(f, downloadResult)
 	fmt.Println()
-	return humanize.Bytes(uint64(res)), err
+	return humanize.Bytes(uint64(res)), err*/
 }
 
 func geUpload(ctx context.Context, url string) (*Uploads, error) {

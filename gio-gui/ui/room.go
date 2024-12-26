@@ -143,11 +143,11 @@ func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality strin
 	albs := len(ids)
 	switch albs {
 	case 0:
-		r.Content = "All tracks exist locally"
+		r.Content = "All items exist locally"
 	case 1:
-		r.Content = fmt.Sprintf("%d track downloaded", albs)
+		r.Content = fmt.Sprintf("%d item downloaded", albs)
 	default:
-		r.Content = fmt.Sprintf("%d tracks downloaded", albs)
+		r.Content = fmt.Sprintf("%d items downloaded", albs)
 	}
 }
 

@@ -35,6 +35,11 @@ var AudioTrackIcon = func() *widget.Icon {
 	return icon
 }()
 
+var HighQualityIcon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.AVHighQuality)
+	return icon
+}()
+
 var NavBack = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.NavigationArrowBack)
 	return icon

@@ -12,10 +12,10 @@ require (
 	github.com/go-flac/flacvorbis v0.2.0
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
+	github.com/lrstanley/go-ytdlp v0.0.0-20241224003808-35d7acd8beab
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/panjf2000/ants/v2 v2.10.0
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
-	github.com/wader/goutubedl v0.0.0-20241213163500-8ebc956d58c3
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 	golang.org/x/exp/shiny v0.0.0-20241217172543-b2144cdd0a67
 	google.golang.org/grpc v1.68.1
@@ -25,7 +25,10 @@ require (
 require (
 	gioui.org/cpu v0.0.0-20220412190645-f1e9e8c3b1f7 // indirect
 	gioui.org/shader v1.0.8 // indirect
+	github.com/ProtonMail/go-crypto v1.1.3 // indirect
+	github.com/cloudflare/circl v1.5.0 // indirect
 	github.com/go-text/typesetting v0.1.1 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/image v0.23.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
