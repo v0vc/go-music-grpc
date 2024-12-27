@@ -83,9 +83,8 @@ type UI struct {
 	ChannelMenuTarget *Room
 	Invalidator       func()
 	th                *page.Theme
+	Conf              *page.Config
 	SiteId            uint32
-	LoadSize          int
-	ZvukQuality       string
 	RadioButtonsGroup widget.Enum
 }
 
@@ -207,13 +206,12 @@ func createChannelMenu(ui *UI) component.MenuState {
 }
 
 // NewUI constructs a UI and populates it with data.
-func NewUI(invalidator func(), theme *page.Theme, loadSize int, zvukQuality string, siteId uint32) *UI {
+func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint32) *UI {
 	var ui UI
 	ui.th = theme
 	ui.Invalidator = invalidator
 	ui.SiteId = siteId
-	ui.LoadSize = loadSize
-	ui.ZvukQuality = zvukQuality
+	ui.Conf = conf
 	ui.MessageMenu = createMessageMenu(&ui)
 	ui.ChannelMenu = createChannelMenu(&ui)
 	g := &gen.Generator{}
@@ -238,7 +236,7 @@ func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 				SerialToIndex: make(map[list.Serial]int),
 				Generator:     g,
 				Messages:      albums,
-				MaxLoads:      ui.LoadSize,
+				MaxLoads:      ui.Conf.LoadSize,
 				ScrollToEnd:   false,
 			}
 			room := &Room{
@@ -262,9 +260,9 @@ func (ui *UI) MassDownload(siteId uint32) {
 	var quality string
 	switch ui.SiteId {
 	case 1:
-		quality = ui.ZvukQuality
+		quality = ui.Conf.ZvukQuality
 	case 4:
-		quality = "video"
+		quality = ui.Conf.YouVideoQuality
 	}
 	go curChannel.DownloadAlbum(siteId, curChannel.Selected, quality)
 }
@@ -562,9 +560,9 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 					var quality string
 					switch ui.SiteId {
 					case 1:
-						quality = ui.ZvukQuality
+						quality = ui.Conf.ZvukQuality
 					case 4:
-						quality = "video"
+						quality = ui.Conf.YouVideoQuality
 					}
 					if channel.Loaded {
 						var albumIds []string
@@ -745,22 +743,22 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 				if active != nil {
 					switch ui.SiteId {
 					case 1:
-						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.ZvukQuality)
+						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.Conf.ZvukQuality)
 					case 4:
-						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, "video")
+						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.Conf.YouVideoQuality)
 					}
 				}
 			}
 			if ui.DownloadLowBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, "audio") // TODO
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.Conf.YouAudioQuality)
 				}
 			}
 			if ui.DownloadHqBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, "videoHq") // TODO
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.Conf.YouVideoHqQuality)
 				}
 			}
 

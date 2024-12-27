@@ -191,19 +191,9 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, 
 	}
 	fmt.Println(install.Executable + ":" + install.Version)
 
-	format := "best"
-	if quality == "audio" {
-		format = "bestaudio"
-	}
-	if quality == "videoHq" {
-		format = "bestvideo+bestaudio"
-	}
 	dl := ytdlp.New().
 		FormatSort("res,ext:mp4:m4a").
-		//RecodeVideo("mp4").
-		//ExtractAudio().
-		//RestrictFilenames().
-		Format(format).
+		Format(quality).
 		Output(videoPath + string(os.PathSeparator) + "%(title)s.%(ext)s")
 
 	res, err := dl.Run(ctx, youtubeVideo+id)

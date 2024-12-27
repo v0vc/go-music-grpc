@@ -15,9 +15,12 @@ import (
 )
 
 const (
-	defaultLoadSize    = 30
-	defaultTheme       = "light"
-	defaultZvukQuality = "mid"
+	defaultLoadSize          = 30
+	defaultTheme             = "light"
+	defaultZvukQuality       = "mid"
+	defaultYouVideoQuality   = "best"
+	defaultYouVideoHqQuality = "bestvideo+bestaudio"
+	defaultYouAudioQuality   = "bestaudio"
 )
 
 func main() {
@@ -64,6 +67,24 @@ func parseConf() *page.Config {
 		} else {
 			conf.ZvukQuality = defaultZvukQuality
 		}
+		youVideoQuality := os.Getenv("YouVideoQuality")
+		if youVideoQuality != "" {
+			conf.YouVideoQuality = youVideoQuality
+		} else {
+			conf.YouVideoQuality = defaultYouVideoQuality
+		}
+		youVideoHqQuality := os.Getenv("YouVideoHqQuality")
+		if youVideoHqQuality != "" {
+			conf.YouVideoHqQuality = youVideoHqQuality
+		} else {
+			conf.YouVideoHqQuality = defaultYouVideoHqQuality
+		}
+		youAudioQuality := os.Getenv("YouAudioQuality")
+		if youAudioQuality != "" {
+			conf.YouAudioQuality = youAudioQuality
+		} else {
+			conf.YouAudioQuality = defaultYouAudioQuality
+		}
 	}
 	return &conf
 }
@@ -76,11 +97,6 @@ func loop(w *app.Window) error {
 	router := page.NewRouter(w)
 	router.Register(0, zvuk.New(&router))
 	router.Register(1, youtube.New(&router))
-	// router.Register(2, spotify.New(&router))
-	// router.Register(3, deezer.New(&router))
-	// router.Register(4, rutracker.New(&router))*/
-	// router.Register(5, textfield.New(&router))
-	// router.Register(6, appbar.New(&router))
 
 	for {
 		// detect the type of the event.
@@ -89,7 +105,7 @@ func loop(w *app.Window) error {
 			return e.Err
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
-			router.Layout(gtx, th, conf.LoadSize, conf.ZvukQuality)
+			router.Layout(gtx, th, conf)
 			e.Frame(gtx.Ops)
 		}
 	}
