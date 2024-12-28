@@ -184,6 +184,8 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			fmt.Printf("Processed playlist: %v, id: %v \n", uploadId, plId)
 		}
 
+		// TODO GetPlaylists and insert data
+
 		stChPl, er := tx.PrepareContext(ctx, "insert into main.channelPlaylist(channelId, playlistId) values (?,?) on conflict do nothing;")
 		if er != nil {
 			log.Println(er)

@@ -15,15 +15,16 @@ import (
 )
 
 const (
-	youtubeVideo       = "https://www.youtube.com/watch?v="
-	youtubeApi         = "https://www.googleapis.com/youtube/v3/"
-	chanelString       = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
-	uploadString       = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
-	uploadsIdsString   = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet&fields=nextPageToken,items(snippet(resourceId(videoId)))&maxResults=50&prettyPrint=false"
-	statisticString    = "videos?id=[VID]&key=[KEY]&part=contentDetails,statistics&fields=items(id,contentDetails(duration),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
-	channelIdByVideoId = "videos?id=[ID]&key=[KEY]&part=snippet&fields=items(snippet(channelId))&prettyPrint=false"
-	channelIdByHandle  = "channels?forHandle=[ID]&key=[KEY]&part=snippet&fields=items(id)&{PrintType}&prettyPrint=false"
-	vidByIdsString     = "videos?id=[VID]&key=[KEY]&part=snippet,statistics,contentDetails&fields=items(id,contentDetails(duration),snippet(publishedAt,title,thumbnails(default(url))),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
+	youtubeVideo        = "https://www.youtube.com/watch?v="
+	youtubeApi          = "https://www.googleapis.com/youtube/v3/"
+	chanelString        = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
+	uploadString        = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
+	uploadsIdsString    = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet&fields=nextPageToken,items(snippet(resourceId(videoId)))&maxResults=50&prettyPrint=false"
+	statisticString     = "videos?id=[VID]&key=[KEY]&part=contentDetails,statistics&fields=items(id,contentDetails(duration),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
+	channelIdByVideoId  = "videos?id=[ID]&key=[KEY]&part=snippet&fields=items(snippet(channelId))&prettyPrint=false"
+	channelIdByHandle   = "channels?forHandle=[ID]&key=[KEY]&part=snippet&fields=items(id)&{PrintType}&prettyPrint=false"
+	vidByIdsString      = "videos?id=[VID]&key=[KEY]&part=snippet,statistics,contentDetails&fields=items(id,contentDetails(duration),snippet(publishedAt,title,thumbnails(default(url))),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
+	playlistByChannelId = "playlists?channelId=[ID]&key=[KEY]&part=snippet&fields=nextPageToken,items(id,snippet(title,thumbnails(default(url))))&maxResults=50&prettyPrint=false"
 )
 
 func GeChannelId(ctx context.Context, token string, id string) (string, error) {
@@ -95,11 +96,11 @@ func GetChannel(ctx context.Context, channelId string, apiKey string) (*Channel,
 
 func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem {
 	var videos []*vidItem
-	urlUploadRaw := strings.Replace(strings.Replace(uploadString, "[ID]", uploadId, 1), "[KEY]", token, 1)
-	urlUpload := urlUploadRaw
+	urlRaw := strings.Replace(strings.Replace(uploadString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	url := urlRaw
 	i := 0
 	for {
-		upl, e := geUpload(ctx, urlUpload)
+		upl, e := geUpload(ctx, url)
 		if e == nil && upl != nil {
 			var sb strings.Builder
 			for _, vid := range upl.Items {
@@ -128,11 +129,11 @@ func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem
 			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
-			fmt.Println("got no nextPageToken, all videos done")
+			fmt.Println("got no nextPageToken, all done")
 			break
 		} else {
 			fmt.Println("nextPageToken: ", upl.NextPageToken)
-			urlUpload = fmt.Sprintf("%s&pageToken=%s", urlUploadRaw, upl.NextPageToken)
+			url = fmt.Sprintf("%s&pageToken=%s", urlRaw, upl.NextPageToken)
 		}
 		i++
 	}
@@ -141,22 +142,22 @@ func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem
 
 func GetUploadIds(ctx context.Context, uploadId string, token string) []string {
 	var netIds []string
-	urlIdsUploadRaw := strings.Replace(strings.Replace(uploadsIdsString, "[ID]", uploadId, 1), "[KEY]", token, 1)
-	urlIdsUpload := urlIdsUploadRaw
+	urlRaw := strings.Replace(strings.Replace(uploadsIdsString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	url := urlRaw
 	i := 0
 	for {
-		upl, e := geUploadIds(ctx, urlIdsUpload)
+		upl, e := geUploadIds(ctx, url)
 		if e == nil && upl != nil {
 			for _, vid := range upl.Items {
 				netIds = append(netIds, vid.Snippet.ResourceID.VideoID)
 			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
-			fmt.Println("got no nextPageToken, all videos done")
+			fmt.Println("got no nextPageToken, all done")
 			break
 		} else {
 			fmt.Println("nextPageToken: ", upl.NextPageToken)
-			urlIdsUpload = fmt.Sprintf("%s&pageToken=%s", urlIdsUploadRaw, upl.NextPageToken)
+			url = fmt.Sprintf("%s&pageToken=%s", urlRaw, upl.NextPageToken)
 		}
 		i++
 	}
@@ -182,6 +183,28 @@ func GetVidByIds(ctx context.Context, vidIds string, token string) []*vidItem {
 		}
 	}
 	return videos
+}
+
+func GetPlaylists(ctx context.Context, channelId string, token string) []*PlaylistByChannel {
+	var res []*PlaylistByChannel
+	urlRaw := strings.Replace(strings.Replace(playlistByChannelId, "[ID]", channelId, 1), "[KEY]", token, 1)
+	url := urlRaw
+	i := 0
+	for {
+		upl, e := getPlaylist(ctx, url)
+		if e == nil && upl != nil {
+			res = append(res, upl)
+		}
+		if upl == nil || upl.NextPageToken == "" {
+			fmt.Println("got no nextPageToken, all done")
+			break
+		} else {
+			fmt.Println("nextPageToken: ", upl.NextPageToken)
+			url = fmt.Sprintf("%s&pageToken=%s", urlRaw, upl.NextPageToken)
+		}
+		i++
+	}
+	return res
 }
 
 func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, error) {
@@ -262,12 +285,12 @@ func geUpload(ctx context.Context, url string) (*Uploads, error) {
 		}
 	}(response.Body)
 
-	var uploads *Uploads
-	err = json.NewDecoder(response.Body).Decode(&uploads)
-	if err != nil || uploads == nil {
+	var res *Uploads
+	err = json.NewDecoder(response.Body).Decode(&res)
+	if err != nil || res == nil {
 		return new(Uploads), err
 	}
-	return uploads, nil
+	return res, nil
 }
 
 func geUploadIds(ctx context.Context, url string) (*UploadIds, error) {
@@ -287,12 +310,12 @@ func geUploadIds(ctx context.Context, url string) (*UploadIds, error) {
 		}
 	}(response.Body)
 
-	var uploads *UploadIds
-	err = json.NewDecoder(response.Body).Decode(&uploads)
-	if err != nil || uploads == nil {
+	var res *UploadIds
+	err = json.NewDecoder(response.Body).Decode(&res)
+	if err != nil || res == nil {
 		return new(UploadIds), err
 	}
-	return uploads, nil
+	return res, nil
 }
 
 func geStatistics(ctx context.Context, url string) (*Statistics, error) {
@@ -312,12 +335,12 @@ func geStatistics(ctx context.Context, url string) (*Statistics, error) {
 		}
 	}(response.Body)
 
-	var stat *Statistics
-	err = json.NewDecoder(response.Body).Decode(&stat)
-	if err != nil || stat == nil {
+	var res *Statistics
+	err = json.NewDecoder(response.Body).Decode(&res)
+	if err != nil || res == nil {
 		return new(Statistics), err
 	}
-	return stat, nil
+	return res, nil
 }
 
 func getVidById(ctx context.Context, url string) (*VideoById, error) {
@@ -337,10 +360,35 @@ func getVidById(ctx context.Context, url string) (*VideoById, error) {
 		}
 	}(response.Body)
 
-	var stat *VideoById
-	err = json.NewDecoder(response.Body).Decode(&stat)
-	if err != nil || stat == nil {
+	var res *VideoById
+	err = json.NewDecoder(response.Body).Decode(&res)
+	if err != nil || res == nil {
 		return new(VideoById), err
 	}
-	return stat, nil
+	return res, nil
+}
+
+func getPlaylist(ctx context.Context, url string) (*PlaylistByChannel, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeApi+url, nil)
+	if err != nil {
+		return new(PlaylistByChannel), err
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil || response == nil || response.StatusCode != http.StatusOK {
+		return new(PlaylistByChannel), err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
+
+	var res *PlaylistByChannel
+	err = json.NewDecoder(response.Body).Decode(&res)
+	if err != nil || res == nil {
+		return new(PlaylistByChannel), err
+	}
+	return res, nil
 }

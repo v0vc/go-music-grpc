@@ -103,6 +103,21 @@ type VideoById struct {
 	} `json:"items,omitempty"`
 }
 
+type PlaylistByChannel struct {
+	NextPageToken string `json:"nextPageToken,omitempty"`
+	Items         []struct {
+		ID      string `json:"id,omitempty"`
+		Snippet struct {
+			Title      string `json:"title,omitempty"`
+			Thumbnails struct {
+				Default struct {
+					URL string `json:"url,omitempty"`
+				} `json:"default,omitempty"`
+			} `json:"thumbnails,omitempty"`
+		} `json:"snippet,omitempty"`
+	} `json:"items,omitempty"`
+}
+
 type vidItem struct {
 	id            string
 	title         string
