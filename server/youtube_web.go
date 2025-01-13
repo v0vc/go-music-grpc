@@ -19,15 +19,16 @@ const (
 	youtubeApi          = "https://www.googleapis.com/youtube/v3/"
 	chanelString        = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
 	uploadString        = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
-	uploadsIdsString    = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet&fields=nextPageToken,items(snippet(resourceId(videoId)))&maxResults=50&prettyPrint=false"
+	playlistIdsString   = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet&fields=nextPageToken,items(snippet(resourceId(videoId)))&maxResults=50&prettyPrint=false"
 	statisticString     = "videos?id=[VID]&key=[KEY]&part=contentDetails,statistics&fields=items(id,contentDetails(duration),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
 	channelIdByVideoId  = "videos?id=[ID]&key=[KEY]&part=snippet&fields=items(snippet(channelId))&prettyPrint=false"
+	channelIdByVideoIds = "videos?id=[ID]&key=[KEY]&part=snippet&fields=items(id,snippet(channelId))&prettyPrint=false"
 	channelIdByHandle   = "channels?forHandle=[ID]&key=[KEY]&part=snippet&fields=items(id)&{PrintType}&prettyPrint=false"
 	vidByIdsString      = "videos?id=[VID]&key=[KEY]&part=snippet,statistics,contentDetails&fields=items(id,contentDetails(duration),snippet(publishedAt,title,thumbnails(default(url))),statistics(viewCount,commentCount,likeCount))&prettyPrint=false"
 	playlistByChannelId = "playlists?channelId=[ID]&key=[KEY]&part=snippet&fields=nextPageToken,items(id,snippet(title,thumbnails(default(url))))&maxResults=50&prettyPrint=false"
 )
 
-func GeChannelId(ctx context.Context, token string, id string) (string, error) {
+func GetChannelId(ctx context.Context, token string, id string) (string, error) {
 	var url string
 	if strings.HasPrefix(id, "@") {
 		url = strings.Replace(strings.Replace(channelIdByHandle, "[ID]", id, 1), "[KEY]", token, 1)
@@ -66,6 +67,47 @@ func GeChannelId(ctx context.Context, token string, id string) (string, error) {
 		}
 		return chId.Items[0].Snippet.ChannelID, nil
 	}
+}
+
+func GetChannelIdsByVid(ctx context.Context, token string, ids string, channelId string) (string, error) {
+	url := strings.Replace(strings.Replace(channelIdByVideoIds, "[ID]", ids, 1), "[KEY]", token, 1)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeApi+url, nil)
+	if err != nil {
+		return "", err
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil || response == nil || response.StatusCode != http.StatusOK {
+		return "", err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(response.Body)
+
+	var res *ChannelIdByVid
+	err = json.NewDecoder(response.Body).Decode(&res)
+	if err != nil || res == nil {
+		return "", err
+	}
+
+	var result []string
+	for _, item := range res.Items {
+		chId := item.Snippet.ChannelID
+		if channelId != chId {
+			continue
+		}
+		result = append(result, chId)
+	}
+
+	var sb strings.Builder
+	for _, vid := range result {
+		sb.WriteString(vid + ",")
+	}
+
+	return strings.TrimRight(sb.String(), ","), nil
 }
 
 func GetChannel(ctx context.Context, channelId string, apiKey string) (*Channel, error) {
@@ -140,9 +182,9 @@ func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem
 	return videos
 }
 
-func GetUploadIds(ctx context.Context, uploadId string, token string) []string {
+func GetPlaylistVidIds(ctx context.Context, uploadId string, token string) []string {
 	var netIds []string
-	urlRaw := strings.Replace(strings.Replace(uploadsIdsString, "[ID]", uploadId, 1), "[KEY]", token, 1)
+	urlRaw := strings.Replace(strings.Replace(playlistIdsString, "[ID]", uploadId, 1), "[KEY]", token, 1)
 	url := urlRaw
 	i := 0
 	for {
@@ -185,15 +227,21 @@ func GetVidByIds(ctx context.Context, vidIds string, token string) []*vidItem {
 	return videos
 }
 
-func GetPlaylists(ctx context.Context, channelId string, token string) []*PlaylistByChannel {
-	var res []*PlaylistByChannel
+func GetPlaylists(ctx context.Context, channelId string, token string) []*plItem {
+	var res []*plItem
 	urlRaw := strings.Replace(strings.Replace(playlistByChannelId, "[ID]", channelId, 1), "[KEY]", token, 1)
 	url := urlRaw
 	i := 0
 	for {
 		upl, e := getPlaylist(ctx, url)
 		if e == nil && upl != nil {
-			res = append(res, upl)
+			for _, pl := range upl.Items {
+				res = append(res, &plItem{
+					id:     pl.ID,
+					title:  pl.Snippet.Title,
+					typePl: 1,
+				})
+			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
 			fmt.Println("got no nextPageToken, all done")

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 
+	"gioui.org/io/system"
+
 	"github.com/v0vc/go-music-grpc/gio-gui/pages/youtube"
 
 	"gioui.org/app"
@@ -27,6 +29,7 @@ func main() {
 	/*flag.Parse()*/
 	go func() {
 		w := new(app.Window)
+		w.Perform(system.ActionCenter)
 		/*w.Option(
 			app.Title("Gio CMT v0.0.1"),
 		)*/

@@ -116,7 +116,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 	// при добавлении мы поддерживаем все варианты на Ui (ссылка на видео, на канал и тд)
 	if isAdd && strings.HasPrefix(channelId.Id, "@") || len(channelId.Id) == 11 {
 		// с ui пришли либо имя канала с @, либо id видео, найдем id канала
-		chId, er := GeChannelId(ctx, token, channelId.Id)
+		chId, er := GetChannelId(ctx, token, channelId.Id)
 		if er != nil {
 			log.Println(er)
 		}
@@ -128,7 +128,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 		isAdd = false
 	}
 
-	fmt.Printf("Channel id is: %v \n", channelId.Id)
+	fmt.Printf("channel id is: %v \n", channelId.Id)
 
 	if isAdd {
 		ch, er := GetChannel(ctx, channelId.Id, token)
@@ -154,7 +154,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 		if insErr != nil {
 			log.Println(insErr)
 		} else {
-			fmt.Printf("Processed channel: %v, id: %v \n", ch.Items[0].Snippet.Title, chId)
+			fmt.Printf("processed channel: %v, id: %v \n", ch.Items[0].Snippet.Title, chId)
 		}
 
 		resArtist := &artist.Artist{
@@ -164,7 +164,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			Thumbnail: chThumb,
 		}
 
-		stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId) values (?) on conflict (playlistId, title) do nothing returning pl_id;")
+		stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId,title,playlistType) values (?,?,?) on conflict (playlistId, title) do nothing returning pl_id;")
 		if er != nil {
 			log.Println(er)
 		}
@@ -174,17 +174,6 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				log.Println(er)
 			}
 		}(stPlaylist)
-
-		uploadId := ch.Items[0].ContentDetails.RelatedPlaylists.Uploads
-		var plId int
-		insEr := stPlaylist.QueryRowContext(ctx, uploadId).Scan(&plId)
-		if insErr != nil {
-			log.Println(insEr)
-		} else {
-			fmt.Printf("Processed playlist: %v, id: %v \n", uploadId, plId)
-		}
-
-		// TODO GetPlaylists and insert data
 
 		stChPl, er := tx.PrepareContext(ctx, "insert into main.channelPlaylist(channelId, playlistId) values (?,?) on conflict do nothing;")
 		if er != nil {
@@ -197,16 +186,69 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			}
 		}(stChPl)
 
-		_, er = stChPl.ExecContext(ctx, chId, plId)
-		if er != nil {
-			log.Println(er)
+		allPl := GetPlaylists(ctx, channelId.Id, token)
+		allPl = append(allPl, &plItem{
+			id:     ch.Items[0].ContentDetails.RelatedPlaylists.Uploads,
+			title:  "Uploads",
+			typePl: 0,
+		})
+
+		for _, item := range allPl {
+			var plId int
+			insEr := stPlaylist.QueryRowContext(ctx, item.id).Scan(&plId)
+			if insErr != nil {
+				log.Println(insEr)
+			} else {
+				fmt.Printf("processed playlist: %v, id: %v \n", item.id, plId)
+				item.rawId = plId
+				_, er = stChPl.ExecContext(ctx, chId, plId)
+				if er != nil {
+					log.Println(er)
+				}
+			}
 		}
 
-		videos := GetUploadVid(ctx, uploadId, token)
+		uploadPl := allPl[len(allPl)-1]
+		videos := GetUploadVid(ctx, uploadPl.id, token)
+		var uploadVidIds map[string]int
 		if videos != nil {
-			processVideos(ctx, tx, videos, resArtist, plId, channelId.Id, 0)
+			uploadVidIds = processVideos(ctx, tx, videos, resArtist, uploadPl.rawId, channelId.Id, 0)
 		} else {
-			log.Println("Can't get video from api")
+			log.Println("can't get video from api")
+		}
+
+		var notUploadId []string
+		for _, item := range allPl[:len(allPl)-1] {
+			netPlIds := GetPlaylistVidIds(ctx, item.id, token)
+			plVid := make(map[string]int)
+			for _, vId := range netPlIds {
+				rawVidId, ok := uploadVidIds[vId]
+				if ok {
+					plVid[vId] = rawVidId
+				} else {
+					notUploadId = append(notUploadId, vId)
+				}
+			}
+			insertPlaylistVideoIds(ctx, tx, plVid, item.rawId)
+		}
+
+		for c := range slices.Chunk(notUploadId, 50) {
+			var sb strings.Builder
+			for _, vid := range c {
+				sb.WriteString(vid + ",")
+			}
+			chVideosIds, e := GetChannelIdsByVid(ctx, strings.TrimRight(sb.String(), ","), token, channelId.Id)
+			if e != nil {
+				log.Println(e)
+			} else {
+				fmt.Println("found unlisted video(s): " + chVideosIds)
+				unlistedVideos := GetVidByIds(ctx, chVideosIds, token)
+				if unlistedVideos != nil {
+					processVideos(ctx, tx, unlistedVideos, resArtist, channelId.RawPlId, channelId.Id, 0)
+				} else {
+					log.Println("can't get unlisted video from api")
+				}
+			}
 		}
 
 		return resArtist, tx.Commit()
@@ -217,7 +259,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			// кликнули по конкретному каналу
 			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id)
 		}
-		netIds := GetUploadIds(ctx, channelId.PlaylistId, token)
+		netIds := GetPlaylistVidIds(ctx, channelId.PlaylistId, token)
 		newVidIds := FindDifference(netIds, channelId.vidIds)
 		fmt.Printf("siteId: %v, channelId: %d, new videos: %d\n", siteId, channelId.RawId, len(newVidIds))
 
@@ -244,7 +286,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 	}
 }
 
-func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist *artist.Artist, plId int, channelId string, syncState int32) {
+func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist *artist.Artist, plId int, channelId string, syncState int32) map[string]int {
 	stVideo, err := tx.PrepareContext(ctx, "insert into main.video(videoId, title, timestamp, duration, likeCount, viewCount, commentCount, syncState, thumbnail) values (?,?,?,?,?,?,?,?,?) on conflict (videoId, title) do update set syncState = 1 returning vid_id;")
 	if err != nil {
 		log.Println(err)
@@ -256,7 +298,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 		}
 	}(stVideo)
 
-	var vidRawIds []int
+	mVidRawIds := make(map[string]int)
 	for _, vid := range videos {
 		vThumb := GetThumb(ctx, vid.thumbnailLink)
 		var vidId int
@@ -266,7 +308,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 			log.Println(vidErr)
 		} else {
 			fmt.Printf("Processed video: %v \n", vidId)
-			vidRawIds = append(vidRawIds, vidId)
+			mVidRawIds[vid.id] = vidId
 			date, _ := time.Parse(time.DateTime, vid.published)
 
 			resArtist.Albums = append(resArtist.Albums, &artist.Album{
@@ -282,22 +324,28 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 		}
 	}
 
-	sqlStr := fmt.Sprintf("insert into main.playlistVideo(playlistId, videoId) values %v on conflict (playlistId, videoId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(videos)), ","))
+	insertPlaylistVideoIds(ctx, tx, mVidRawIds, plId)
+
+	return mVidRawIds
+}
+
+func insertPlaylistVideoIds(ctx context.Context, tx *sql.Tx, mVidRawIds map[string]int, plId int) {
+	sqlStr := fmt.Sprintf("insert into main.playlistVideo(playlistId, videoId) values %v on conflict (playlistId, videoId) do nothing;", strings.TrimSuffix(strings.Repeat("(?,?),", len(mVidRawIds)), ","))
 	stArtAlb, _ := tx.PrepareContext(ctx, sqlStr)
 
 	defer func(stArtAlb *sql.Stmt) {
-		err = stArtAlb.Close()
+		err := stArtAlb.Close()
 		if err != nil {
 			log.Println(err)
 		}
 	}(stArtAlb)
 
 	var args []interface{}
-	for _, v := range vidRawIds {
+	for _, v := range mVidRawIds {
 		args = append(args, plId, v)
 	}
 
-	_, err = stArtAlb.ExecContext(ctx, args...)
+	_, err := stArtAlb.ExecContext(ctx, args...)
 	if err != nil {
 		log.Println(err)
 	}

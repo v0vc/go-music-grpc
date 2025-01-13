@@ -74,6 +74,15 @@ type ChannelId struct {
 	} `json:"items,omitempty"`
 }
 
+type ChannelIdByVid struct {
+	Items []struct {
+		ID      string `json:"id,omitempty"`
+		Snippet struct {
+			ChannelID string `json:"channelId,omitempty"`
+		} `json:"snippet,omitempty"`
+	} `json:"items,omitempty"`
+}
+
 type ChannelIdHandle struct {
 	Items []struct {
 		ID string `json:"id,omitempty"`
@@ -127,4 +136,11 @@ type vidItem struct {
 	viewCount     string
 	commentCount  string
 	thumbnailLink string
+}
+
+type plItem struct {
+	id     string
+	title  string
+	typePl int
+	rawId  int
 }
