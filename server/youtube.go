@@ -195,8 +195,8 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 		for _, item := range allPl {
 			var plId int
-			insEr := stPlaylist.QueryRowContext(ctx, item.id).Scan(&plId)
-			if insErr != nil {
+			insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl).Scan(&plId)
+			if insEr != nil {
 				log.Println(insEr)
 			} else {
 				fmt.Printf("processed playlist: %v, id: %v \n", item.id, plId)
@@ -237,11 +237,13 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			for _, vid := range c {
 				sb.WriteString(vid + ",")
 			}
-			chVideosIds, e := GetChannelIdsByVid(ctx, strings.TrimRight(sb.String(), ","), token, channelId.Id)
+			notListed := strings.TrimRight(sb.String(), ",")
+			fmt.Println("found unlisted video(s): " + notListed)
+			chVideosIds, e := GetChannelIdsByVid(ctx, token, notListed, channelId.Id)
 			if e != nil {
 				log.Println(e)
-			} else {
-				fmt.Println("found unlisted video(s): " + chVideosIds)
+			} else if chVideosIds != "" {
+				fmt.Println("processable unlisted video(s): " + chVideosIds)
 				unlistedVideos := GetVidByIds(ctx, chVideosIds, token)
 				if unlistedVideos != nil {
 					processVideos(ctx, tx, unlistedVideos, resArtist, channelId.RawPlId, channelId.Id, 0)
@@ -307,7 +309,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 		if vidErr != nil {
 			log.Println(vidErr)
 		} else {
-			fmt.Printf("Processed video: %v \n", vidId)
+			fmt.Printf("processed video: %v \n", vid.id)
 			mVidRawIds[vid.id] = vidId
 			date, _ := time.Parse(time.DateTime, vid.published)
 
