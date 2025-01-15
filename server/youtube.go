@@ -193,7 +193,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			typePl: 0,
 		})
 
-		for _, item := range allPl {
+		for i, item := range allPl {
 			var plId int
 			insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl).Scan(&plId)
 			if insEr != nil {
@@ -204,6 +204,8 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				_, er = stChPl.ExecContext(ctx, chId, plId)
 				if er != nil {
 					log.Println(er)
+				} else if i == len(allPl)-1 {
+					channelId.RawPlId = plId
 				}
 			}
 		}

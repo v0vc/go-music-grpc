@@ -99,7 +99,7 @@ func GetChannelIdsByVid(ctx context.Context, token string, ids string, channelId
 		if channelId != chId {
 			continue
 		}
-		result = append(result, chId)
+		result = append(result, item.ID)
 	}
 
 	var sb strings.Builder
