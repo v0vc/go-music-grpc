@@ -129,7 +129,7 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 		SiteId:   siteId,
 		ArtistId: artistId,
 		IsAdd:    true,
-	})
+	}, grpc.MaxCallRecvMsgSize(1024*1024*12))
 	if err != nil {
 		return nil, nil, "", err
 	}
