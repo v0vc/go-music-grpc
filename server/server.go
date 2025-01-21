@@ -167,7 +167,7 @@ func GetThumb(ctx context.Context, url string) []byte {
 	response, err := http.DefaultClient.Do(req)
 
 	if err != nil || response == nil {
-		return []byte{}
+		return nil
 	}
 	defer func(Body io.ReadCloser) {
 		err = Body.Close()
@@ -179,12 +179,12 @@ func GetThumb(ctx context.Context, url string) []byte {
 	if response.StatusCode == http.StatusOK || response.StatusCode == http.StatusNotModified {
 		res, er := io.ReadAll(response.Body)
 		if er != nil {
-			return []byte{}
+			return nil
 		}
 		return res
 
 	}
-	return []byte{}
+	return nil
 }
 
 func vacuumDb(ctx context.Context) {

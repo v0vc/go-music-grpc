@@ -331,7 +331,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 		ch.Content = err.Error()
 		return
 	} else {
-		ch.Content = fmt.Sprintf("%v (%v)", artTitle, time.Since(start))
+		ch.Content = fmt.Sprintf("%v %v", time.Since(start), artTitle)
 	}
 
 	MapDto(ui, channels, albums, g)

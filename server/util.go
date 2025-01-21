@@ -110,6 +110,7 @@ func PrepareThumb(imgByte []byte, borderWidth int, length int, width int, jpegQu
 	img, _, err := image.Decode(bytes.NewReader(imgByte))
 	if err != nil {
 		log.Println(err)
+		return nil
 	}
 
 	borderColor := color.RGBA{R: 0, A: 0}

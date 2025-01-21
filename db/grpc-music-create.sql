@@ -63,6 +63,8 @@ CREATE TABLE video (
     viewCount INTEGER,
     commentCount INTEGER,
     syncState INTEGER default 0,
+    listState INTEGER default 0,
+    watchState INTEGER default 0,
     thumbnail BLOB,
     quality REAL GENERATED ALWAYS AS (1.0 * likeCount / viewCount * 100) VIRTUAL,
     UNIQUE(videoId,title)
@@ -73,7 +75,7 @@ CREATE TABLE playlistVideo (
     UNIQUE(playlistId,videoId)
 );
 
-CREATE TRIGGER delete_channel BEFORE DELETE ON channel
+CREATE TRIGGER IF NOT EXISTS delete_channel BEFORE DELETE ON channel
     BEGIN
         DELETE FROM video WHERE vid_id in (SELECT videoId FROM playlistVideo WHERE playlistId in (SELECT playlistId FROM channelPlaylist WHERE channelId = old.ch_id));
         DELETE FROM playlist WHERE pl_id in (SELECT playlistId FROM channelPlaylist WHERE channelId = old.ch_id);
