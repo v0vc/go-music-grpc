@@ -45,6 +45,7 @@ type server struct {
 }
 
 type ArtistRawId struct {
+	isPlSync       bool
 	RawId, RawPlId int
 	Id, PlaylistId string
 	vidIds         []string
@@ -260,6 +261,9 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 				artIds, err = GetChannelIdsFromDb(ctx, siteId)
 			} else {
 				artIds = append(artIds, ArtistRawId{Id: artistId})
+			}
+			if len(artIds) == 1 {
+				artIds[0].isPlSync = true
 			}
 
 			for _, artId := range artIds {

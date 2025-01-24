@@ -290,6 +290,25 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			}
 		}
 
+		if channelId.isPlSync {
+			// TODO синк полный с плейлистами
+			//
+			stPlRem, er := tx.PrepareContext(ctx, "delete from main.playlist where pl_id in (select cp.playlistId from main.channelPlaylist cp inner join main.playlist p on cp.playlistId = p.pl_id where cp.channelId = ? and p.playlistType = 1);")
+			if er != nil {
+				log.Println(er)
+			}
+			defer func(stPlRem *sql.Stmt) {
+				er = stPlRem.Close()
+				if er != nil {
+					log.Println(er)
+				}
+			}(stPlRem)
+			_, er = stPlRem.ExecContext(ctx, channelId.RawId)
+			if er != nil {
+				log.Println(er)
+			}
+		}
+
 		return resArtist, tx.Commit()
 	}
 }
