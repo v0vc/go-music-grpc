@@ -21,17 +21,21 @@ tasks:
     - golangci-lint run -v --timeout 10m
 
   update:
+    - go get -u all
 #    - go get gioui.org@latest
-#    - go get -u all
-    - go get github.com/mattn/go-sqlite3@latest
-    - go get golang.org/x/exp@latest
-    - go get golang.org/x/exp/shiny@latest
-    - go get golang.org/x/net@latest
-    - go get google.golang.org/protobuf@latest
-    - go get google.golang.org/genproto@latest
-    - go get google.golang.org/genproto/googleapis/rpc@latest
+#    - go get github.com/mattn/go-sqlite3@latest
+#    - go get golang.org/x/exp@latest
+#    - go get golang.org/x/exp/shiny@latest
+#    - go get golang.org/x/net@latest
+#    - go get google.golang.org/protobuf@latest
+#    - go get google.golang.org/genproto@latest
+#    - go get google.golang.org/genproto/googleapis/rpc@latest
 #    - go get google.golang.org/grpc@latest
-    - go get golang.org/x/image@latest
+#    - go get golang.org/x/image@latest
+#    - go get github.com/disintegration/imaging@latest
+#    - go get github.com/dustin/go-humanize@latest
+#    - go get github.com/lrstanley/go-ytdlp@latest
+#    - go get github.com/panjf2000/ants/v2@latest
     - go mod tidy
 
   build:
