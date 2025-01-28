@@ -542,54 +542,6 @@ func GetArtistIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, erro
 	return artistIds, err
 }
 
-func GetAlbumTrackFromDb(ctx context.Context, siteId uint32, albumId string) ([]*artist.Track, error) {
-	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(db *sql.DB) {
-		err = db.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(db)
-
-	stRows, err := db.PrepareContext(ctx, "select t.trk_id, t.trackId, t.title, t.hasFlac, t.hasLyric, t.quality, t.condition, t.genre, t.trackNum, t.duration from main.albumTrack at join track t on t.trk_id = at.trackId join main.artistAlbum aa on at.albumId = aa.albumId join main.album a on a.alb_id = at.albumId join main.artist ar on ar.art_id = aa.artistId where a.albumId = ? and ar.siteId = ? order by t.trackNum;")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stRows *sql.Stmt) {
-		err = stRows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stRows)
-
-	rows, err := stRows.QueryContext(ctx, albumId, siteId)
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(rows *sql.Rows) {
-		err = rows.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(rows)
-
-	var tracks []*artist.Track
-
-	for rows.Next() {
-		var track artist.Track
-		if err = rows.Scan(&track.Id, &track.TrackId, &track.Title, &track.HasFlac, &track.HasLyric, &track.Quality, &track.Condition, &track.Genre, &track.TrackNum, &track.Duration); err != nil {
-			log.Println(err)
-		} else {
-			tracks = append(tracks, &track)
-		}
-	}
-
-	return tracks, err
-}
-
 func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 

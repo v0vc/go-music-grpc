@@ -364,43 +364,6 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	}, err
 }
 
-func (*server) ReadAlbumTracks(ctx context.Context, req *artist.ReadAlbumTrackRequest) (*artist.ReadAlbumTrackResponse, error) {
-	siteId := req.GetSiteId()
-	albumId := req.GetAlbumId()
-	fmt.Printf("siteId: %v, read album %v tracks started\n", siteId, albumId)
-
-	var (
-		tracks []*artist.Track
-		err    error
-	)
-
-	switch siteId {
-	case 1:
-		// автор со сберзвука
-		tracks, err = GetAlbumTrackFromDb(context.WithoutCancel(ctx), siteId, albumId)
-	case 2:
-		// автор со спотика
-	case 3:
-		// автор с дизера
-	case 4:
-		// автор с ютуба
-	}
-
-	if err != nil {
-		log.Printf("Read error: %v", err)
-		return nil, status.Errorf(
-			codes.Internal,
-			"Internal error",
-		)
-	} else {
-		fmt.Printf("siteId: %v, read album %v tracks completed, total: %v\n", siteId, albumId, len(tracks))
-	}
-
-	return &artist.ReadAlbumTrackResponse{
-		Tracks: tracks,
-	}, err
-}
-
 func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest) (*artist.DeleteArtistResponse, error) {
 	siteId := req.GetSiteId()
 	artistId := req.GetArtistId()
