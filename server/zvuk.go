@@ -588,6 +588,45 @@ func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	return arts, err
 }
 
+func ClearAlbSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
+
+	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.syncState = 1 and alb_id in (select distinct ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.siteId = ?));")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.ExecContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	aff, err := rows.RowsAffected()
+	if err != nil {
+		log.Println(err)
+	}
+	return aff, tx.Commit()
+}
+
 func SyncArtist(ctx context.Context, siteId uint32, artistId ArtistRawId, isAdd bool) (*artist.Artist, []string, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {

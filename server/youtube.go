@@ -253,7 +253,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
 		}
 		// дропнем признаки предыдущей синхронизации
-		stVidUpd, _ := tx.PrepareContext(ctx, "update main.video set syncState = 0 where vid_id in (select v.vid_id from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where v.syncState = 1 and pV.playlistId = ?);")
+		stVidUpd, _ := tx.PrepareContext(ctx, "update main.video set syncState = 0 where video.vid_id in (select v.vid_id from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where v.syncState = 1 and pV.playlistId = ?);")
 
 		defer func(stVidUpd *sql.Stmt) {
 			err = stVidUpd.Close()
@@ -826,4 +826,43 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 	}
 
 	return mDownloaded, nil
+}
+
+func ClearVidSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
+
+	stRows, err := tx.PrepareContext(ctx, "update main.video set syncState = 0 where video.vid_id in (select v.vid_id from video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on pV.playlistId = p.pl_id inner join channelPlaylist cP on p.pl_id = cP.playlistId inner join channel c on c.ch_id = cP.channelId where c.siteId = ? and p.playlistType = 0 and v.syncState = 1);")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.ExecContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	aff, err := rows.RowsAffected()
+	if err != nil {
+		log.Println(err)
+	}
+	return aff, tx.Commit()
 }
