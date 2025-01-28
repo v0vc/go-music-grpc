@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	slices2 "golang.org/x/exp/slices"
+
 	"github.com/v0vc/go-music-grpc/artist"
 )
 
@@ -62,7 +64,7 @@ func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, err
 	return artistIds, err
 }
 
-func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId interface{}) ArtistRawId {
+func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId interface{}, syncPl bool) ArtistRawId {
 	stmtArt, err := tx.PrepareContext(ctx, "select c.ch_id, c.channelId, p.pl_id, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ? and p.playlistType = 0 limit 1;")
 	if err != nil {
 		log.Println(err)
@@ -88,6 +90,7 @@ func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId in
 	default:
 		fmt.Printf("siteId: %v, channel db id is %d\n", siteId, artId.RawId)
 		artId.vidIds = strings.Split(ids, ",")
+		artId.isPlSync = syncPl
 	}
 
 	return artId
@@ -238,36 +241,40 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			}
 		}
 
-		for c := range slices.Chunk(notUploadId, 50) {
-			var sb strings.Builder
-			for _, vid := range c {
-				sb.WriteString(vid + ",")
-			}
-			notListed := strings.TrimRight(sb.String(), ",")
-			fmt.Println("found unlisted video(s): " + notListed)
-			chVideosIds, e := GetChannelIdsByVid(ctx, token, notListed, channelId.Id)
-			if e != nil {
-				log.Println(e)
-			} else if chVideosIds != "" {
-				fmt.Println("processable unlisted video(s): " + chVideosIds)
-				unlistedVideos := GetVidByIds(ctx, chVideosIds, token)
-				if unlistedVideos != nil {
-					processVideos(ctx, tx, unlistedVideos, resArtist, channelId.RawPlId, channelId.Id, 0, 1)
-				} else {
-					log.Println("can't get unlisted video from api")
-				}
-			}
-		}
+		insertUnlisted(ctx, tx, notUploadId, token, channelId, resArtist)
 
 		return resArtist, tx.Commit()
+
 	} else {
 		// синк
 		// сначала проверим, есть ли в базе этот канал
 		if channelId.RawId == 0 {
 			// кликнули по конкретному каналу
-			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id)
+			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
 		}
+		// дропнем признаки предыдущей синхронизации
+		stVidUpd, _ := tx.PrepareContext(ctx, fmt.Sprintf("update main.video set syncState = 0 where syncState = 1 and videoId in (? %v);", strings.Repeat(",?", len(channelId.vidIds)-1)))
+
+		defer func(stVidUpd *sql.Stmt) {
+			err = stVidUpd.Close()
+			if err != nil {
+				log.Println(err)
+			}
+		}(stVidUpd)
+
+		args := make([]interface{}, len(channelId.vidIds))
+		for i, artId := range channelId.vidIds {
+			args[i] = artId
+		}
+
+		_, er := stVidUpd.QueryContext(ctx, args...)
+		if er != nil {
+			log.Println(er)
+		}
+
+		// получим актуальные айдишники из апи
 		netIds := GetPlaylistVidIds(ctx, channelId.PlaylistId, token)
+		// сравним
 		newVidIds := FindDifference(netIds, channelId.vidIds)
 		fmt.Printf("siteId: %v, channelId: %d, new videos: %d\n", siteId, channelId.RawId, len(newVidIds))
 
@@ -292,7 +299,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 		if channelId.isPlSync {
 			// TODO синк полный с плейлистами
-			//
+
 			stPlRem, er := tx.PrepareContext(ctx, "delete from main.playlist where pl_id in (select cp.playlistId from main.channelPlaylist cp inner join main.playlist p on cp.playlistId = p.pl_id where cp.channelId = ? and p.playlistType = 1);")
 			if er != nil {
 				log.Println(er)
@@ -303,13 +310,94 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 					log.Println(er)
 				}
 			}(stPlRem)
+
 			_, er = stPlRem.ExecContext(ctx, channelId.RawId)
 			if er != nil {
 				log.Println(er)
 			}
+
+			stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId,title,playlistType) values (?,?,?) on conflict (playlistId, title) do nothing returning pl_id;")
+			if er != nil {
+				log.Println(er)
+			}
+			defer func(stPlaylist *sql.Stmt) {
+				er = stPlaylist.Close()
+				if er != nil {
+					log.Println(er)
+				}
+			}(stPlaylist)
+
+			stChPl, er := tx.PrepareContext(ctx, "insert into main.channelPlaylist(channelId, playlistId) values (?,?) on conflict do nothing;")
+			if er != nil {
+				log.Println(er)
+			}
+			defer func(stChPl *sql.Stmt) {
+				er = stChPl.Close()
+				if er != nil {
+					log.Println(er)
+				}
+			}(stChPl)
+
+			allPl := GetPlaylists(ctx, channelId.Id, token)
+
+			for _, item := range allPl {
+				var plId int
+				insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl).Scan(&plId)
+				if insEr != nil {
+					log.Println(insEr)
+				} else {
+					fmt.Printf("processed playlist: %v, id: %v \n", item.id, plId)
+					item.rawId = plId
+					_, er = stChPl.ExecContext(ctx, channelId.RawId, plId)
+					if er != nil {
+						log.Println(er)
+					}
+				}
+			}
+
+			var notUploadId []string
+			for _, pl := range allPl {
+				netPlIds := GetPlaylistVidIds(ctx, pl.id, token)
+				plVid := make(map[string]int)
+				for _, vId := range netPlIds {
+					if !slices2.Contains(channelId.vidIds, vId) {
+						notUploadId = append(notUploadId, vId)
+					}
+				}
+				if len(plVid) == 0 {
+					deletePlaylistById(ctx, tx, pl.rawId)
+				} else {
+					insertPlaylistVideoIds(ctx, tx, plVid, pl.rawId)
+				}
+			}
+
+			insertUnlisted(ctx, tx, notUploadId, token, channelId, resArtist)
 		}
 
 		return resArtist, tx.Commit()
+	}
+}
+
+func insertUnlisted(ctx context.Context, tx *sql.Tx, notUploadId []string, token string, channelId ArtistRawId, resArtist *artist.Artist) {
+	for c := range slices.Chunk(notUploadId, 50) {
+		var sb strings.Builder
+		for _, vid := range c {
+			sb.WriteString(vid + ",")
+		}
+		notListed := strings.TrimRight(sb.String(), ",")
+		fmt.Println("found unlisted video(s): " + notListed)
+		chVideosIds, e := GetChannelIdsByVid(ctx, token, notListed, channelId.Id)
+		if e != nil {
+			log.Println(e)
+		} else if chVideosIds != "" {
+			fmt.Println("processable unlisted video(s): " + chVideosIds)
+			unlistedVideos := GetVidByIds(ctx, chVideosIds, token)
+			if unlistedVideos != nil {
+				processVideos(ctx, tx, unlistedVideos, resArtist, channelId.RawPlId, channelId.Id, 0, 1)
+			} else {
+				log.Println("can't get unlisted video from api")
+			}
+		}
 	}
 }
 
