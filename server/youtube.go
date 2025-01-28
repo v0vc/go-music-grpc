@@ -253,7 +253,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
 		}
 		// дропнем признаки предыдущей синхронизации
-		stVidUpd, _ := tx.PrepareContext(ctx, fmt.Sprintf("update main.video set syncState = 0 where syncState = 1 and videoId in (? %v);", strings.Repeat(",?", len(channelId.vidIds)-1)))
+		stVidUpd, _ := tx.PrepareContext(ctx, "update main.video set syncState = 0 where vid_id in (select v.vid_id from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where v.syncState = 1 and pV.playlistId = ?);")
 
 		defer func(stVidUpd *sql.Stmt) {
 			err = stVidUpd.Close()
@@ -262,14 +262,9 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			}
 		}(stVidUpd)
 
-		args := make([]interface{}, len(channelId.vidIds))
-		for i, artId := range channelId.vidIds {
-			args[i] = artId
-		}
-
-		_, er := stVidUpd.QueryContext(ctx, args...)
-		if er != nil {
-			log.Println(er)
+		_, err = stVidUpd.ExecContext(ctx, channelId.RawPlId)
+		if err != nil {
+			log.Println(err)
 		}
 
 		// получим актуальные айдишники из апи
@@ -298,20 +293,18 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 		}
 
 		if channelId.isPlSync {
-			// TODO синк полный с плейлистами
-
 			stPlRem, er := tx.PrepareContext(ctx, "delete from main.playlist where pl_id in (select cp.playlistId from main.channelPlaylist cp inner join main.playlist p on cp.playlistId = p.pl_id where cp.channelId = ? and p.playlistType = 1);")
 			if er != nil {
 				log.Println(er)
 			}
 			defer func(stPlRem *sql.Stmt) {
-				er = stPlRem.Close()
-				if er != nil {
-					log.Println(er)
+				err = stPlRem.Close()
+				if err != nil {
+					log.Println(err)
 				}
 			}(stPlRem)
 
-			_, er = stPlRem.ExecContext(ctx, channelId.RawId)
+			_, er = stPlRem.QueryContext(ctx, channelId.RawId)
 			if er != nil {
 				log.Println(er)
 			}
@@ -321,9 +314,9 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				log.Println(er)
 			}
 			defer func(stPlaylist *sql.Stmt) {
-				er = stPlaylist.Close()
-				if er != nil {
-					log.Println(er)
+				err = stPlaylist.Close()
+				if err != nil {
+					log.Println(err)
 				}
 			}(stPlaylist)
 
@@ -332,9 +325,9 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				log.Println(er)
 			}
 			defer func(stChPl *sql.Stmt) {
-				er = stChPl.Close()
-				if er != nil {
-					log.Println(er)
+				err = stChPl.Close()
+				if err != nil {
+					log.Println(err)
 				}
 			}(stChPl)
 

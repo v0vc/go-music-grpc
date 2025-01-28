@@ -55,7 +55,7 @@ func getArtistIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId stri
 }
 
 func getAlbumThumbsDb(tx *sql.Tx, ctx context.Context, albIds []string) (map[string][]byte, error) {
-	sqlStr := fmt.Sprintf("select albumId, thumbnail from main.album where albumId in (? %v);", strings.Repeat(",?", len(albIds)-1))
+	sqlStr := fmt.Sprintf("select albumId, thumbnail from main.album where albumId in (?%v);", strings.Repeat(",?", len(albIds)-1))
 	stmtAlb, err := tx.PrepareContext(ctx, sqlStr)
 	if err != nil {
 		log.Println(err)

@@ -290,7 +290,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		}
 	}
 
-	if err != nil {
+	if err != nil || artists == nil {
 		return nil, status.Errorf(
 			codes.Internal,
 			"Internal error",
