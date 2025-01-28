@@ -605,7 +605,7 @@ func ClearAlbSyncStateDb(ctx context.Context, siteId uint32) (int64, error) {
 		log.Println(err)
 	}
 
-	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.syncState = 1 and alb_id in (select distinct ab.albumId from main.artistAlbum ab where ab.artistId in (select art.art_id from main.artist art where art.siteId = ?));")
+	stRows, err := tx.PrepareContext(ctx, "update main.album set syncState = 0 where album.alb_id in (select a.alb_id from main.album a inner join main.artistAlbum aA on a.alb_id = aA.albumId inner join main.artist ar on ar.art_id = aA.artistId where ar.siteId = ? and a.syncState = 1 group by a.alb_id);")
 	if err != nil {
 		log.Println(err)
 	}
