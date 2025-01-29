@@ -146,7 +146,7 @@ func (p *Page) ClickMainMenu(event component.AppBarEvent) {
 	switch res[len(res)-1] {
 	case "0":
 		if singleInstance != nil {
-			go singleInstance.MassDownload(siteId)
+			go singleInstance.MassDownload(siteId, singleInstance.Conf.ZvukQuality)
 		}
 	case "1":
 		if singleInstance != nil {

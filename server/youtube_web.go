@@ -261,6 +261,7 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, 
 		return "-1", err
 	}
 	fmt.Println(install.Executable + ":" + install.Version)
+	fmt.Println(id + " selected quality: " + quality)
 
 	dl := ytdlp.New().
 		FormatSort("res,ext:mp4:m4a").
@@ -275,45 +276,6 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, 
 	fmt.Println(res.String())
 
 	return id, nil
-
-	/*result, err := goutubedl.New(ctx, url, goutubedl.Options{Type: 1})
-	if err != nil {
-		log.Println(err)
-		return "0", err
-	}
-
-	format := "best"
-	if quality == "audio" {
-		format = "bestaudio"
-	}
-
-	downloadResult, err := result.Download(ctx, format)
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(downloadResult *goutubedl.DownloadResult) {
-		er := downloadResult.Close()
-		if er != nil {
-			log.Println(er)
-		}
-	}(downloadResult)
-
-	f, err := os.OpenFile(videoPath, os.O_CREATE|os.O_WRONLY, 0o755)
-	if err != nil {
-		log.Println(err)
-		return "", err
-	}
-
-	defer func(f *os.File) {
-		er := f.Close()
-		if er != nil {
-			log.Println(er)
-		}
-	}(f)
-
-	res, err := io.Copy(f, downloadResult)
-	fmt.Println()
-	return humanize.Bytes(uint64(res)), err*/
 }
 
 func geUpload(ctx context.Context, url string) (*Uploads, error) {

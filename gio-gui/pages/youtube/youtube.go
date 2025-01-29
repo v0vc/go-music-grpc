@@ -131,12 +131,20 @@ func (p *Page) Overflow() []component.OverflowAction {
 			Tag:  0,
 		},
 		{
-			Name: "Select All",
+			Name: "Download HQ",
 			Tag:  1,
 		},
 		{
-			Name: "Unselect",
+			Name: "Download .mp3",
 			Tag:  2,
+		},
+		{
+			Name: "Select All",
+			Tag:  3,
+		},
+		{
+			Name: "Unselect",
+			Tag:  4,
 		},
 	}
 }
@@ -146,13 +154,21 @@ func (p *Page) ClickMainMenu(event component.AppBarEvent) {
 	switch res[len(res)-1] {
 	case "0":
 		if singleInstance != nil {
-			go singleInstance.MassDownload(siteId)
+			go singleInstance.MassDownload(siteId, singleInstance.Conf.YouVideoQuality)
 		}
 	case "1":
 		if singleInstance != nil {
-			go singleInstance.SelectAll(true)
+			go singleInstance.MassDownload(siteId, singleInstance.Conf.YouVideoHqQuality)
 		}
 	case "2":
+		if singleInstance != nil {
+			go singleInstance.MassDownload(siteId, singleInstance.Conf.YouAudioQuality)
+		}
+	case "3":
+		if singleInstance != nil {
+			go singleInstance.SelectAll(true)
+		}
+	case "4":
 		if singleInstance != nil {
 			go singleInstance.SelectAll(false)
 		}

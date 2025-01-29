@@ -800,22 +800,6 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 			mChannel[chId] = absChannelName
 		}
 
-		/*ext := ".mp4"
-		if quality == "audio" {
-			ext = ".mp3"
-		}
-
-		filename := path.Clean(filepath.Join(absChannelName, title+ext))
-		exists, err := FileExists(filename)
-		if err != nil {
-			log.Println(filename + " can't check if video already exists locally, skipped..")
-			continue
-		}
-		if exists {
-			fmt.Println(filename + " exists locally, skipped..")
-			continue
-		}*/
-
 		resDown, err := DownloadVideo(ctx, absChannelName, videoId, quality)
 		if err != nil {
 			log.Println(title+" can't download.", err)

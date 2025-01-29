@@ -69,9 +69,9 @@ type UI struct {
 	// Used to decide when to render the sidebar on small viewports.
 	InsideRoom bool
 	// channel menu
-	SyncBtn, DownloadChannelBtn, DownloadChannelLowBtn, CopyChannelBtn, DeleteBtn widget.Clickable
+	SyncBtn, DownloadChannelBtn, DownloadChannelHqBtn, DownloadChannelLowBtn, CopyChannelBtn, DeleteBtn widget.Clickable
 	// message menu
-	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn, DownloadLowBtn, DownloadHqBtn widget.Clickable
+	CopyAlbBtn, CopyAlbArtistBtn, DownloadBtn, DownloadHqBtn, DownloadLowBtn widget.Clickable
 	// MessageMenu is the context menu available on messages.
 	MessageMenu component.MenuState
 	// ChannelMenu is the context menu available on channel.
@@ -119,13 +119,13 @@ func createMessageMenu(ui *UI) component.MenuState {
 					return item.Layout(gtx)
 				},
 				func(gtx layout.Context) layout.Dimensions {
-					item := component.MenuItem(ui.th.Theme, &ui.DownloadLowBtn, "Download MP3")
-					item.Icon = icon.AudioTrackIcon
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadHqBtn, "Download HQ")
+					item.Icon = icon.HighQualityIcon
 					return item.Layout(gtx)
 				},
 				func(gtx layout.Context) layout.Dimensions {
-					item := component.MenuItem(ui.th.Theme, &ui.DownloadHqBtn, "Download HQ")
-					item.Icon = icon.HighQualityIcon
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadLowBtn, "Download .mp3")
+					item.Icon = icon.AudioTrackIcon
 					return item.Layout(gtx)
 				},
 				func(gtx layout.Context) layout.Dimensions {
@@ -190,7 +190,12 @@ func createChannelMenu(ui *UI) component.MenuState {
 					return item.Layout(gtx)
 				},
 				func(gtx layout.Context) layout.Dimensions {
-					item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelLowBtn, "Download MP3")
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelHqBtn, "Download HQ")
+					item.Icon = icon.HighQualityIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.DownloadChannelLowBtn, "Download .mp3")
 					item.Icon = icon.AudioTrackIcon
 					return item.Layout(gtx)
 				},
@@ -252,19 +257,12 @@ func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 	}
 }
 
-func (ui *UI) MassDownload(siteId uint32) {
+func (ui *UI) MassDownload(siteId uint32, resQuality string) {
 	curChannel := ui.Rooms.Active()
 	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
 		return
 	}
-	var quality string
-	switch ui.SiteId {
-	case 1:
-		quality = ui.Conf.ZvukQuality
-	case 4:
-		quality = ui.Conf.YouVideoQuality
-	}
-	go curChannel.DownloadAlbum(siteId, curChannel.Selected, quality)
+	go curChannel.DownloadAlbum(siteId, curChannel.Selected, resQuality)
 }
 
 func (ui *UI) SelectAll(value bool) {
@@ -588,9 +586,22 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 							alb := i.(model.Message)
 							albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
 						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, "audio") // TODO
+						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouAudioQuality)
 					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, "audio") // TODO
+						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouAudioQuality)
+					}
+				}
+				if ui.DownloadChannelLowBtn.Clicked(gtx) {
+					channel := ui.ChannelMenuTarget
+					if channel.Loaded {
+						var albumIds []string
+						for _, i := range channel.RowTracker.Rows {
+							alb := i.(model.Message)
+							albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+						}
+						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouVideoHqQuality)
+					} else {
+						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouVideoHqQuality)
 					}
 				}
 				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
