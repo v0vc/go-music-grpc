@@ -478,6 +478,9 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 							layout.Rigid(material.RadioButton(ui.th.Theme, &ui.RadioButtonsGroup, "Views", "Views").Layout),
 							layout.Rigid(material.RadioButton(ui.th.Theme, &ui.RadioButtonsGroup, "Likes", "Likes").Layout),
 							layout.Rigid(material.RadioButton(ui.th.Theme, &ui.RadioButtonsGroup, "Quality", "Quality").Layout),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+							layout.Rigid(material.Label(ui.th.Theme, unit.Sp(13), strconv.Itoa(len(room.RowTracker.Rows))).Layout),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(20)}.Layout),
 						)
 					})
 				} else {
