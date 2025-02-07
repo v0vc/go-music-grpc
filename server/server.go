@@ -243,6 +243,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 
 	// post actions
 	if siteId == 1 && deletedIds != nil {
+		fmt.Printf("unused artists: %v\n", deletedIds)
 		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds, false)
 		if er != nil {
 			log.Printf("delete unused artists failed: %v", er)

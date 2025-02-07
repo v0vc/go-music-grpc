@@ -47,6 +47,8 @@ var (
 	SidebarMaxWidth = unit.Dp(250)
 	// Breakpoint at which to switch from desktop to mobile layout.
 	Breakpoint = unit.Dp(600)
+	tabs       Tabs
+	slider     Slider
 )
 
 // UI manages the state for the entire application's UI.
@@ -86,6 +88,17 @@ type UI struct {
 	Conf              *page.Config
 	SiteId            uint32
 	RadioButtonsGroup widget.Enum
+}
+
+type Tabs struct {
+	list     layout.List
+	tabs     []Tab
+	selected int
+}
+
+type Tab struct {
+	btn   widget.Clickable
+	Title string
 }
 
 func createMessageMenu(ui *UI) component.MenuState {
@@ -223,12 +236,20 @@ func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint
 
 	// Generate most of the model data.
 	rooms, _ := g.GetChannels(siteId)
-	MapDto(&ui, rooms, nil, g)
+	mapDto(&ui, rooms, nil, g)
+	if siteId != 1 {
+		tabs.tabs = append(tabs.tabs,
+			Tab{Title: "Channels"},
+		)
+		tabs.tabs = append(tabs.tabs,
+			Tab{Title: "Playlists"},
+		)
+	}
 	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentRow, false)
 	return &ui
 }
 
-func MapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Generator) {
+func mapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Generator) {
 	for _, r := range channels.List() {
 		ch := ui.Rooms.GetChannelById(r.Id)
 		if ch != nil {
@@ -332,7 +353,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 		ch.Content = fmt.Sprintf("%v %v", time.Since(start), artTitle)
 	}
 
-	MapDto(ui, channels, albums, g)
+	mapDto(ui, channels, albums, g)
 	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentRow, false)
 }
 
@@ -551,130 +572,186 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 			ui.RoomList.Axis = layout.Vertical
 			gtx.Constraints.Min = gtx.Constraints.Max
-			return material.List(ui.th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
-				if ui.SyncBtn.Clicked(gtx) {
-					channel := ui.ChannelMenuTarget
-					go channel.SyncArtist(&ui.Rooms, ui.SiteId)
-				}
-				if ui.DownloadChannelBtn.Clicked(gtx) {
-					channel := ui.ChannelMenuTarget
-					var quality string
-					switch ui.SiteId {
-					case 1:
-						quality = ui.Conf.ZvukQuality
-					case 4:
-						quality = ui.Conf.YouVideoQuality
-					}
-					if channel.Loaded {
-						var albumIds []string
-						for _, i := range channel.RowTracker.Rows {
-							alb := i.(model.Message)
-							switch ui.SiteId {
-							case 1:
-								albumIds = append(albumIds, alb.AlbumId)
-							case 4:
-								albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
-							}
-						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, quality)
-					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, quality)
-					}
-				}
-				if ui.DownloadChannelLowBtn.Clicked(gtx) {
-					channel := ui.ChannelMenuTarget
-					if channel.Loaded {
-						var albumIds []string
-						for _, i := range channel.RowTracker.Rows {
-							alb := i.(model.Message)
-							albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
-						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouAudioQuality)
-					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouAudioQuality)
-					}
-				}
-				if ui.DownloadChannelLowBtn.Clicked(gtx) {
-					channel := ui.ChannelMenuTarget
-					if channel.Loaded {
-						var albumIds []string
-						for _, i := range channel.RowTracker.Rows {
-							alb := i.(model.Message)
-							albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
-						}
-						go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouVideoHqQuality)
-					} else {
-						go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouVideoHqQuality)
-					}
-				}
-				if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
-					switch ui.SiteId {
-					case 1:
-						gtx.Execute(clipboard.WriteCmd{
-							Data: io.NopCloser(strings.NewReader(zvArtistUrl + ui.ChannelMenuTarget.Id)),
-						})
-					case 4:
-						gtx.Execute(clipboard.WriteCmd{
-							Data: io.NopCloser(strings.NewReader(youChannelUrl + ui.ChannelMenuTarget.Id)),
-						})
-					}
-				}
-				if ui.DeleteBtn.Clicked(gtx) {
-					if ui.ChannelMenuTarget.IsBase {
-						// Delete на -=NEW=- сделаем очистку статусу синка
-						for _, ch := range ui.Rooms.List {
-							ch.Room.Count = ""
-							ch.Room.Selected = nil
-						}
-						go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
-					} else {
-						var ids []string
-						for _, data := range ui.ChannelMenuTarget.RowTracker.Rows {
-							switch el := data.(type) {
-							case model.Message:
-								ids = append(ids, el.AlbumId)
-							}
-						}
-						curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Room.Count)
-						ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
-						if ui.ChannelMenuTarget.Interact.Active {
-							ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentRow, false)
-						}
-						ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
-						ch := ui.Rooms.GetBaseChannel()
-						if ch != nil {
-							curBaseCount, _ := strconv.Atoi(ch.Room.Count)
-							if curBaseCount >= curCount {
-								if curBaseCount-curCount == 0 {
-									ch.Room.Count = ""
-								} else {
-									ch.Room.Count = strconv.Itoa(curBaseCount - curCount)
+			switch ui.SiteId {
+			case 4:
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return tabs.list.Layout(gtx, len(tabs.tabs), func(gtx layout.Context, tabIdx int) layout.Dimensions {
+							t := &tabs.tabs[tabIdx]
+							if t.btn.Clicked(gtx) {
+								if tabs.selected < tabIdx {
+									slider.PushLeft()
+								} else if tabs.selected > tabIdx {
+									slider.PushRight()
 								}
+								tabs.selected = tabIdx
 							}
-							for _, data := range ch.RowTracker.Rows {
-								switch el := data.(type) {
-								case model.Message:
-									if slices.Contains(ids, el.AlbumId) {
-										ch.DeleteRow(el.Serial())
+							var tabWidth int
+							return layout.Stack{Alignment: layout.S}.Layout(gtx,
+								layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+									dims := material.Clickable(gtx, &t.btn, func(gtx layout.Context) layout.Dimensions {
+										return layout.UniformInset(unit.Dp(8)).Layout(gtx,
+											material.Label(ui.th.Theme, unit.Sp(12), t.Title).Layout,
+										)
+									})
+									tabWidth = dims.Size.X
+									return dims
+								}),
+								layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+									if tabs.selected != tabIdx {
+										return layout.Dimensions{}
 									}
-								}
+									tabHeight := gtx.Dp(unit.Dp(4))
+									tabRect := image.Rect(0, 0, tabWidth, tabHeight)
+									paint.FillShape(gtx.Ops, ui.th.Theme.Palette.ContrastBg, clip.Rect(tabRect).Op())
+									return layout.Dimensions{
+										Size: image.Point{X: tabWidth, Y: tabHeight},
+									}
+								}),
+							)
+						})
+					}),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return slider.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							if tabs.selected == 0 {
+								return ui.roomList(gtx)
+							} else {
+								return layout.Center.Layout(gtx,
+									material.H1(ui.th.Theme, fmt.Sprintf("Tab content #%d", tabs.selected+1)).Layout,
+								)
 							}
-						}
-					}
-				}
-				r := ui.Rooms.Index(ii)
-				if r.Interact.ContextArea.Active() {
-					ui.ChannelMenuTarget = r
-				}
-				return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
-					Name:    r.Room.Name,
-					Image:   r.Room.Image,
-					Content: r.Room.Content,
-					Count:   r.Count,
-				}).Layout(gtx)
-			})
+						})
+					}),
+				)
+			}
+			return ui.roomList(gtx)
 		}),
 	)
+}
+
+func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
+	return material.List(ui.th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx layout.Context, ii int) layout.Dimensions {
+		if ui.SyncBtn.Clicked(gtx) {
+			channel := ui.ChannelMenuTarget
+			go channel.SyncArtist(&ui.Rooms, ui.SiteId)
+		}
+		if ui.DownloadChannelBtn.Clicked(gtx) {
+			channel := ui.ChannelMenuTarget
+			var quality string
+			switch ui.SiteId {
+			case 1:
+				quality = ui.Conf.ZvukQuality
+			case 4:
+				quality = ui.Conf.YouVideoQuality
+			}
+			if channel.Loaded {
+				var albumIds []string
+				for _, i := range channel.RowTracker.Rows {
+					alb := i.(model.Message)
+					switch ui.SiteId {
+					case 1:
+						albumIds = append(albumIds, alb.AlbumId)
+					case 4:
+						albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+					}
+				}
+				go channel.DownloadAlbum(ui.SiteId, albumIds, quality)
+			} else {
+				go channel.DownloadArtist(ui.SiteId, channel.Id, quality)
+			}
+		}
+		if ui.DownloadChannelLowBtn.Clicked(gtx) {
+			channel := ui.ChannelMenuTarget
+			if channel.Loaded {
+				var albumIds []string
+				for _, i := range channel.RowTracker.Rows {
+					alb := i.(model.Message)
+					albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+				}
+				go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouAudioQuality)
+			} else {
+				go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouAudioQuality)
+			}
+		}
+		if ui.DownloadChannelLowBtn.Clicked(gtx) {
+			channel := ui.ChannelMenuTarget
+			if channel.Loaded {
+				var albumIds []string
+				for _, i := range channel.RowTracker.Rows {
+					alb := i.(model.Message)
+					albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+				}
+				go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouVideoHqQuality)
+			} else {
+				go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouVideoHqQuality)
+			}
+		}
+		if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
+			switch ui.SiteId {
+			case 1:
+				gtx.Execute(clipboard.WriteCmd{
+					Data: io.NopCloser(strings.NewReader(zvArtistUrl + ui.ChannelMenuTarget.Id)),
+				})
+			case 4:
+				gtx.Execute(clipboard.WriteCmd{
+					Data: io.NopCloser(strings.NewReader(youChannelUrl + ui.ChannelMenuTarget.Id)),
+				})
+			}
+		}
+		if ui.DeleteBtn.Clicked(gtx) {
+			if ui.ChannelMenuTarget.IsBase {
+				// Delete на -=NEW=- сделаем очистку статусу синка
+				for _, ch := range ui.Rooms.List {
+					ch.Room.Count = ""
+					ch.Room.Selected = nil
+				}
+				go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
+			} else {
+				var ids []string
+				for _, data := range ui.ChannelMenuTarget.RowTracker.Rows {
+					switch el := data.(type) {
+					case model.Message:
+						ids = append(ids, el.AlbumId)
+					}
+				}
+				curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Room.Count)
+				ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
+				if ui.ChannelMenuTarget.Interact.Active {
+					ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentRow, false)
+				}
+				ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
+				ch := ui.Rooms.GetBaseChannel()
+				if ch != nil {
+					curBaseCount, _ := strconv.Atoi(ch.Room.Count)
+					if curBaseCount >= curCount {
+						if curBaseCount-curCount == 0 {
+							ch.Room.Count = ""
+						} else {
+							ch.Room.Count = strconv.Itoa(curBaseCount - curCount)
+						}
+					}
+					for _, data := range ch.RowTracker.Rows {
+						switch el := data.(type) {
+						case model.Message:
+							if slices.Contains(ids, el.AlbumId) {
+								ch.DeleteRow(el.Serial())
+							}
+						}
+					}
+				}
+			}
+		}
+		r := ui.Rooms.Index(ii)
+		if r.Interact.ContextArea.Active() {
+			ui.ChannelMenuTarget = r
+		}
+		return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
+			Name:    r.Room.Name,
+			Image:   r.Room.Image,
+			Content: r.Room.Content,
+			Count:   r.Count,
+		}).Layout(gtx)
+	})
 }
 
 // layoutEditor lays out the message editor.
