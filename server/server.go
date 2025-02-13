@@ -242,7 +242,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	wgSync.Wait()
 
 	// post actions
-	if siteId == 1 && deletedIds != nil {
+	/*if siteId == 1 && deletedIds != nil {
 		fmt.Printf("unused artists: %v\n", deletedIds)
 		deletedRowCount, er := DeleteArtistsDb(context.WithoutCancel(ctx), siteId, deletedIds, false)
 		if er != nil {
@@ -250,7 +250,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 		} else {
 			fmt.Printf("siteId: %v, delete unused artists completed, total : %v\n", siteId, deletedRowCount)
 		}
-	}
+	}*/
 
 	if err != nil {
 		return nil, status.Errorf(
