@@ -282,8 +282,9 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	}
 
 	var (
-		albums []*artist.Album
-		err    error
+		albums    []*artist.Album
+		playlists []*artist.Playlist
+		err       error
 	)
 
 	switch siteId {
@@ -303,7 +304,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 		if req.GetNewOnly() {
 			albums, err = GetNewVideosFromDb(context.WithoutCancel(ctx), siteId)
 		} else {
-			albums, err = GetChannelVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
+			albums, playlists, err = GetChannelVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
 		}
 	}
 
@@ -322,7 +323,8 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	}
 
 	return &artist.ReadArtistAlbumResponse{
-		Releases: albums,
+		Releases:  albums,
+		Playlists: playlists,
 	}, err
 }
 

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"io"
@@ -233,10 +234,6 @@ func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint
 	ui.MessageMenu = createMessageMenu(&ui)
 	ui.ChannelMenu = createChannelMenu(&ui)
 	g := &gen.Generator{}
-
-	// Generate most of the model data.
-	rooms, _ := g.GetChannels(siteId)
-	mapDto(&ui, rooms, nil, g)
 	if siteId != 1 {
 		tabs.tabs = append(tabs.tabs,
 			Tab{Title: "Channels"},
@@ -245,6 +242,9 @@ func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint
 			Tab{Title: "Playlists"},
 		)
 	}
+	// Generate most of the model data.
+	rooms, _ := g.GetChannels(siteId)
+	mapDto(&ui, rooms, nil, g)
 	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentRow, false)
 	return &ui
 }
@@ -268,7 +268,6 @@ func mapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 			room := &Room{
 				Room:       r,
 				RowTracker: rt,
-				// SearchResponses: make(chan []list.Serial),
 			}
 
 			room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
@@ -369,8 +368,34 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, false)
+			pls := ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, false)
 			ui.InsideRoom = true
+			if r.Playlists.List != nil {
+				break
+			}
+
+			for _, pl := range pls {
+				thumb := pl.GetThumbnail()
+				im, _, _ := image.Decode(bytes.NewReader(thumb))
+				nm := pl.GetTitle()
+				/*if len(nm) > 30 {
+					nm = nm[:30]
+				}*/
+				p := model.Room{
+					Name:   nm,
+					Id:     pl.GetPlaylistId(),
+					Image:  im,
+					IsBase: false,
+				}
+
+				room := &Room{
+					Room:       &p,
+					RowTracker: nil,
+				}
+
+				room.List.Axis = layout.Vertical
+				r.Playlists.List = append(r.Playlists.List, room)
+			}
 			break
 		}
 	}
@@ -616,9 +641,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 							if tabs.selected == 0 {
 								return ui.roomList(gtx)
 							} else {
-								return layout.Center.Layout(gtx,
-									material.H1(ui.th.Theme, fmt.Sprintf("Tab content #%d", tabs.selected+1)).Layout,
-								)
+								return ui.plList(gtx)
 							}
 						})
 					}),
@@ -627,6 +650,18 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 			return ui.roomList(gtx)
 		}),
 	)
+}
+
+func (ui *UI) plList(gtx layout.Context) layout.Dimensions {
+	return material.List(ui.th.Theme, &ui.Rooms.Active().PlList).Layout(gtx, len(ui.Rooms.Active().Playlists.List), func(gtx layout.Context, ii int) layout.Dimensions {
+		r := ui.Rooms.Active().Playlists.Index(ii)
+		return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
+			Name:    r.Room.Name,
+			Image:   r.Room.Image,
+			Content: r.Room.Content,
+			Count:   r.Count,
+		}).Layout(gtx)
+	})
 }
 
 func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {

@@ -539,7 +539,7 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	return arts, err
 }
 
-func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string) ([]*artist.Album, error) {
+func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string) ([]*artist.Album, []*artist.Playlist, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -599,7 +599,45 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string
 		}
 	}
 
-	return albs, err
+	stPlRows, err := db.PrepareContext(ctx, "select p.pl_id, p.playlistId, p.title, p.playlistType, p.thumbnail, group_concat(v.videoId, ',') from channelPlaylist inner join main.playlist p on channelPlaylist.playlistId = p.pl_id inner join main.playlistVideo pV on channelPlaylist.playlistId = pV.playlistId inner join main.video v on v.vid_id = pV.videoId inner join channel c on c.ch_id = channelPlaylist.channelId where c.channelId = ? and c.siteId = ? group by p.pl_id;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stPlRows *sql.Stmt) {
+		err = stPlRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stPlRows)
+
+	rowsPl, err := stPlRows.QueryContext(ctx, channelId, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rowsPl *sql.Rows) {
+		err = rowsPl.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rowsPl)
+
+	var pls []*artist.Playlist
+
+	for rowsPl.Next() {
+		var (
+			pl    artist.Playlist
+			plVid string
+		)
+
+		if err = rowsPl.Scan(&pl.Id, &pl.PlaylistId, &pl.Title, &pl.PlaylistType, &pl.Thumbnail, &plVid); err != nil {
+			log.Println(err)
+		} else {
+			pl.VideoIds = strings.Split(plVid, ",")
+			pls = append(pls, &pl)
+		}
+	}
+
+	return albs, pls, err
 }
 
 func GetChannelVideosIdFromDb(ctx context.Context, siteId uint32, channelId string, newOnly bool) ([]string, error) {

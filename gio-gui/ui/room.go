@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/v0vc/go-music-grpc/artist"
+
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"github.com/v0vc/go-music-grpc/gio-gui/list"
@@ -47,6 +49,8 @@ type Room struct {
 	// Editor contains the edit buffer for composing messages.
 	Editor widget.Editor
 	sync.Mutex
+	PlList    widget.List
+	Playlists Rooms
 	// searchCurSeq    int
 	// SearchResponses chan []list.Serial
 }
@@ -189,7 +193,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	AddAlbumsToUi(rooms, res, r, start)
 }
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) []*artist.Playlist {
 	r.Lock()
 	defer r.Unlock()
 
@@ -206,7 +210,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 	r.List[r.active].Interact.Active = true
 
 	if r.List[r.active].Loaded {
-		return
+		return nil
 	}
 
 	channel := r.List[r.active]
@@ -220,6 +224,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 		channel.ListState.Modify(nil, nil, resp)
 	}
 
+	var pls []*artist.Playlist
 	if albs == nil {
 		if channel.Room.IsBase {
 			albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
@@ -228,7 +233,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 				channel.Count = strconv.Itoa(count)
 			}
 		} else {
-			albs = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
+			albs, pls = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
 		}
 	}
 	res := make([]list.Element, 0)
@@ -236,9 +241,6 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 		res = append(res, j)
 	}
 	channel.RowTracker.AddAll(res)
-	/*for _, alb := range albs {
-		channel.RowTracker.Add(alb)
-	}*/
 
 	lm := list.NewManager(len(albs),
 		list.Hooks{
@@ -266,6 +268,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 	lm.Stickiness = list.Before
 	channel.ListState = lm
 	channel.Room.Loaded = true
+	return pls
 }
 
 // Index returns a pointer to a Room at the given index.

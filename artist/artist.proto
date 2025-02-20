@@ -13,7 +13,8 @@ message Artist {
   bool userAdded = 6;
   int32 newAlbs = 7;
   repeated Album albums = 8;
-  repeated string deletedAlb = 9;
+  repeated Playlist playlists = 9;
+  repeated string deletedAlb = 10;
 }
 
 message Album {
@@ -31,17 +32,13 @@ message Album {
   float quality = 12;
 }
 
-message Track {
+message Playlist {
   int64 id = 1;
-  string trackId = 2;
+  string playlistId = 2;
   string title = 3;
-  bool hasFlac = 4;
-  bool hasLyric = 5;
-  string quality = 6;
-  string condition = 7;
-  string genre = 8;
-  int32 trackNum = 9;
-  int32  duration = 10;
+  bytes thumbnail = 4;
+  int32 playlistType = 5;
+  repeated string videoIds = 6;
 }
 
 message SyncArtistRequest {
@@ -62,6 +59,7 @@ message ReadArtistAlbumRequest {
 
 message ReadArtistAlbumResponse {
   repeated Album releases = 1;
+  repeated Playlist playlists = 2;
 }
 
 message DeleteArtistRequest {
