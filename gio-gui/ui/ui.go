@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"bytes"
 	"fmt"
 	"image"
 	"io"
@@ -236,7 +235,7 @@ func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint
 	g := &gen.Generator{}
 	if siteId != 1 {
 		tabs.tabs = append(tabs.tabs,
-			Tab{Title: "Channels"},
+			Tab{Title: "Videos"},
 		)
 		tabs.tabs = append(tabs.tabs,
 			Tab{Title: "Playlists"},
@@ -265,13 +264,23 @@ func mapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 				MaxLoads:      ui.Conf.LoadSize,
 				ScrollToEnd:   false,
 			}
+			rtPl := &RowTracker{
+				SerialToIndex: make(map[list.Serial]int),
+				Generator:     g,
+				Messages:      nil,
+				MaxLoads:      ui.Conf.LoadSize,
+				ScrollToEnd:   false,
+			}
 			room := &Room{
-				Room:       r,
-				RowTracker: rt,
+				Room:         r,
+				RowTracker:   rt,
+				RowTrackerPl: rtPl,
 			}
 
 			room.List.ScrollToEnd = room.RowTracker.ScrollToEnd
 			room.List.Axis = layout.Vertical
+			room.ListPl.ScrollToEnd = room.RowTrackerPl.ScrollToEnd
+			room.ListPl.Axis = layout.Vertical
 			ui.Rooms.List = append(ui.Rooms.List, room)
 		}
 	}
@@ -368,34 +377,8 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
-			pls := ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, false)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, false)
 			ui.InsideRoom = true
-			if r.Playlists.List != nil {
-				break
-			}
-
-			for _, pl := range pls {
-				thumb := pl.GetThumbnail()
-				im, _, _ := image.Decode(bytes.NewReader(thumb))
-				nm := pl.GetTitle()
-				/*if len(nm) > 30 {
-					nm = nm[:30]
-				}*/
-				p := model.Room{
-					Name:   nm,
-					Id:     pl.GetPlaylistId(),
-					Image:  im,
-					IsBase: false,
-				}
-
-				room := &Room{
-					Room:       &p,
-					RowTracker: nil,
-				}
-
-				room.List.Axis = layout.Vertical
-				r.Playlists.List = append(r.Playlists.List, room)
-			}
 			break
 		}
 	}
@@ -450,12 +433,68 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 // layoutChat lays out the chat interface with associated controls.
 func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 	room := ui.Rooms.Active()
-	listStyle := material.List(ui.th.Theme, &room.List)
+	// listStyle := material.List(ui.th.Theme, &room.List)
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-			return listStyle.Layout(gtx,
+			switch ui.SiteId {
+			case 4:
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return tabs.list.Layout(gtx, len(tabs.tabs), func(gtx layout.Context, tabIdx int) layout.Dimensions {
+							t := &tabs.tabs[tabIdx]
+							if t.btn.Clicked(gtx) {
+								if tabs.selected < tabIdx {
+									slider.PushLeft()
+								} else if tabs.selected > tabIdx {
+									slider.PushRight()
+								}
+								tabs.selected = tabIdx
+							}
+							var tabWidth int
+							return layout.Stack{Alignment: layout.S}.Layout(gtx,
+								layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+									dims := material.Clickable(gtx, &t.btn, func(gtx layout.Context) layout.Dimensions {
+										return layout.UniformInset(unit.Dp(8)).Layout(gtx,
+											material.Label(ui.th.Theme, unit.Sp(12), t.Title).Layout,
+										)
+									})
+									tabWidth = dims.Size.X
+									return dims
+								}),
+								layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+									if tabs.selected != tabIdx {
+										return layout.Dimensions{}
+									}
+									tabHeight := gtx.Dp(unit.Dp(4))
+									tabRect := image.Rect(0, 0, tabWidth, tabHeight)
+									paint.FillShape(gtx.Ops, ui.th.Theme.Palette.ContrastBg, clip.Rect(tabRect).Op())
+									return layout.Dimensions{
+										Size: image.Point{X: tabWidth, Y: tabHeight},
+									}
+								}),
+							)
+						})
+					}),
+					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+						return slider.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							if tabs.selected == 0 {
+								return material.List(ui.th.Theme, &room.List).Layout(gtx,
+									room.ListState.UpdatedLen(&room.List.List),
+									room.ListState.Layout,
+								)
+							} else {
+								return material.List(ui.th.Theme, &room.ListPl).Layout(gtx,
+									room.ListStatePl.UpdatedLen(&room.ListPl.List),
+									room.ListStatePl.Layout,
+								)
+							}
+						})
+					}),
+				)
+			}
+			return material.List(ui.th.Theme, &room.List).Layout(gtx,
 				room.ListState.UpdatedLen(&room.List.List),
 				room.ListState.Layout,
 			)
@@ -597,7 +636,7 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 			ui.RoomList.Axis = layout.Vertical
 			gtx.Constraints.Min = gtx.Constraints.Max
-			switch ui.SiteId {
+			/*switch ui.SiteId {
 			case 4:
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -646,22 +685,10 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 						})
 					}),
 				)
-			}
+			}*/
 			return ui.roomList(gtx)
 		}),
 	)
-}
-
-func (ui *UI) plList(gtx layout.Context) layout.Dimensions {
-	return material.List(ui.th.Theme, &ui.Rooms.Active().PlList).Layout(gtx, len(ui.Rooms.Active().Playlists.List), func(gtx layout.Context, ii int) layout.Dimensions {
-		r := ui.Rooms.Active().Playlists.Index(ii)
-		return CreateChannel(ui.th.Theme, &r.Interact, &ui.ChannelMenu, &ChannelConfig{
-			Name:    r.Room.Name,
-			Image:   r.Room.Image,
-			Content: r.Room.Content,
-			Count:   r.Count,
-		}).Layout(gtx)
-	})
 }
 
 func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {

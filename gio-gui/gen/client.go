@@ -201,7 +201,7 @@ func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
 	return albums
 }
 
-func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Message, []*artist.Playlist) {
+func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Message, []model.Message) {
 	client, _ := GetClientInstance()
 	if client == nil {
 		return nil, nil
@@ -214,9 +214,9 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Mes
 		return make([]model.Message, 0), nil
 	}
 	albums := make([]model.Message, len(res.GetReleases()))
-	var pls []*artist.Playlist
+	playlists := make([]model.Message, len(res.GetPlaylists()))
 	if err != nil {
-		return albums, nil
+		return albums, playlists
 	}
 	for i, alb := range res.GetReleases() {
 		var isRead bool
@@ -226,13 +226,11 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Mes
 		}
 		albums[i] = MapAlbum(alb, serial, isRead)
 	}
-	for _, pl := range res.GetPlaylists() {
-		if pl.GetThumbnail() == nil {
-			pl.Thumbnail = GetNoAvatarInstance()
-		}
-		pls = append(pls, pl)
+	for i, pl := range res.GetPlaylists() {
+		serial := g.old.Increment()
+		playlists[i] = MapPlaylist(pl, serial)
 	}
-	return albums, pls
+	return albums, playlists
 }
 
 func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) map[string]string {
@@ -307,6 +305,21 @@ func (g *Generator) ClearSync(siteId uint32) int64 {
 		return -1
 	}
 	return res.GetRowsAffected()
+}
+
+func MapPlaylist(pl *artist.Playlist, serial int) model.Message {
+	thumb := pl.GetThumbnail()
+	if thumb == nil {
+		thumb = GetNoAvatarInstance()
+	}
+	im, _, _ := image.Decode(bytes.NewReader(thumb))
+	return model.Message{
+		SerialID: fmt.Sprintf("%05d", serial),
+		Title:    pl.GetTitle(),
+		AlbumId:  pl.GetPlaylistId(),
+		ParentId: pl.GetVideoIds(),
+		Avatar:   im,
+	}
 }
 
 func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {

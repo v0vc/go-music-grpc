@@ -307,7 +307,7 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 	trackPath := filepath.Join(absAlbName, trackName+curQuality.Extension)
 	exists, err := FileExists(trackPath)
 	if err != nil {
-		log.Println(trackName + " can't check if track already exists locally, skipped..")
+		fmt.Println(trackName + " can't check if track already exists locally, skipped..")
 		return
 	}
 

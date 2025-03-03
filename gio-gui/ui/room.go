@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/v0vc/go-music-grpc/artist"
-
 	"gioui.org/layout"
 	"gioui.org/widget"
 	"github.com/v0vc/go-music-grpc/gio-gui/list"
@@ -37,20 +35,18 @@ type Room struct {
 	// This would be the facade to your business api.
 	// This is the source of truth.
 	// This type gets asked to create messages and queried for message history.
-	RowTracker *RowTracker
+	RowTracker, RowTrackerPl *RowTracker
 	// ListState dynamically manages list state.
 	// This lets us surf across a vast ocean of infinite messages, only ever
 	// rendering what is actually viewable.
 	// The widget.List consumes this during layout.
-	ListState *list.Manager
+	ListState, ListStatePl *list.Manager
 	// List implements the raw scrolling, adding scrollbars and responding
 	// to mousewheel / touch fling gestures.
-	List widget.List
+	List, ListPl widget.List
 	// Editor contains the edit buffer for composing messages.
 	Editor widget.Editor
 	sync.Mutex
-	PlList    widget.List
-	Playlists Rooms
 	// searchCurSeq    int
 	// SearchResponses chan []list.Serial
 }
@@ -193,7 +189,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	AddAlbumsToUi(rooms, res, r, start)
 }
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) []*artist.Playlist {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -210,7 +206,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 	r.List[r.active].Interact.Active = true
 
 	if r.List[r.active].Loaded {
-		return nil
+		return
 	}
 
 	channel := r.List[r.active]
@@ -224,7 +220,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 		channel.ListState.Modify(nil, nil, resp)
 	}
 
-	var pls []*artist.Playlist
+	var pls []model.Message
 	if albs == nil {
 		if channel.Room.IsBase {
 			albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
@@ -241,7 +237,6 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 		res = append(res, j)
 	}
 	channel.RowTracker.AddAll(res)
-
 	lm := list.NewManager(len(albs),
 		list.Hooks{
 			// Define an allocator function that can instantiate the appropriate
@@ -267,8 +262,41 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 	// lm.Stickiness = list.After
 	lm.Stickiness = list.Before
 	channel.ListState = lm
+
+	if pls != nil {
+		resPl := make([]list.Element, 0)
+		for _, j := range pls {
+			resPl = append(resPl, j)
+		}
+		channel.RowTrackerPl.AddAll(resPl)
+
+		lmPl := list.NewManager(len(pls),
+			list.Hooks{
+				// Define an allocator function that can instantiate the appropriate
+				// state type for each kind of row data in our list.
+				Allocator: func(data list.Element) interface{} {
+					switch data.(type) {
+					case model.Message:
+						return &Row{}
+					default:
+						return nil
+					}
+				},
+				// Define a presenter that can transform each kind of row data
+				// and state into a widget.
+				Presenter: presentRow,
+				// NOTE(jfm): award coupling between message data and `list.Manager`.
+				Loader:      channel.RowTrackerPl.Load,
+				Synthesizer: synth,
+				Comparator:  rowLessThan,
+				Invalidator: invalidator,
+			},
+		)
+		lmPl.Stickiness = list.Before
+		channel.ListStatePl = lmPl
+	}
+
 	channel.Room.Loaded = true
-	return pls
 }
 
 // Index returns a pointer to a Room at the given index.
