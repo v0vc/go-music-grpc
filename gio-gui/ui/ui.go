@@ -636,56 +636,6 @@ func (ui *UI) layoutRoomList(gtx layout.Context) layout.Dimensions {
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 			ui.RoomList.Axis = layout.Vertical
 			gtx.Constraints.Min = gtx.Constraints.Max
-			/*switch ui.SiteId {
-			case 4:
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return tabs.list.Layout(gtx, len(tabs.tabs), func(gtx layout.Context, tabIdx int) layout.Dimensions {
-							t := &tabs.tabs[tabIdx]
-							if t.btn.Clicked(gtx) {
-								if tabs.selected < tabIdx {
-									slider.PushLeft()
-								} else if tabs.selected > tabIdx {
-									slider.PushRight()
-								}
-								tabs.selected = tabIdx
-							}
-							var tabWidth int
-							return layout.Stack{Alignment: layout.S}.Layout(gtx,
-								layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-									dims := material.Clickable(gtx, &t.btn, func(gtx layout.Context) layout.Dimensions {
-										return layout.UniformInset(unit.Dp(8)).Layout(gtx,
-											material.Label(ui.th.Theme, unit.Sp(12), t.Title).Layout,
-										)
-									})
-									tabWidth = dims.Size.X
-									return dims
-								}),
-								layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-									if tabs.selected != tabIdx {
-										return layout.Dimensions{}
-									}
-									tabHeight := gtx.Dp(unit.Dp(4))
-									tabRect := image.Rect(0, 0, tabWidth, tabHeight)
-									paint.FillShape(gtx.Ops, ui.th.Theme.Palette.ContrastBg, clip.Rect(tabRect).Op())
-									return layout.Dimensions{
-										Size: image.Point{X: tabWidth, Y: tabHeight},
-									}
-								}),
-							)
-						})
-					}),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return slider.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-							if tabs.selected == 0 {
-								return ui.roomList(gtx)
-							} else {
-								return ui.plList(gtx)
-							}
-						})
-					}),
-				)
-			}*/
 			return ui.roomList(gtx)
 		}),
 	)

@@ -369,12 +369,12 @@ func synth(previous, row, _ list.Element) []list.Element {
 		out = append(out, model.UnreadBoundary{})
 	}
 
-	y, m, d := asMessage.SentAt.Local().Date()
+	/*y, m, d := asMessage.SentAt.Local().Date()
 	yy, mm, dd := lastMessage.SentAt.Local().Date()
 	if y == yy && m == mm && d == dd {
 		out = append(out, row)
 		return out
-	}
+	}*/
 
 	out = append(out, model.DateBoundary{Date: asMessage.SentAt}, row)
 	return out

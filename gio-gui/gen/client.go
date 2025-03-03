@@ -316,6 +316,8 @@ func MapPlaylist(pl *artist.Playlist, serial int) model.Message {
 	return model.Message{
 		SerialID: fmt.Sprintf("%05d", serial),
 		Title:    pl.GetTitle(),
+		TypeId:   2,
+		SentAt:   time.Date(len(pl.GetVideoIds())+1, 1, 0, 0, 0, 0, 0, time.Local),
 		AlbumId:  pl.GetPlaylistId(),
 		ParentId: pl.GetVideoIds(),
 		Avatar:   im,

@@ -57,7 +57,7 @@ type RowConfig struct {
 func NewRow(th *material.Theme, interact *Row, menu *component.MenuState, msg *RowConfig) RowStyle {
 	interact.Avatar.Cache(msg.Avatar)
 	var year string
-	if msg.TypeId <= 1 {
+	if msg.TypeId <= 2 {
 		year = strconv.Itoa(msg.SentAt.Local().Year())
 	}
 
