@@ -243,12 +243,12 @@ func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint
 	}
 	// Generate most of the model data.
 	rooms, _ := g.GetChannels(siteId)
-	mapDto(&ui, rooms, nil, g)
-	ui.Rooms.SelectAndFill(siteId, 0, nil, invalidator, ui.presentRow, false)
+	mapDto(&ui, rooms, nil, nil, g)
+	ui.Rooms.SelectAndFill(siteId, 0, nil, nil, invalidator, ui.presentRow, false)
 	return &ui
 }
 
-func mapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Generator) {
+func mapDto(ui *UI, channels *model.Rooms, albums *model.Messages, playlists *model.Messages, g *gen.Generator) {
 	for _, r := range channels.List() {
 		ch := ui.Rooms.GetChannelById(r.Id)
 		if ch != nil {
@@ -267,7 +267,7 @@ func mapDto(ui *UI, channels *model.Rooms, albums *model.Messages, g *gen.Genera
 			rtPl := &RowTracker{
 				SerialToIndex: make(map[list.Serial]int),
 				Generator:     g,
-				Messages:      nil,
+				Messages:      playlists,
 				MaxLoads:      ui.Conf.LoadSize,
 				ScrollToEnd:   false,
 			}
@@ -353,7 +353,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 	}
 
 	start := time.Now()
-	channels, albums, artTitle, err := g.AddChannel(siteId, artistId)
+	channels, albums, playlists, artTitle, err := g.AddChannel(siteId, artistId)
 	if err != nil {
 		ch.Content = err.Error()
 		return
@@ -361,8 +361,8 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 		ch.Content = fmt.Sprintf("%v %v", time.Since(start), artTitle)
 	}
 
-	mapDto(ui, channels, albums, g)
-	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), ui.Invalidator, ui.presentRow, false)
+	mapDto(ui, channels, albums, playlists, g)
+	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), playlists.GetList(), ui.Invalidator, ui.presentRow, false)
 }
 
 // Layout the application UI.
@@ -377,7 +377,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, ui.Invalidator, ui.presentRow, false)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, nil, ui.Invalidator, ui.presentRow, false)
 			ui.InsideRoom = true
 			break
 		}
@@ -729,7 +729,7 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 				curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Room.Count)
 				ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 				if ui.ChannelMenuTarget.Interact.Active {
-					ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, ui.Invalidator, ui.presentRow, false)
+					ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, nil, ui.Invalidator, ui.presentRow, false)
 				}
 				ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				ch := ui.Rooms.GetBaseChannel()
@@ -782,7 +782,7 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 						go active.RunSearch(editor.Text())
 						if editor.Text() == "" {
 							ui.Rooms.Active().Loaded = false
-							ui.Rooms.SelectAndFill(ui.SiteId, ui.Rooms.active, nil, ui.Invalidator, ui.presentRow, false)
+							ui.Rooms.SelectAndFill(ui.SiteId, ui.Rooms.active, nil, nil, ui.Invalidator, ui.presentRow, false)
 						}
 						break
 					}

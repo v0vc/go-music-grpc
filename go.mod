@@ -18,7 +18,7 @@ require (
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
 	golang.org/x/exp v0.0.0-20250228200357-dead58393ab7
 	golang.org/x/exp/shiny v0.0.0-20250228200357-dead58393ab7
-	google.golang.org/grpc v1.70.0
+	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.5
 )
 
@@ -29,9 +29,9 @@ require (
 	github.com/go-text/typesetting v0.3.0 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/image v0.24.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb // indirect
 )

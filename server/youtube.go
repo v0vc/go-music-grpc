@@ -167,7 +167,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			Thumbnail: chThumb,
 		}
 
-		stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId,title,playlistType) values (?,?,?) on conflict (playlistId, title) do nothing returning pl_id;")
+		stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId,title,playlistType,thumbnail) values (?,?,?,?) on conflict (playlistId, title) do nothing returning pl_id;")
 		if er != nil {
 			log.Println(er)
 		}
@@ -191,14 +191,15 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 		allPl := GetPlaylists(ctx, channelId.Id, token)
 		allPl = append(allPl, &plItem{
-			id:     ch.Items[0].ContentDetails.RelatedPlaylists.Uploads,
-			title:  "Uploads",
-			typePl: 0,
+			id:        ch.Items[0].ContentDetails.RelatedPlaylists.Uploads,
+			title:     "Uploads",
+			typePl:    0,
+			thumbnail: chThumb,
 		})
 
 		for i, item := range allPl {
 			var plId int
-			insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl).Scan(&plId)
+			insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl, item.thumbnail).Scan(&plId)
 			if insEr != nil {
 				log.Println(insEr)
 			} else {
@@ -239,6 +240,13 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			} else {
 				insertPlaylistVideoIds(ctx, tx, plVid, pl.rawId)
 			}
+			resArtist.Playlists = append(resArtist.Playlists, &artist.Playlist{
+				PlaylistId:   pl.id,
+				Title:        pl.title,
+				PlaylistType: 2,
+				Thumbnail:    pl.thumbnail,
+				VideoIds:     netPlIds,
+			})
 		}
 
 		insertUnlisted(ctx, tx, notUploadId, token, channelId, resArtist)
@@ -309,7 +317,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				log.Println(er)
 			}
 
-			stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId,title,playlistType) values (?,?,?) on conflict (playlistId, title) do nothing returning pl_id;")
+			stPlaylist, er := tx.PrepareContext(ctx, "insert into main.playlist(playlistId,title,playlistType,thumbnail) values (?,?,?,?) on conflict (playlistId, title) do nothing returning pl_id;")
 			if er != nil {
 				log.Println(er)
 			}
@@ -335,7 +343,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 			for _, item := range allPl {
 				var plId int
-				insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl).Scan(&plId)
+				insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl, item.thumbnail).Scan(&plId)
 				if insEr != nil {
 					log.Println(insEr)
 				} else {

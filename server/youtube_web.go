@@ -236,10 +236,15 @@ func GetPlaylists(ctx context.Context, channelId string, token string) []*plItem
 		upl, e := getPlaylist(ctx, url)
 		if e == nil && upl != nil {
 			for _, pl := range upl.Items {
+				thumb := GetThumb(ctx, pl.Snippet.Thumbnails.Default.URL)
+				if thumb != nil {
+					thumb = PrepareThumb(thumb, 15, 64, 64, 90)
+				}
 				res = append(res, &plItem{
-					id:     pl.ID,
-					title:  pl.Snippet.Title,
-					typePl: 1,
+					id:        pl.ID,
+					title:     pl.Snippet.Title,
+					typePl:    1,
+					thumbnail: thumb,
 				})
 			}
 		}

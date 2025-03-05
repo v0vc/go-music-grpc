@@ -120,10 +120,10 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 	return &rooms, err
 }
 
-func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, string, error) {
+func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, *model.Messages, string, error) {
 	client, err := GetClientInstance()
 	if client == nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 	res, err := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 		SiteId:   siteId,
@@ -131,13 +131,14 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 		IsAdd:    true,
 	}, grpc.MaxCallRecvMsgSize(1024*1024*12))
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, nil, "", err
 	}
 
 	var (
-		artTitle string
-		channels model.Rooms
-		albums   model.Messages
+		artTitle  string
+		channels  model.Rooms
+		albums    model.Messages
+		playlists model.Messages
 	)
 
 	for _, art := range res.GetArtists() {
@@ -159,8 +160,14 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 			al := MapAlbum(alb, serial, false)
 			albums.Add(al)
 		}
+
+		for _, playlist := range art.GetPlaylists() {
+			serial := g.old.Increment()
+			pl := MapPlaylist(playlist, serial)
+			playlists.Add(pl)
+		}
 	}
-	return &channels, &albums, artTitle, nil
+	return &channels, &albums, &playlists, artTitle, nil
 }
 
 func (g *Generator) DeleteArtist(siteId uint32, artistId string) int64 {

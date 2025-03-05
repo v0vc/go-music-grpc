@@ -189,7 +189,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	AddAlbumsToUi(rooms, res, r, start)
 }
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pls []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -220,7 +220,6 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, in
 		channel.ListState.Modify(nil, nil, resp)
 	}
 
-	var pls []model.Message
 	if albs == nil {
 		if channel.Room.IsBase {
 			albs = channel.RowTracker.Generator.GetNewAlbums(siteId)

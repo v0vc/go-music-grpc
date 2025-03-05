@@ -139,8 +139,9 @@ type vidItem struct {
 }
 
 type plItem struct {
-	id     string
-	title  string
-	typePl int
-	rawId  int
+	id        string
+	title     string
+	thumbnail []byte
+	typePl    int
+	rawId     int
 }
