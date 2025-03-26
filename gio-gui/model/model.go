@@ -68,12 +68,12 @@ type Room struct {
 	// Name of the room.
 	Name string
 	// Channel id
-	Id       string
-	Count    string
-	Content  string
-	Selected []string
-	IsBase   bool
-	Loaded   bool
+	Id                   string
+	Count                string
+	Content              string
+	Selected, SelectedPl []string
+	IsBase               bool
+	Loaded               bool
 }
 
 type Messages struct {

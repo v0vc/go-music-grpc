@@ -261,7 +261,7 @@ func GetPlaylists(ctx context.Context, channelId string, token string) []*plItem
 }
 
 func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, error) {
-	install, err := ytdlp.Install(ctx, &ytdlp.InstallOptions{AllowVersionMismatch: true})
+	install, err := ytdlp.Install(ctx, &ytdlp.InstallOptions{AllowVersionMismatch: false})
 	if err != nil {
 		return "-1", err
 	}

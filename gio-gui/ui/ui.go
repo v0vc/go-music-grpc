@@ -291,26 +291,53 @@ func (ui *UI) MassDownload(siteId uint32, resQuality string) {
 	if curChannel == nil || curChannel.Selected == nil || len(curChannel.Selected) == 0 {
 		return
 	}
-	go curChannel.DownloadAlbum(siteId, curChannel.Selected, resQuality)
+	if tabs.selected == 0 {
+		go curChannel.DownloadAlbum(siteId, curChannel.Selected, resQuality)
+	} else {
+		go curChannel.DownloadAlbum(siteId, curChannel.SelectedPl, resQuality)
+	}
 }
 
 func (ui *UI) SelectAll(value bool) {
 	curChannel := ui.Rooms.Active()
 	if curChannel != nil {
 		curChannel.Selected = nil
-		for _, data := range curChannel.RowTracker.Rows {
-			switch el := data.(type) {
-			case model.Message:
-				elemState, ok := curChannel.ListState.GetState(data.Serial()).(*Row)
-				if ok {
-					elemState.Selected.Value = value
+		if tabs.selected == 0 {
+			for _, data := range curChannel.RowTracker.Rows {
+				switch el := data.(type) {
+				case model.Message:
+					elemState, ok := curChannel.ListState.GetState(data.Serial()).(*Row)
+					if ok {
+						elemState.Selected.Value = value
+					}
+					if value {
+						switch ui.SiteId {
+						case 1:
+							curChannel.Selected = append(curChannel.Selected, el.AlbumId)
+						case 4:
+							curChannel.Selected = append(curChannel.Selected, el.ParentId[0]+";"+el.AlbumId)
+						}
+					}
 				}
-				if value {
-					switch ui.SiteId {
-					case 1:
-						curChannel.Selected = append(curChannel.Selected, el.AlbumId)
-					case 4:
-						curChannel.Selected = append(curChannel.Selected, el.ParentId[0]+";"+el.AlbumId+";"+el.Title)
+			}
+		} else {
+			curChannel.SelectedPl = nil
+			for _, data := range curChannel.RowTrackerPl.Rows {
+				switch el := data.(type) {
+				case model.Message:
+					elemState, ok := curChannel.ListStatePl.GetState(data.Serial()).(*Row)
+					if ok {
+						elemState.Selected.Value = value
+					}
+					if value {
+						switch ui.SiteId {
+						case 1:
+							// not yet
+						case 4:
+							for _, vid := range el.ParentId {
+								curChannel.SelectedPl = append(curChannel.SelectedPl, curChannel.Room.Id+";"+vid)
+							}
+						}
 					}
 				}
 			}
@@ -685,19 +712,6 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 				go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouAudioQuality)
 			}
 		}
-		if ui.DownloadChannelLowBtn.Clicked(gtx) {
-			channel := ui.ChannelMenuTarget
-			if channel.Loaded {
-				var albumIds []string
-				for _, i := range channel.RowTracker.Rows {
-					alb := i.(model.Message)
-					albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
-				}
-				go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouVideoHqQuality)
-			} else {
-				go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouVideoHqQuality)
-			}
-		}
 		if ui.CopyChannelBtn.Clicked(gtx) && !ui.ChannelMenuTarget.IsBase {
 			switch ui.SiteId {
 			case 1:
@@ -873,7 +887,7 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 					case 1:
 						idItem = el.AlbumId
 					case 4:
-						idItem = el.ParentId[0] + ";" + el.AlbumId + ";" + el.Title
+						idItem = el.ParentId[0] + ";" + el.AlbumId
 					}
 					if elemState.Selected.Value {
 						if !slices2.Contains(active.Selected, idItem) {
