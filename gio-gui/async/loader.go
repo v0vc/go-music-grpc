@@ -92,7 +92,7 @@ type FixedWorkerPool struct {
 // Schedule work to be executed by the available workers. This is a blocking
 // call if all workers are busy.
 func (p *FixedWorkerPool) Schedule(work func()) {
-	p.Once.Do(func() {
+	p.Do(func() {
 		p.queue = make(chan func())
 		if p.Workers <= 0 {
 			p.Workers = runtime.NumCPU()
@@ -140,7 +140,7 @@ type DynamicWorkerPool struct {
 // Each worker holds a semaphore for the duration of its life and returns it
 // before exiting.
 func (p *DynamicWorkerPool) Schedule(work func()) {
-	p.Once.Do(func() {
+	p.Do(func() {
 		if p.Workers <= 0 {
 			p.Workers = int64(runtime.NumCPU())
 		}
@@ -220,7 +220,7 @@ const DefaultMaxLoaded = 10
 // status.
 func (l *Loader) Schedule(tag Tag, load LoadFunc) Resource {
 	l.init.Do(l.initialize)
-	return l.loader.establish(tag, load, atomic.LoadInt64(&l.active))
+	return l.establish(tag, load, atomic.LoadInt64(&l.active))
 }
 
 func (l *Loader) initialize() {
@@ -228,8 +228,8 @@ func (l *Loader) initialize() {
 		l.MaxLoaded = DefaultMaxLoaded
 	}
 	l.updated = make(chan struct{}, 1)
-	l.loader.lookup = make(map[Tag]*resource)
-	l.loader.refresh.L = &l.loader.mu
+	l.lookup = make(map[Tag]*resource)
+	l.refresh.L = &l.mu
 
 	if l.Scheduler == nil {
 		l.Scheduler = &FixedWorkerPool{Workers: l.MaxLoaded}

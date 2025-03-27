@@ -85,8 +85,8 @@ func NewTheme(conf *Config) *Theme {
 // UsePalette changes to the specified palette.
 func (t *Theme) UsePalette(p Palette) {
 	t.Palette = p
-	t.Theme.Bg = t.Palette.Bg
-	t.Theme.Fg = t.Palette.OnBg
+	t.Bg = t.Palette.Bg
+	t.Fg = t.Palette.OnBg
 }
 
 func rgb(c uint32) color.NRGBA {

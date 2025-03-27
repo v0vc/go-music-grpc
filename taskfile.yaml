@@ -8,7 +8,7 @@ tasks:
     - task: fmt
     - task: build
     - task: lint
-    - task: check
+#    - task: check
 
   wasm:
     - gogio -target js -ldflags="-s -w" -o wasm_assets github.com/v0vc/go-music-grpc

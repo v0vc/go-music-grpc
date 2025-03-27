@@ -64,8 +64,8 @@ func AddAlbumsToUi(rooms *Rooms, artMap map[string][]model.Message, channel *Roo
 			ch := rooms.GetChannelById(artId)
 			if ch != nil {
 				ch.Lock()
-				curCount, _ := strconv.Atoi(ch.Room.Count)
-				ch.Room.Count = strconv.Itoa(curCount + len(albums))
+				curCount, _ := strconv.Atoi(ch.Count)
+				ch.Count = strconv.Itoa(curCount + len(albums))
 
 				if ch.IsBase || ch.RowTracker.Rows != nil {
 					el := make([]list.Element, 0, len(albums))
@@ -91,7 +91,7 @@ func (r *Room) RunSearch(searchText string) {
 		if input == "" {
 			resp = append(resp, e.Serial())
 		} else {
-			if !(strings.Contains(e.Title, input) || strings.Contains(strings.ToLower(e.Title), input)) {
+			if strings.Contains(strings.ToLower(e.Title), input) {
 				resp = append(resp, e.Serial())
 			}
 		}
@@ -221,14 +221,14 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pl
 	}
 
 	if albs == nil {
-		if channel.Room.IsBase {
+		if channel.IsBase {
 			albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
 			count := len(albs)
 			if count > 0 {
 				channel.Count = strconv.Itoa(count)
 			}
 		} else {
-			albs, pls = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Room.Id)
+			albs, pls = channel.RowTracker.Generator.GetArtistAlbums(siteId, r.List[r.active].Id)
 		}
 	}
 	res := make([]list.Element, 0)
@@ -295,7 +295,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pl
 		channel.ListStatePl = lmPl
 	}
 
-	channel.Room.Loaded = true
+	channel.Loaded = true
 }
 
 // Index returns a pointer to a Room at the given index.

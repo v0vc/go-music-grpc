@@ -66,7 +66,7 @@ func (img Image) Layout(gtx layout.Context) layout.Dimensions {
 	if img.Height > 0 {
 		gtx.Constraints.Max.Y = gtx.Constraints.Constrain(image.Pt(0, gtx.Dp(img.Height))).Y
 	}
-	if img.Image.Src == (paint.ImageOp{}) {
+	if img.Src == (paint.ImageOp{}) {
 		return layout.Dimensions{Size: gtx.Constraints.Max}
 	}
 	macro := op.Record(gtx.Ops)

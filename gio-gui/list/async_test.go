@@ -382,7 +382,7 @@ func TestCanModifyWhenIdle(t *testing.T) {
 			if su.Type != push {
 				t.Errorf("expected push update, got %v", su.Type)
 			}
-			got := su.Synthesis.Source
+			got := su.Source
 
 			want = append(want, testElement{
 				serial:     strconv.Itoa(total),

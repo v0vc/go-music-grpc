@@ -71,11 +71,11 @@ func (r *Router) Register(tag interface{}, p Page) {
 	navItem.Tag = tag
 	if r.current == interface{}(nil) {
 		r.current = tag
-		r.AppBar.Title = navItem.Name
-		r.AppBar.SetActions(p.Actions(), p.Overflow())
+		r.Title = navItem.Name
+		r.SetActions(p.Actions(), p.Overflow())
 	}
 
-	r.ModalNavDrawer.AddNavItem(navItem)
+	r.AddNavItem(navItem)
 }
 
 func (r *Router) SwitchTo(tag interface{}) {
@@ -84,19 +84,19 @@ func (r *Router) SwitchTo(tag interface{}) {
 		return
 	}
 	r.current = tag
-	r.AppBar.Title = p.NavItem().Name
-	r.AppBar.SetActions(p.Actions(), p.Overflow())
+	r.Title = p.NavItem().Name
+	r.SetActions(p.Actions(), p.Overflow())
 }
 
 func (r *Router) Layout(gtx layout.Context, th *Theme, conf *Config) layout.Dimensions {
-	for _, event := range r.AppBar.Events(gtx) {
+	for _, event := range r.Events(gtx) {
 		// switch event := event.(type) {
 		switch event.(type) {
 		case component.AppBarNavigationClicked:
 			if r.NonModalDrawer {
 				r.NavAnim.ToggleVisibility(gtx.Now)
 			} else {
-				r.ModalNavDrawer.Appear(gtx.Now)
+				r.Appear(gtx.Now)
 				r.NavAnim.Disappear(gtx.Now)
 			}
 		case component.AppBarContextMenuDismissed:
@@ -107,22 +107,22 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, conf *Config) layout.Dime
 			r.pages[r.current].ClickMainMenu(event)
 		}
 	}
-	if r.ModalNavDrawer.NavDestinationChanged() {
-		r.SwitchTo(r.ModalNavDrawer.CurrentNavDestination())
+	if r.NavDestinationChanged() {
+		r.SwitchTo(r.CurrentNavDestination())
 	}
 	// paint.Fill(gtx.Ops, th.Palette.Surface)
 	content := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		origBg := th.Theme.Bg
+		origBg := th.Bg
 		return layout.Flex{}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				// gtx.Constraints.Max.X /= 3
 				gtx.Constraints.Max.X = 375
-				th.Theme.Bg = th.Palette.Surface
+				th.Bg = th.Palette.Surface
 
 				return r.NavDrawer.Layout(gtx, th.Theme, &r.NavAnim)
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-				th.Theme.Bg = origBg
+				th.Bg = origBg
 				return r.pages[r.current].Layout(gtx, th, conf)
 			}),
 		)

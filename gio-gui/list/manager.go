@@ -116,7 +116,7 @@ func (m *Manager) updateViewport(pos layout.Position) {
 		return
 	}
 	m.lastPosition = pos
-	m.viewport.Start, m.viewport.End = m.elements.ViewportToSerials(pos)
+	m.Start, m.End = m.elements.ViewportToSerials(pos)
 	// Try to send the viewport until we succeed. This should only ever
 	// iterate a maximum of twice.
 	for {
@@ -413,7 +413,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 			}
 
 			// Capture the current viewport in terms of the range of visible elements.
-			m.viewport.Start, m.viewport.End = su.ViewportToSerials(list.Position)
+			m.Start, m.End = su.ViewportToSerials(list.Position)
 		}
 	default:
 	}

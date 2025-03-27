@@ -253,8 +253,8 @@ func mapDto(ui *UI, channels *model.Rooms, albums *model.Messages, playlists *mo
 		ch := ui.Rooms.GetChannelById(r.Id)
 		if ch != nil {
 			ch.Lock()
-			curCount, _ := strconv.Atoi(ch.Room.Count)
-			ch.Room.Count = strconv.Itoa(curCount + len(albums.GetList()))
+			curCount, _ := strconv.Atoi(ch.Count)
+			ch.Count = strconv.Itoa(curCount + len(albums.GetList()))
 			ch.Unlock()
 		} else {
 			rt := &RowTracker{
@@ -335,7 +335,7 @@ func (ui *UI) SelectAll(value bool) {
 							// not yet
 						case 4:
 							for _, vid := range el.ParentId {
-								curChannel.SelectedPl = append(curChannel.SelectedPl, curChannel.Room.Id+";"+vid)
+								curChannel.SelectedPl = append(curChannel.SelectedPl, curChannel.Id+";"+vid)
 							}
 						}
 					}
@@ -394,7 +394,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 
 // Layout the application UI.
 func (ui *UI) Layout(gtx layout.Context) layout.Dimensions {
-	return ui.Loader.Frame(gtx, ui.layout)
+	return ui.Frame(gtx, ui.layout)
 }
 
 func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
@@ -496,7 +496,7 @@ func (ui *UI) layoutChat(gtx layout.Context) layout.Dimensions {
 									}
 									tabHeight := gtx.Dp(unit.Dp(4))
 									tabRect := image.Rect(0, 0, tabWidth, tabHeight)
-									paint.FillShape(gtx.Ops, ui.th.Theme.Palette.ContrastBg, clip.Rect(tabRect).Op())
+									paint.FillShape(gtx.Ops, ui.th.ContrastBg, clip.Rect(tabRect).Op())
 									return layout.Dimensions{
 										Size: image.Point{X: tabWidth, Y: tabHeight},
 									}
@@ -728,8 +728,8 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 			if ui.ChannelMenuTarget.IsBase {
 				// Delete на -=NEW=- сделаем очистку статусу синка
 				for _, ch := range ui.Rooms.List {
-					ch.Room.Count = ""
-					ch.Room.Selected = nil
+					ch.Count = ""
+					ch.Selected = nil
 				}
 				go ui.ChannelMenuTarget.ClearSync(ui.SiteId)
 			} else {
@@ -740,7 +740,7 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 						ids = append(ids, el.AlbumId)
 					}
 				}
-				curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Room.Count)
+				curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Count)
 				ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 				if ui.ChannelMenuTarget.Interact.Active {
 					ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, nil, ui.Invalidator, ui.presentRow, false)
@@ -748,12 +748,12 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 				ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				ch := ui.Rooms.GetBaseChannel()
 				if ch != nil {
-					curBaseCount, _ := strconv.Atoi(ch.Room.Count)
+					curBaseCount, _ := strconv.Atoi(ch.Count)
 					if curBaseCount >= curCount {
 						if curBaseCount-curCount == 0 {
-							ch.Room.Count = ""
+							ch.Count = ""
 						} else {
-							ch.Room.Count = strconv.Itoa(curBaseCount - curCount)
+							ch.Count = strconv.Itoa(curBaseCount - curCount)
 						}
 					}
 					for _, data := range ch.RowTracker.Rows {

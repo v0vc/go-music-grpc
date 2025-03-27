@@ -148,7 +148,7 @@ func (row RowStyle) Layout(gtx layout.Context) layout.Dimensions {
 			return dims
 		}),
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-			return row.Row.ContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return row.ContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min = image.Point{}
 				return row.Menu.Layout(gtx)
 			})

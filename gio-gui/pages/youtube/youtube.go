@@ -50,7 +50,7 @@ func (p *Page) addActions() []component.AppBarAction {
 			},
 			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
 				thh := material.NewTheme()
-				thh.Palette.Fg = p.th.Palette.BgSecondary
+				thh.Fg = p.th.Palette.BgSecondary
 				p.editor.SingleLine = true
 				p.editor.MaxLen = 128
 				// p.editor.Focus()
@@ -66,7 +66,7 @@ func (p *Page) addActions() []component.AppBarAction {
 				}
 				if p.insertBtn.Clicked(gtx) {
 					if p.editor.Text() != "" {
-						go p.Router.AppBar.StopContextual(gtx.Now)
+						go p.StopContextual(gtx.Now)
 						go singleInstance.AddChannel(siteId, strings.TrimSpace(p.editor.Text()))
 						p.editor.SetText(newUrl)
 					}
@@ -111,11 +111,11 @@ func (p *Page) Actions() []component.AppBarAction {
 			},
 			Layout: func(gtx layout.Context, bg, fg color.NRGBA) layout.Dimensions {
 				if p.addBtn.Clicked(gtx) {
-					p.Router.AppBar.SetContextualActions(
+					p.SetContextualActions(
 						p.addActions(),
 						[]component.OverflowAction{},
 					)
-					p.Router.AppBar.ToggleContextual(gtx.Now, "Add video link: ")
+					p.ToggleContextual(gtx.Now, "Add video link: ")
 				}
 				return component.SimpleIconButton(bg, fg, &p.addBtn, icon.PlusIcon).Layout(gtx)
 			},
@@ -196,7 +196,7 @@ func getInstance(invalidator func(), th *page.Theme, conf *page.Config) *ui.UI {
 }
 
 func (p *Page) Layout(gtx layout.Context, th *page.Theme, conf *page.Config) layout.Dimensions {
-	mainUi := getInstance(p.Router.Invalidate, th, conf)
+	mainUi := getInstance(p.Invalidate, th, conf)
 	p.th = th
 	return mainUi.Layout(gtx)
 }
