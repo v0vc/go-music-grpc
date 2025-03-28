@@ -189,7 +189,7 @@ func (r *Room) SyncArtist(rooms *Rooms, siteId uint32) {
 	AddAlbumsToUi(rooms, res, r, start)
 }
 
-func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pls []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, isClean bool) {
+func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pls []model.Message, invalidator func(), presentRow func(data list.Element, state interface{}) layout.Widget, presentRowPl func(data list.Element, state interface{}) layout.Widget, isClean bool) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -283,7 +283,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pl
 				},
 				// Define a presenter that can transform each kind of row data
 				// and state into a widget.
-				Presenter: presentRow,
+				Presenter: presentRowPl,
 				// NOTE(jfm): award coupling between message data and `list.Manager`.
 				Loader:      channel.RowTrackerPl.Load,
 				Synthesizer: synth,

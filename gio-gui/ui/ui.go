@@ -34,6 +34,7 @@ const (
 	zvArtistUrl     = "https://zvuk.com/artist/"
 	zvReleaseUrl    = "https://zvuk.com/release/"
 	youVideoUrl     = "https://www.youtube.com/watch?v="
+	youPlaylistUrl  = "https://www.youtube.com/playlist?list="
 	youChannelUrl   = "https://www.youtube.com/channel/"
 	zvArtistRegex   = `^https://zvuk.com/artist/(\d+)$`
 	zvReleaseRegex  = `^https://zvuk.com/release/(\d+)$`
@@ -244,7 +245,7 @@ func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint
 	// Generate most of the model data.
 	rooms, _ := g.GetChannels(siteId)
 	mapDto(&ui, rooms, nil, nil, g)
-	ui.Rooms.SelectAndFill(siteId, 0, nil, nil, invalidator, ui.presentRow, false)
+	ui.Rooms.SelectAndFill(siteId, 0, nil, nil, invalidator, ui.presentRow, ui.presentRowPl, false)
 	return &ui
 }
 
@@ -330,14 +331,7 @@ func (ui *UI) SelectAll(value bool) {
 						elemState.Selected.Value = value
 					}
 					if value {
-						switch ui.SiteId {
-						case 1:
-							// not yet
-						case 4:
-							for _, vid := range el.ParentId {
-								curChannel.SelectedPl = append(curChannel.SelectedPl, curChannel.Id+";"+vid)
-							}
-						}
+						curChannel.SelectedPl = append(curChannel.SelectedPl, curChannel.Id+";"+el.AlbumId)
 					}
 				}
 			}
@@ -389,7 +383,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 	}
 
 	mapDto(ui, channels, albums, playlists, g)
-	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), playlists.GetList(), ui.Invalidator, ui.presentRow, false)
+	ui.Rooms.SelectAndFill(siteId, len(ui.Rooms.List)-1, albums.GetList(), playlists.GetList(), ui.Invalidator, ui.presentRow, ui.presentRowPl, false)
 }
 
 // Layout the application UI.
@@ -404,7 +398,7 @@ func (ui *UI) layout(gtx layout.Context) layout.Dimensions {
 		r := ui.Rooms.List[ii]
 		if r.Interact.Clicked(gtx) {
 			// ui.Rooms.Select(ii)
-			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, nil, ui.Invalidator, ui.presentRow, false)
+			ui.Rooms.SelectAndFill(ui.SiteId, ii, nil, nil, ui.Invalidator, ui.presentRow, ui.presentRowPl, false)
 			ui.InsideRoom = true
 			break
 		}
@@ -743,7 +737,7 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 				curCount, _ := strconv.Atoi(ui.ChannelMenuTarget.Count)
 				ind := slices.Index(ui.Rooms.List, ui.ChannelMenuTarget)
 				if ui.ChannelMenuTarget.Interact.Active {
-					ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, nil, ui.Invalidator, ui.presentRow, false)
+					ui.Rooms.SelectAndFill(ui.SiteId, ind-1, nil, nil, ui.Invalidator, ui.presentRow, ui.presentRowPl, false)
 				}
 				ui.Rooms.List = ui.Rooms.DeleteChannel(ind, ui.SiteId)
 				ch := ui.Rooms.GetBaseChannel()
@@ -796,7 +790,7 @@ func (ui *UI) layoutEditor(gtx layout.Context) layout.Dimensions {
 						go active.RunSearch(editor.Text())
 						if editor.Text() == "" {
 							ui.Rooms.Active().Loaded = false
-							ui.Rooms.SelectAndFill(ui.SiteId, ui.Rooms.active, nil, nil, ui.Invalidator, ui.presentRow, false)
+							ui.Rooms.SelectAndFill(ui.SiteId, ui.Rooms.active, nil, nil, ui.Invalidator, ui.presentRow, ui.presentRowPl, false)
 						}
 						break
 					}
@@ -862,20 +856,20 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 					case 1:
 						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.Conf.ZvukQuality)
 					case 4:
-						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.Conf.YouVideoQuality)
+						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoQuality)
 					}
 				}
 			}
 			if ui.DownloadLowBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.Conf.YouAudioQuality)
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouAudioQuality)
 				}
 			}
 			if ui.DownloadHqBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId + ";" + ui.ContextMenuTarget.Title}, ui.Conf.YouVideoHqQuality)
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoHqQuality)
 				}
 			}
 
@@ -910,6 +904,72 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 		return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	case model.UnreadBoundary:
 		return UnreadSeparator(ui.th.Theme).Layout
+	default:
+		return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }
+	}
+}
+
+func (ui *UI) presentRowPl(data list.Element, state interface{}) layout.Widget {
+	switch el := data.(type) {
+	case model.Message:
+		elemState, ok := state.(*Row)
+		if !ok {
+			return func(layout.Context) layout.Dimensions { return layout.Dimensions{} }
+		}
+
+		return func(gtx layout.Context) layout.Dimensions {
+			if elemState.ContextArea.Active() {
+				ui.ContextMenuTarget = &el
+			}
+			if ui.CopyAlbBtn.Clicked(gtx) {
+				gtx.Execute(clipboard.WriteCmd{
+					Data: io.NopCloser(strings.NewReader(youPlaylistUrl + ui.ContextMenuTarget.AlbumId)),
+				})
+			}
+			if ui.CopyAlbArtistBtn.Clicked(gtx) {
+				gtx.Execute(clipboard.WriteCmd{
+					Data: io.NopCloser(strings.NewReader(youChannelUrl + ui.Rooms.Active().Id)),
+				})
+			}
+			if ui.DownloadBtn.Clicked(gtx) {
+				active := ui.Rooms.Active()
+				if active != nil {
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoQuality)
+				}
+			}
+			if ui.DownloadLowBtn.Clicked(gtx) {
+				active := ui.Rooms.Active()
+				if active != nil {
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouAudioQuality)
+				}
+			}
+			if ui.DownloadHqBtn.Clicked(gtx) {
+				active := ui.Rooms.Active()
+				if active != nil {
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoHqQuality)
+				}
+			}
+
+			if elemState.Selected.Update(gtx) {
+				active := ui.Rooms.Active()
+				if active != nil {
+					idItem := active.Id + ";" + el.AlbumId
+					if elemState.Selected.Value {
+						if !slices2.Contains(active.SelectedPl, idItem) {
+							active.SelectedPl = append(active.SelectedPl, idItem)
+						}
+					} else {
+						for i, v := range active.SelectedPl {
+							if v == idItem {
+								active.SelectedPl = append(active.SelectedPl[:i], active.SelectedPl[i+1:]...)
+								break
+							}
+						}
+					}
+				}
+			}
+			return ui.row(el, elemState)(gtx)
+		}
 	default:
 		return func(gtx layout.Context) layout.Dimensions { return layout.Dimensions{} }
 	}

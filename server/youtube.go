@@ -826,13 +826,12 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 
 	for _, id := range vidIds {
 		res := strings.Split(id, ";")
-		if len(res) != 3 {
+		if len(res) != 2 {
 			log.Println("Invalid ui param:", id)
 			continue
 		}
 		chId := res[0]
 		videoId := res[1]
-		title := res[2]
 
 		mChannel := make(map[string]string)
 		absChannelName, exist := mChannel[chId]
@@ -848,7 +847,7 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 
 		resDown, err := DownloadVideo(ctx, absChannelName, videoId, quality)
 		if err != nil {
-			log.Println(title+" can't download.", err)
+			log.Println(videoId+" can't download.", err)
 			continue
 		} else {
 			mDownloaded[id] = resDown

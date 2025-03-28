@@ -12,7 +12,7 @@ require (
 	github.com/go-flac/flacvorbis v0.2.0
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lrstanley/go-ytdlp v0.0.0-20250326003011-0f33c19e522a
+	github.com/lrstanley/go-ytdlp v0.0.0-20250328002725-d1ef5e851def
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/panjf2000/ants/v2 v2.11.2
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
@@ -29,7 +29,7 @@ require (
 	github.com/go-text/typesetting v0.3.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/image v0.25.0 // indirect
-	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
