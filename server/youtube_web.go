@@ -16,6 +16,7 @@ import (
 
 const (
 	youtubeVideo        = "https://www.youtube.com/watch?v="
+	youtubePlaylist     = "https://www.youtube.com/playlist?list="
 	youtubeApi          = "https://www.googleapis.com/youtube/v3/"
 	chanelString        = "channels?id=[ID]&key=[KEY]&part=contentDetails,snippet,statistics&fields=items(contentDetails(relatedPlaylists(uploads)),snippet(title,thumbnails(default(url))),statistics(viewCount,subscriberCount))&prettyPrint=false"
 	uploadString        = "playlistItems?key=[KEY]&playlistId=[ID]&part=snippet,contentDetails&order=date&fields=nextPageToken,items(snippet(publishedAt,title,resourceId(videoId),thumbnails(default(url))),contentDetails(videoPublishedAt))&maxResults=50&prettyPrint=false"
@@ -260,7 +261,7 @@ func GetPlaylists(ctx context.Context, channelId string, token string) []*plItem
 	return res
 }
 
-func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, error) {
+func DownloadVideo(ctx context.Context, videoPath, id, quality string, isPl bool) (string, error) {
 	install, err := ytdlp.Install(ctx, &ytdlp.InstallOptions{AllowVersionMismatch: false})
 	if err != nil {
 		return "-1", err
@@ -273,7 +274,13 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string) (string, 
 		Format(quality).
 		Output(videoPath + string(os.PathSeparator) + "%(title)s.%(ext)s")
 
-	res, err := dl.Run(ctx, youtubeVideo+id)
+	var link string
+	if isPl {
+		link = youtubePlaylist + id
+	} else {
+		link = youtubeVideo + id
+	}
+	res, err := dl.Run(ctx, link)
 	if err != nil {
 		log.Println(err)
 		return "-1", err

@@ -293,9 +293,9 @@ func (ui *UI) MassDownload(siteId uint32, resQuality string) {
 		return
 	}
 	if tabs.selected == 0 {
-		go curChannel.DownloadAlbum(siteId, curChannel.Selected, resQuality)
+		go curChannel.DownloadAlbum(siteId, curChannel.Selected, resQuality, false)
 	} else {
-		go curChannel.DownloadAlbum(siteId, curChannel.SelectedPl, resQuality)
+		go curChannel.DownloadAlbum(siteId, curChannel.SelectedPl, resQuality, true)
 	}
 }
 
@@ -353,7 +353,7 @@ func (ui *UI) AddChannel(siteId uint32, url string) {
 		if artistId == "" {
 			releaseId := findArtistId(url, false)
 			if releaseId != "" {
-				go g.DownloadAlbum(siteId, []string{releaseId}, "mid")
+				go g.DownloadAlbum(siteId, []string{releaseId}, "mid", false)
 				ch.Content = "download: " + releaseId
 				return
 			}
@@ -685,10 +685,10 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 					case 1:
 						albumIds = append(albumIds, alb.AlbumId)
 					case 4:
-						albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+						albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId)
 					}
 				}
-				go channel.DownloadAlbum(ui.SiteId, albumIds, quality)
+				go channel.DownloadAlbum(ui.SiteId, albumIds, quality, false)
 			} else {
 				go channel.DownloadArtist(ui.SiteId, channel.Id, quality)
 			}
@@ -699,9 +699,9 @@ func (ui *UI) roomList(gtx layout.Context) layout.Dimensions {
 				var albumIds []string
 				for _, i := range channel.RowTracker.Rows {
 					alb := i.(model.Message)
-					albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId+";"+alb.Title)
+					albumIds = append(albumIds, alb.ParentId[0]+";"+alb.AlbumId)
 				}
-				go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouAudioQuality)
+				go channel.DownloadAlbum(ui.SiteId, albumIds, ui.Conf.YouAudioQuality, false)
 			} else {
 				go channel.DownloadArtist(ui.SiteId, channel.Id, ui.Conf.YouAudioQuality)
 			}
@@ -854,22 +854,22 @@ func (ui *UI) presentRow(data list.Element, state interface{}) layout.Widget {
 				if active != nil {
 					switch ui.SiteId {
 					case 1:
-						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.Conf.ZvukQuality)
+						go active.DownloadAlbum(ui.SiteId, []string{ui.ContextMenuTarget.AlbumId}, ui.Conf.ZvukQuality, false)
 					case 4:
-						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoQuality)
+						go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoQuality, false)
 					}
 				}
 			}
 			if ui.DownloadLowBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouAudioQuality)
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouAudioQuality, false)
 				}
 			}
 			if ui.DownloadHqBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoHqQuality)
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoHqQuality, false)
 				}
 			}
 
@@ -934,19 +934,19 @@ func (ui *UI) presentRowPl(data list.Element, state interface{}) layout.Widget {
 			if ui.DownloadBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoQuality)
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoQuality, true)
 				}
 			}
 			if ui.DownloadLowBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouAudioQuality)
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouAudioQuality, true)
 				}
 			}
 			if ui.DownloadHqBtn.Clicked(gtx) {
 				active := ui.Rooms.Active()
 				if active != nil {
-					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoHqQuality)
+					go active.DownloadAlbum(ui.SiteId, []string{active.Id + ";" + ui.ContextMenuTarget.AlbumId}, ui.Conf.YouVideoHqQuality, true)
 				}
 			}
 

@@ -428,7 +428,7 @@ func (*server) DownloadAlbums(ctx context.Context, req *artist.DownloadAlbumsReq
 		// "артист с дизера"
 	case 4:
 		// автор с ютуба
-		resDown, err = DownloadVideos(context.WithoutCancel(ctx), albIds, req.GetTrackQuality())
+		resDown, err = DownloadVideos(context.WithoutCancel(ctx), albIds, req.GetTrackQuality(), req.GetIsPl())
 	}
 
 	if err != nil {
@@ -468,7 +468,7 @@ func (*server) DownloadArtist(ctx context.Context, req *artist.DownloadArtistReq
 	case 4:
 		// автор с ютуба
 		vidIds, _ := GetChannelVideosIdFromDb(ctx, siteId, artistId, false)
-		resDown, err = DownloadVideos(context.WithoutCancel(ctx), vidIds, req.GetTrackQuality())
+		resDown, err = DownloadVideos(context.WithoutCancel(ctx), vidIds, req.GetTrackQuality(), false)
 	}
 
 	if err != nil {

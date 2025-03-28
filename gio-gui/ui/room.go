@@ -134,12 +134,12 @@ func (r *Rooms) Active() *Room {
 	return r.List[r.active]
 }
 
-func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) {
+func (r *Room) DownloadAlbum(siteId uint32, albumId []string, trackQuality string, isPl bool) {
 	r.Lock()
 	defer r.Unlock()
 
 	r.Content = "Downloading..."
-	ids := r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality)
+	ids := r.RowTracker.Generator.DownloadAlbum(siteId, albumId, trackQuality, isPl)
 	albs := len(ids)
 	switch albs {
 	case 0:

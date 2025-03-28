@@ -83,6 +83,7 @@ message DownloadAlbumsRequest {
   uint32 siteId = 1;
   repeated string albumIds = 2;
   string trackQuality = 3;
+  bool isPl = 4;
 }
 
 message DownloadArtistRequest {

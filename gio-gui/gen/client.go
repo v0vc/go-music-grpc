@@ -240,7 +240,7 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Mes
 	return albums, playlists
 }
 
-func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality string) map[string]string {
+func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality string, isPl bool) map[string]string {
 	client, _ := GetClientInstance()
 	if client == nil {
 		return nil
@@ -249,6 +249,7 @@ func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality 
 		SiteId:       siteId,
 		AlbumIds:     albumId,
 		TrackQuality: trackQuality,
+		IsPl:         isPl,
 	})
 	if err != nil || res == nil {
 		return nil

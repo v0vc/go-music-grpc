@@ -821,7 +821,7 @@ func DeleteChannelDb(ctx context.Context, siteId uint32, artistId []string) (int
 	return deletedRowCount, tx.Commit()
 }
 
-func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[string]string, error) {
+func DownloadVideos(ctx context.Context, vidIds []string, quality string, isPl bool) (map[string]string, error) {
 	mDownloaded := make(map[string]string)
 
 	for _, id := range vidIds {
@@ -837,6 +837,9 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 		absChannelName, exist := mChannel[chId]
 		if !exist {
 			absChannelName = filepath.Join(YouDir, chId)
+			if isPl {
+				absChannelName = filepath.Join(absChannelName, videoId)
+			}
 			err := os.MkdirAll(absChannelName, 0o755)
 			if err != nil {
 				log.Println(chId+" can't create folder.", err)
@@ -845,9 +848,9 @@ func DownloadVideos(ctx context.Context, vidIds []string, quality string) (map[s
 			mChannel[chId] = absChannelName
 		}
 
-		resDown, err := DownloadVideo(ctx, absChannelName, videoId, quality)
+		resDown, err := DownloadVideo(ctx, absChannelName, videoId, quality, isPl)
 		if err != nil {
-			log.Println(videoId+" can't download.", err)
+			log.Println(videoId+" something was wrong.", err)
 			continue
 		} else {
 			mDownloaded[id] = resDown
