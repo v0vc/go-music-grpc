@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	slices2 "golang.org/x/exp/slices"
-
 	"github.com/v0vc/go-music-grpc/artist"
+	"golang.org/x/exp/maps"
+	slices2 "golang.org/x/exp/slices"
 )
 
 func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, error) {
@@ -287,16 +287,21 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			NewAlbs:  int32(len(newVidIds)),
 		}
 
+		uploadVidIds := make(map[string]int)
 		for c := range slices.Chunk(newVidIds, 50) {
 			var sb strings.Builder
 			for _, vid := range c {
 				sb.WriteString(vid + ",")
 			}
 			videos := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
+			var uploadVidIdsChunk map[string]int
 			if videos != nil {
-				processVideos(ctx, tx, videos, resArtist, channelId.RawPlId, channelId.Id, 1, 0)
+				uploadVidIdsChunk = processVideos(ctx, tx, videos, resArtist, channelId.RawPlId, channelId.Id, 1, 0)
 			} else {
 				log.Println("Can't get video from api")
+			}
+			if uploadVidIdsChunk != nil {
+				maps.Copy(uploadVidIds, uploadVidIdsChunk)
 			}
 		}
 
@@ -312,7 +317,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				}
 			}(stPlRem)
 
-			_, er = stPlRem.QueryContext(ctx, channelId.RawId)
+			_, er = stPlRem.ExecContext(ctx, channelId.RawId)
 			if er != nil {
 				log.Println(er)
 			}
@@ -361,13 +366,14 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				netPlIds := GetPlaylistVidIds(ctx, pl.id, token)
 				plVid := make(map[string]int)
 				for _, vId := range netPlIds {
-					if !slices2.Contains(channelId.vidIds, vId) {
+					rawVidId, ok := uploadVidIds[vId]
+					if ok {
+						plVid[vId] = rawVidId
+					} else if !slices2.Contains(channelId.vidIds, vId) && !slices2.Contains(notUploadId, vId) {
 						notUploadId = append(notUploadId, vId)
 					}
 				}
-				if len(plVid) == 0 {
-					deletePlaylistById(ctx, tx, pl.rawId)
-				} else {
+				if len(plVid) != 0 {
 					insertPlaylistVideoIds(ctx, tx, plVid, pl.rawId)
 				}
 			}
