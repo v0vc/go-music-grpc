@@ -12,13 +12,13 @@ require (
 	github.com/go-flac/flacvorbis v0.2.0
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lrstanley/go-ytdlp v0.0.0-20250328002725-d1ef5e851def
+	github.com/lrstanley/go-ytdlp v0.0.0-20250401014907-da1707e4fb85
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/panjf2000/ants/v2 v2.11.2
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	golang.org/x/exp/shiny v0.0.0-20250305212735-054e65f0b394
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.6
 )
 

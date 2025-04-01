@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/v0vc/go-music-grpc/artist"
-	"golang.org/x/exp/maps"
-	slices2 "golang.org/x/exp/slices"
 )
 
 func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, error) {
@@ -287,21 +285,16 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			NewAlbs:  int32(len(newVidIds)),
 		}
 
-		uploadVidIds := make(map[string]int)
 		for c := range slices.Chunk(newVidIds, 50) {
 			var sb strings.Builder
 			for _, vid := range c {
 				sb.WriteString(vid + ",")
 			}
 			videos := GetVidByIds(ctx, strings.TrimRight(sb.String(), ","), token)
-			var uploadVidIdsChunk map[string]int
 			if videos != nil {
-				uploadVidIdsChunk = processVideos(ctx, tx, videos, resArtist, channelId.RawPlId, channelId.Id, 1, 0)
+				processVideos(ctx, tx, videos, resArtist, channelId.RawPlId, channelId.Id, 1, 0)
 			} else {
 				log.Println("Can't get video from api")
-			}
-			if uploadVidIdsChunk != nil {
-				maps.Copy(uploadVidIds, uploadVidIdsChunk)
 			}
 		}
 
@@ -361,6 +354,10 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				}
 			}
 
+			uploadVidIds, er := GetChannelVideosIdsFromDb(ctx, tx, channelId.RawPlId)
+			if er != nil {
+				log.Println(er)
+			}
 			var notUploadId []string
 			for _, pl := range allPl {
 				netPlIds := GetPlaylistVidIds(ctx, pl.id, token)
@@ -369,11 +366,13 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 					rawVidId, ok := uploadVidIds[vId]
 					if ok {
 						plVid[vId] = rawVidId
-					} else if !slices2.Contains(channelId.vidIds, vId) && !slices2.Contains(notUploadId, vId) {
+					} else {
 						notUploadId = append(notUploadId, vId)
 					}
 				}
-				if len(plVid) != 0 {
+				if len(plVid) == 0 {
+					deletePlaylistById(ctx, tx, pl.rawId)
+				} else {
 					insertPlaylistVideoIds(ctx, tx, plVid, pl.rawId)
 				}
 			}
@@ -669,9 +668,9 @@ func GetChannelVideosIdFromDb(ctx context.Context, siteId uint32, channelId stri
 	var str string
 
 	if newOnly {
-		str = "select v.videoId, v.title from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where v.syncState = 1 and siteId = ?;"
+		str = "select v.videoId, v.title from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where v.syncState = 1 and siteId = ? group by v.vid_id;"
 	} else {
-		str = "select v.videoId, v.title from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ?;"
+		str = "select v.videoId, v.title from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ? group by v.vid_id;"
 	}
 	stRows, err := db.PrepareContext(ctx, str)
 	if err != nil {
@@ -716,6 +715,46 @@ func GetChannelVideosIdFromDb(ctx context.Context, siteId uint32, channelId stri
 	}
 
 	return albIds, err
+}
+
+func GetChannelVideosIdsFromDb(ctx context.Context, tx *sql.Tx, plUploadId int) (map[string]int, error) {
+	stRows, err := tx.PrepareContext(ctx, "select v.videoId, v.vid_id from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where pV.playlistId = ?;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stRows *sql.Stmt) {
+		err = stRows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stRows)
+
+	rows, err := stRows.QueryContext(ctx, plUploadId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rows *sql.Rows) {
+		err = rows.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rows)
+
+	vidIds := make(map[string]int)
+
+	for rows.Next() {
+		var (
+			vidId string
+			id    int
+		)
+		if err = rows.Scan(&vidId, &id); err != nil {
+			log.Println(err)
+		} else {
+			vidIds[vidId] = id
+		}
+	}
+
+	return vidIds, err
 }
 
 func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
