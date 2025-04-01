@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -51,7 +50,7 @@ func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, err
 			ids   string
 		)
 
-		if er := rows.Scan(&artId.RawId, &artId.Id, &artId.RawId, &artId.PlaylistId, &ids); er != nil {
+		if er := rows.Scan(&artId.RawId, &artId.Id, &artId.RawPlId, &artId.PlaylistId, &ids); er != nil {
 			log.Println(err)
 		} else {
 			artId.vidIds = strings.Split(ids, ",")
@@ -60,38 +59,6 @@ func GetChannelIdsFromDb(ctx context.Context, siteId uint32) ([]ArtistRawId, err
 	}
 
 	return artistIds, err
-}
-
-func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId interface{}, syncPl bool) ArtistRawId {
-	stmtArt, err := tx.PrepareContext(ctx, "select c.ch_id, c.channelId, p.pl_id, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ? and p.playlistType = 0 limit 1;")
-	if err != nil {
-		log.Println(err)
-	}
-	defer func(stmtArt *sql.Stmt) {
-		err = stmtArt.Close()
-		if err != nil {
-			log.Println(err)
-		}
-	}(stmtArt)
-
-	var (
-		artId ArtistRawId
-		ids   string
-	)
-
-	err = stmtArt.QueryRowContext(ctx, channelId, siteId).Scan(&artId.RawId, &artId.Id, &artId.RawPlId, &artId.PlaylistId, &ids)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		log.Printf("no channel with id %v\n", channelId)
-	case err != nil:
-		log.Println(err)
-	default:
-		fmt.Printf("siteId: %v, channel db id is %d\n", siteId, artId.RawId)
-		artId.vidIds = strings.Split(ids, ",")
-		artId.isPlSync = syncPl
-	}
-
-	return artId
 }
 
 func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, isAdd bool) (*artist.Artist, error) {
@@ -253,11 +220,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 	} else {
 		// синк
-		// сначала проверим, есть ли в базе этот канал
-		if channelId.RawId == 0 {
-			// кликнули по конкретному каналу
-			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
-		}
+		// channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
 		// дропнем признаки предыдущей синхронизации
 		stVidUpd, _ := tx.PrepareContext(ctx, "update main.video set syncState = 0 where video.vid_id in (select v.vid_id from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where v.syncState = 1 and pV.playlistId = ?);")
 
@@ -518,7 +481,7 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 
 	var arts []*artist.Artist
 
-	stmt, err := db.PrepareContext(ctx, "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, COUNT(IIF(v.syncState > 0, 1, NULL)) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? group by ch.ch_id order by 3;")
+	stmt, err := db.PrepareContext(ctx, "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, COUNT(IIF(v.syncState = 1, 1, NULL)) as news from main.channel ch inner join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.playlist p on p.pl_id = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? and p.playlistType = 0 group by ch.ch_id order by 3;")
 	if err != nil {
 		log.Println(err)
 	}
