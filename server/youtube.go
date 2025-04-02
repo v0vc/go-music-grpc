@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	slices2 "golang.org/x/exp/slices"
+
 	"github.com/v0vc/go-music-grpc/artist"
 )
 
@@ -116,13 +118,12 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			}
 		}(stChannel)
 
-		var chId int
 		chThumb := GetThumb(ctx, ch.Items[0].Snippet.Thumbnails.Default.URL)
-		insErr := stChannel.QueryRowContext(ctx, siteId, channelId.Id, ch.Items[0].Snippet.Title, chThumb).Scan(&chId)
+		insErr := stChannel.QueryRowContext(ctx, siteId, channelId.Id, ch.Items[0].Snippet.Title, chThumb).Scan(&channelId.RawId)
 		if insErr != nil {
 			log.Println(insErr)
 		} else {
-			fmt.Printf("processed channel: %v, id: %v \n", ch.Items[0].Snippet.Title, chId)
+			fmt.Printf("processed channel: %v, id: %v \n", ch.Items[0].Snippet.Title, &channelId.RawId)
 		}
 
 		resArtist := &artist.Artist{
@@ -170,7 +171,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			} else {
 				fmt.Printf("processed playlist: %v, id: %v \n", item.id, plId)
 				item.rawId = plId
-				_, er = stChPl.ExecContext(ctx, chId, plId)
+				_, er = stChPl.ExecContext(ctx, &channelId.RawId, plId)
 				if er != nil {
 					log.Println(er)
 				} else if i == len(allPl)-1 {
@@ -196,7 +197,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 				rawVidId, ok := uploadVidIds[vId]
 				if ok {
 					plVid[vId] = rawVidId
-				} else {
+				} else if !slices2.Contains(notUploadId, vId) {
 					notUploadId = append(notUploadId, vId)
 				}
 			}
@@ -362,7 +363,8 @@ func insertUnlisted(ctx context.Context, tx *sql.Tx, notUploadId []string, token
 			fmt.Println("processable unlisted video(s): " + chVideosIds)
 			unlistedVideos := GetVidByIds(ctx, chVideosIds, token)
 			if unlistedVideos != nil {
-				processVideos(ctx, tx, unlistedVideos, resArtist, channelId.RawPlId, channelId.Id, 0, 1)
+				resRaw := processVideos(ctx, tx, unlistedVideos, resArtist, channelId.RawPlId, channelId.Id, 0, 1)
+				fmt.Printf("insert unlisted video(s): %v \n", len(resRaw))
 			} else {
 				log.Println("can't get unlisted video from api")
 			}
@@ -566,7 +568,7 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string
 			} else {
 				alb.SubTitle = fmt.Sprintf("%s   %s   Views: %d   Likes: %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
 				if visibility == 1 {
-					alb.SubTitle += "   👀"
+					alb.SubTitle += "   ®"
 				}
 			}
 			alb.ReleaseType = 3
@@ -772,7 +774,7 @@ func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, er
 			} else {
 				alb.SubTitle = fmt.Sprintf("%s   %s   Views: %d   Likes: %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
 				if visibility == 1 {
-					alb.SubTitle += "   👀"
+					alb.SubTitle += "   ®"
 				}
 			}
 			alb.ReleaseType = 3
