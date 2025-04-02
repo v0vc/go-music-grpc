@@ -221,10 +221,7 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 			if artistId == "-1" {
 				artIds, err = GetChannelIdsFromDb(ctx, siteId)
 			} else {
-				artIds = append(artIds, ArtistRawId{Id: artistId})
-			}
-			if len(artIds) == 1 {
-				artIds[0].isPlSync = true
+				artIds = append(artIds, ArtistRawId{Id: artistId, isPlSync: true})
 			}
 
 			for _, artId := range artIds {

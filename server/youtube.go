@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -221,7 +222,9 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 	} else {
 		// синк
-		// channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
+		if channelId.RawId == 0 {
+			channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
+		}
 		// дропнем признаки предыдущей синхронизации
 		stVidUpd, _ := tx.PrepareContext(ctx, "update main.video set syncState = 0 where video.vid_id in (select v.vid_id from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where v.syncState = 1 and pV.playlistId = ?);")
 
@@ -348,6 +351,38 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 	}
 }
 
+func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId interface{}, syncPls bool) ArtistRawId {
+	stmtArt, err := tx.PrepareContext(ctx, "select c.ch_id, c.channelId, p.pl_id, p.playlistId, group_concat(v.videoId, ',') from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where c.channelId = ? and siteId = ? and p.playlistType = 0 limit 1;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stmtArt *sql.Stmt) {
+		err = stmtArt.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtArt)
+
+	var (
+		artId ArtistRawId
+		ids   string
+	)
+
+	err = stmtArt.QueryRowContext(ctx, channelId, siteId).Scan(&artId.RawId, &artId.Id, &artId.RawPlId, &artId.PlaylistId, &ids)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		log.Printf("no channel with id %v\n", channelId)
+	case err != nil:
+		log.Println(err)
+	default:
+		fmt.Printf("siteId: %v, channel db id is %d\n", siteId, artId.RawId)
+		artId.vidIds = strings.Split(ids, ",")
+		artId.isPlSync = syncPls
+	}
+
+	return artId
+}
+
 func insertUnlisted(ctx context.Context, tx *sql.Tx, notUploadId []string, token string, channelId ArtistRawId, resArtist *artist.Artist) {
 	for c := range slices.Chunk(notUploadId, 50) {
 		var sb strings.Builder
@@ -402,7 +437,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 			date, _ := time.Parse(time.DateTime, vid.published)
 			subTitle := fmt.Sprintf("%s   %s   Views: %s   Likes: %s", normalDuration, TimeAgo(date), vid.likeCount, vid.viewCount)
 			if listState == 1 {
-				subTitle += "   👀"
+				subTitle += "   ®"
 			}
 
 			resArtist.Albums = append(resArtist.Albums, &artist.Album{
