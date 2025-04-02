@@ -172,7 +172,7 @@ func GetUploadVid(ctx context.Context, uploadId string, token string) []*vidItem
 			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
-			fmt.Println("got no nextPageToken, all done")
+			fmt.Println("no nextPageToken, playlist done: " + uploadId)
 			break
 		} else {
 			fmt.Println("nextPageToken: ", upl.NextPageToken)
@@ -196,7 +196,7 @@ func GetPlaylistVidIds(ctx context.Context, uploadId string, token string) []str
 			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
-			fmt.Println("got no nextPageToken, all done")
+			fmt.Println("no nextPageToken, playlist done: " + uploadId)
 			break
 		} else {
 			fmt.Println("nextPageToken: ", upl.NextPageToken)
@@ -250,7 +250,7 @@ func GetPlaylists(ctx context.Context, channelId string, token string) []*plItem
 			}
 		}
 		if upl == nil || upl.NextPageToken == "" {
-			fmt.Println("got no nextPageToken, all done")
+			fmt.Println("no nextPageToken, channel done: " + channelId)
 			break
 		} else {
 			fmt.Println("nextPageToken: ", upl.NextPageToken)
