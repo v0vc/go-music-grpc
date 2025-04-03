@@ -120,7 +120,8 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 		}(stChannel)
 
 		chThumb := GetThumb(ctx, ch.Items[0].Snippet.Thumbnails.Default.URL)
-		insErr := stChannel.QueryRowContext(ctx, siteId, channelId.Id, ch.Items[0].Snippet.Title, chThumb).Scan(&channelId.RawId)
+		chTitle := ClearString(ch.Items[0].Snippet.Title)
+		insErr := stChannel.QueryRowContext(ctx, siteId, channelId.Id, chTitle, chThumb).Scan(&channelId.RawId)
 		if insErr != nil {
 			log.Println(insErr)
 		} else {
@@ -166,7 +167,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 		for i, item := range allPl {
 			var plId int
-			insEr := stPlaylist.QueryRowContext(ctx, item.id, item.title, item.typePl, item.thumbnail).Scan(&plId)
+			insEr := stPlaylist.QueryRowContext(ctx, item.id, ClearString(item.title), item.typePl, item.thumbnail).Scan(&plId)
 			if insEr != nil {
 				log.Println(insEr)
 			} else {
@@ -209,7 +210,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			}
 			resArtist.Playlists = append(resArtist.Playlists, &artist.Playlist{
 				PlaylistId:   pl.id,
-				Title:        pl.title,
+				Title:        ClearString(pl.title),
 				PlaylistType: 2,
 				Thumbnail:    pl.thumbnail,
 				VideoIds:     netPlIds,
@@ -826,7 +827,17 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 
 		var vidId int
 		normalDuration := ConvertYoutubeDurationToSec(vid.duration)
-		vidErr := stVideo.QueryRowContext(ctx, vid.id, vid.title, vid.published, normalDuration, vid.likeCount, vid.viewCount, vid.commentCount, syncState, listState, vThumb).Scan(&vidId)
+		vidTitle := ClearString(vid.title)
+		if vid.likeCount == "" {
+			vid.likeCount = "0"
+		}
+		if vid.viewCount == "" {
+			vid.viewCount = "0"
+		}
+		if vid.commentCount == "" {
+			vid.commentCount = "0"
+		}
+		vidErr := stVideo.QueryRowContext(ctx, vid.id, vidTitle, vid.published, normalDuration, vid.likeCount, vid.viewCount, vid.commentCount, syncState, listState, vThumb).Scan(&vidId)
 		if vidErr != nil {
 			log.Println(vidErr)
 		} else {
@@ -840,7 +851,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 
 			resArtist.Albums = append(resArtist.Albums, &artist.Album{
 				AlbumId:     vid.id,
-				Title:       vid.title,
+				Title:       vidTitle,
 				SubTitle:    subTitle,
 				ReleaseDate: vid.published,
 				ReleaseType: 3,

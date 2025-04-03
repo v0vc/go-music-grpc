@@ -13,7 +13,7 @@ require (
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lrstanley/go-ytdlp v0.0.0-20250401014907-da1707e4fb85
-	github.com/mattn/go-sqlite3 v1.14.26
+	github.com/mattn/go-sqlite3 v1.14.27
 	github.com/panjf2000/ants/v2 v2.11.2
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394

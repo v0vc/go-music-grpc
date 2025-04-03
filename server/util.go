@@ -65,6 +65,15 @@ func sanitize(filename string, isFolder bool) string {
 	return strings.TrimRightFunc(str, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) && !unicode.IsPunct(r) })
 }
 
+func ClearString(text string) string {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) && !unicode.IsSymbol(r) {
+			return r
+		}
+		return -1
+	}, text))
+}
+
 func ParseTemplate(tags map[string]string, defTemplate string) string {
 	var buffer bytes.Buffer
 
