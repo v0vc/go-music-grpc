@@ -36,7 +36,7 @@ CREATE TABLE channel (
     siteId INTEGER REFERENCES site (site_id) ON UPDATE CASCADE ON DELETE RESTRICT,
     channelId TEXT NOT NULL,
     title TEXT NOT NULL,
-    syncState INTEGER default 1,
+    syncState INTEGER DEFAULT 1 NOT NULL,
     thumbnail BLOB,
     UNIQUE(siteId,channelId)
 );
@@ -44,7 +44,7 @@ CREATE TABLE playlist (
     pl_id INTEGER PRIMARY KEY AUTOINCREMENT,
     playlistId TEXT,
     title TEXT NOT NULL DEFAULT 'Uploads',
-    playlistType INTEGER default 0,
+    playlistType INTEGER DEFAULT 0 NOT NULL,
     thumbnail BLOB,
     UNIQUE(playlistId,title)
 );
@@ -58,13 +58,13 @@ CREATE TABLE video (
     videoId TEXT NOT NULL,
     title TEXT NOT NULL,
     timestamp TEXT,
-    duration INTEGER default 0,
-    likeCount INTEGER default 0,
-    viewCount INTEGER default 0,
+    duration INTEGER DEFAULT 0 NOT NULL,
+    likeCount INTEGER DEFAULT 0 NOT NULL,
+    viewCount INTEGER DEFAULT 0 NOT NULL,
     commentCount INTEGER,
-    syncState INTEGER default 0,
-    listState INTEGER default 0,
-    watchState INTEGER default 0,
+    syncState INTEGER DEFAULT 0 NOT NULL,
+    listState INTEGER DEFAULT 0 NOT NULL,
+    watchState INTEGER DEFAULT 0 NOT NULL,
     thumbnail BLOB,
     quality REAL GENERATED ALWAYS AS (1.0 * likeCount / viewCount * 100) VIRTUAL,
     UNIQUE(videoId,title)
