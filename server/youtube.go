@@ -83,9 +83,11 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 	// заберем токен для работы с апи
 	token := GetTokenOnlyDb(tx, ctx, siteId)
+
 	if channelId.RawId == 0 {
 		channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
 	}
+
 	// при добавлении мы поддерживаем все варианты на Ui (ссылка на видео, на канал и тд)
 	if isAdd && strings.HasPrefix(channelId.Id, "@") || len(channelId.Id) == 11 {
 		// с ui пришли либо имя канала с @, либо id видео, найдем id канала
@@ -99,6 +101,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 	if channelId.RawId != 0 && isAdd {
 		// пытались добавить существующего, сделаем просто синк
 		isAdd = false
+		fmt.Printf("channel id: %v already exist in database, just go sync it..\n", channelId.Id)
 	}
 
 	fmt.Printf("channel id is: %v \n", channelId.Id)
@@ -769,8 +772,12 @@ func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId in
 	err = stmtArt.QueryRowContext(ctx, channelId, siteId).Scan(&artId.RawId, &artId.Id, &artId.RawPlId, &artId.PlaylistId, &ids)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
+		artId.Id = channelId.(string)
+		artId.isPlSync = syncPls
 		log.Printf("no channel with id %v\n", channelId)
 	case err != nil:
+		artId.Id = channelId.(string)
+		artId.isPlSync = syncPls
 		log.Println(err)
 	default:
 		fmt.Printf("siteId: %v, channel db id is %d\n", siteId, artId.RawId)
