@@ -177,7 +177,7 @@ func (p *Page) ClickMainMenu(event component.AppBarEvent) {
 
 func (p *Page) NavItem() component.NavItem {
 	return component.NavItem{
-		Name: "Youtube",
+		Name: "YouTube",
 		Icon: icon.YoutubeIcon,
 	}
 }

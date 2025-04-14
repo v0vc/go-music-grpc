@@ -102,9 +102,9 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 		// пытались добавить существующего, сделаем просто синк
 		isAdd = false
 		fmt.Printf("channel id: %v already exist in database, just go sync it..\n", channelId.Id)
+	} else {
+		fmt.Printf("channel id is: %v \n", channelId.Id)
 	}
-
-	fmt.Printf("channel id is: %v \n", channelId.Id)
 
 	if isAdd {
 		ch, er := GetChannel(ctx, channelId.Id, token)
@@ -774,11 +774,11 @@ func getChannelIdDb(tx *sql.Tx, ctx context.Context, siteId uint32, channelId in
 	case errors.Is(err, sql.ErrNoRows):
 		artId.Id = channelId.(string)
 		artId.isPlSync = syncPls
-		log.Printf("no channel with id %v\n", channelId)
+		fmt.Printf("no channel with id %v\n", channelId)
 	case err != nil:
 		artId.Id = channelId.(string)
 		artId.isPlSync = syncPls
-		log.Println(err)
+		fmt.Printf("no channel with id %v\n", channelId)
 	default:
 		fmt.Printf("siteId: %v, channel db id is %d\n", siteId, artId.RawId)
 		artId.vidIds = strings.Split(ids, ",")
@@ -850,7 +850,7 @@ func processVideos(ctx context.Context, tx *sql.Tx, videos []*vidItem, resArtist
 			fmt.Printf("processed video: %v \n", vid.id)
 			mVidRawIds[vid.id] = vidId
 			date, _ := time.Parse(time.DateTime, vid.published)
-			subTitle := fmt.Sprintf("%s   %s   Views: %s   Likes: %s", normalDuration, TimeAgo(date), vid.likeCount, vid.viewCount)
+			subTitle := fmt.Sprintf("%s   %s   Views: %s   Likes: %s", normalDuration, TimeAgo(date), vid.viewCount, vid.likeCount)
 			if listState == 1 {
 				subTitle += "   ®"
 			}
