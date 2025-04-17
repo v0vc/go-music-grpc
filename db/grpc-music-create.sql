@@ -80,3 +80,15 @@ CREATE TRIGGER IF NOT EXISTS delete_channel BEFORE DELETE ON channel
         DELETE FROM video WHERE vid_id in (SELECT videoId FROM playlistVideo WHERE playlistId in (SELECT playlistId FROM channelPlaylist WHERE channelId = old.ch_id));
         DELETE FROM playlist WHERE pl_id in (SELECT playlistId FROM channelPlaylist WHERE channelId = old.ch_id);
     END;
+
+CREATE INDEX index_channel_site ON channel(siteId);
+
+CREATE INDEX index_artist_site ON artist(siteId);
+
+CREATE INDEX index_channelPlaylist_channelId ON channelPlaylist(channelId);
+
+CREATE INDEX index_channelPlaylist_playlistId ON channelPlaylist(playlistId);
+
+CREATE INDEX index_playlist_playlistType ON playlist(playlistType);
+
+CREATE INDEX index_video_syncState ON video(syncState);

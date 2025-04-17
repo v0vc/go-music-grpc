@@ -366,7 +366,7 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 
 	var arts []*artist.Artist
 
-	stmt, err := db.PrepareContext(ctx, "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, COUNT(IIF(v.syncState = 1, 1, NULL)) as news from main.channel ch inner join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.playlist p on p.pl_id = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? and p.playlistType = 0 group by ch.ch_id order by 3;")
+	stmt, err := db.PrepareContext(ctx, "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, COUNT(IIF(v.syncState = 1, 1, NULL)) as news from main.channel ch inner join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.playlist p on p.pl_id = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? group by ch.ch_id order by 3;")
 	if err != nil {
 		log.Println(err)
 	}

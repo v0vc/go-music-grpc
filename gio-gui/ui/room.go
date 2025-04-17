@@ -262,38 +262,37 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pl
 	lm.Stickiness = list.Before
 	channel.ListState = lm
 
-	if pls != nil {
-		resPl := make([]list.Element, 0)
-		for _, j := range pls {
-			resPl = append(resPl, j)
-		}
-		channel.RowTrackerPl.AddAll(resPl)
-
-		lmPl := list.NewManager(len(pls),
-			list.Hooks{
-				// Define an allocator function that can instantiate the appropriate
-				// state type for each kind of row data in our list.
-				Allocator: func(data list.Element) interface{} {
-					switch data.(type) {
-					case model.Message:
-						return &Row{}
-					default:
-						return nil
-					}
-				},
-				// Define a presenter that can transform each kind of row data
-				// and state into a widget.
-				Presenter: presentRowPl,
-				// NOTE(jfm): award coupling between message data and `list.Manager`.
-				Loader:      channel.RowTrackerPl.Load,
-				Synthesizer: synth,
-				Comparator:  rowLessThan,
-				Invalidator: invalidator,
-			},
-		)
-		lmPl.Stickiness = list.Before
-		channel.ListStatePl = lmPl
+	// таб с плейлистами, для NEW можно подумать насчет синтетических плейлистов (planned и тд)
+	resPl := make([]list.Element, 0)
+	for _, j := range pls {
+		resPl = append(resPl, j)
 	}
+	channel.RowTrackerPl.AddAll(resPl)
+
+	lmPl := list.NewManager(len(pls),
+		list.Hooks{
+			// Define an allocator function that can instantiate the appropriate
+			// state type for each kind of row data in our list.
+			Allocator: func(data list.Element) interface{} {
+				switch data.(type) {
+				case model.Message:
+					return &Row{}
+				default:
+					return nil
+				}
+			},
+			// Define a presenter that can transform each kind of row data
+			// and state into a widget.
+			Presenter: presentRowPl,
+			// NOTE(jfm): award coupling between message data and `list.Manager`.
+			Loader:      channel.RowTrackerPl.Load,
+			Synthesizer: synth,
+			Comparator:  rowLessThan,
+			Invalidator: invalidator,
+		},
+	)
+	lmPl.Stickiness = list.Before
+	channel.ListStatePl = lmPl
 
 	channel.Loaded = true
 }
