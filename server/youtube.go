@@ -356,7 +356,6 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 
 func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
-
 	defer func(db *sql.DB) {
 		err = db.Close()
 		if err != nil {
@@ -366,16 +365,27 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 
 	var arts []*artist.Artist
 
-	stmt, err := db.PrepareContext(ctx, "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail, COUNT(IIF(v.syncState = 1, 1, NULL)) as news from main.channel ch inner join main.channelPlaylist cp on ch.ch_id = cp.channelId inner join main.playlistVideo plv on plv.playlistId = cp.playlistId inner join main.playlist p on p.pl_id = cp.playlistId inner join main.video v on v.vid_id = plv.videoId where ch.siteId = ? group by ch.ch_id order by 3;")
+	stmt, err := db.PrepareContext(ctx, "select ch.ch_id, ch.channelId, ch.title, ch.thumbnail from main.channel ch where ch.siteId = ? group by ch.ch_id order by 3;")
 	if err != nil {
 		log.Println(err)
 	}
-	defer func(stmtArt *sql.Stmt) {
-		err = stmtArt.Close()
+	defer func(stmt *sql.Stmt) {
+		err = stmt.Close()
 		if err != nil {
 			log.Println(err)
 		}
 	}(stmt)
+
+	stmtCount, err := db.PrepareContext(ctx, "select ch.ch_id, COUNT(v.vid_id) as news from main.channel ch join main.channelPlaylist cp on ch.ch_id = cp.channelId join main.playlistVideo plv on plv.playlistId = cp.playlistId join main.video v on v.vid_id = plv.videoId where ch.siteId = ? and v.syncState = 1 group by ch.ch_id;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stmtCount *sql.Stmt) {
+		err = stmtCount.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(stmtCount)
 
 	rows, err := stmt.QueryContext(ctx, siteId)
 	if err != nil {
@@ -388,15 +398,45 @@ func GetChannels(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 		}
 	}(rows)
 
+	rowsCount, err := stmtCount.QueryContext(ctx, siteId)
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(rowsCount *sql.Rows) {
+		err = rowsCount.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(rowsCount)
+
+	newCountMap := make(map[int64]int32)
+
+	for rowsCount.Next() {
+		var (
+			artId    int64
+			newCount int32
+		)
+		if e := rowsCount.Scan(&artId, &newCount); e != nil {
+			log.Println(e)
+		} else {
+			newCountMap[artId] = newCount
+		}
+	}
+
 	for rows.Next() {
 		var art artist.Artist
-		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail, &art.NewAlbs); e != nil {
+		if e := rows.Scan(&art.Id, &art.ArtistId, &art.Title, &art.Thumbnail); e != nil {
 			log.Println(e)
 		} else {
 			art.SiteId = siteId
+			news, ok := newCountMap[art.Id]
+			if ok {
+				art.NewAlbs = news
+			}
 			arts = append(arts, &art)
 		}
 	}
+
 	return arts, err
 }
 
@@ -883,8 +923,8 @@ func deletePlaylistById(ctx context.Context, tx *sql.Tx, plId int) {
 		log.Println(err)
 	}
 
-	defer func(stArtAlb *sql.Stmt) {
-		er := stArtAlb.Close()
+	defer func(stPl *sql.Stmt) {
+		er := stPl.Close()
 		if er != nil {
 			log.Println(er)
 		}

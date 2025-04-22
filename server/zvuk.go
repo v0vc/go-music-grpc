@@ -554,18 +554,18 @@ func GetArtists(ctx context.Context, siteId uint32) ([]*artist.Artist, error) {
 
 	var arts []*artist.Artist
 
-	stmt, err := db.PrepareContext(context.WithoutCancel(ctx), "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by 3;")
+	stmt, err := db.PrepareContext(ctx, "select ar.art_id, ar.artistId, ar.title, ar.thumbnail, count(al.alb_id) as news from main.artist ar join main.artistAlbum aa on ar.art_id = aa.artistId left outer join main.album al on aa.albumId = al.alb_id and al.syncState = 1 where ar.userAdded = 1 and ar.siteId = ? group by ar.art_id order by 3;")
 	if err != nil {
 		log.Println(err)
 	}
-	defer func(stmtArt *sql.Stmt) {
-		err = stmtArt.Close()
+	defer func(stmt *sql.Stmt) {
+		err = stmt.Close()
 		if err != nil {
 			log.Println(err)
 		}
 	}(stmt)
 
-	rows, err := stmt.QueryContext(context.WithoutCancel(ctx), siteId)
+	rows, err := stmt.QueryContext(ctx, siteId)
 	if err != nil {
 		log.Println(err)
 	}

@@ -92,3 +92,7 @@ CREATE INDEX index_channelPlaylist_playlistId ON channelPlaylist(playlistId);
 CREATE INDEX index_playlist_playlistType ON playlist(playlistType);
 
 CREATE INDEX index_video_syncState ON video(syncState);
+
+CREATE INDEX index_playlistVideo_playlistId ON playlistVideo(playlistId);
+
+CREATE INDEX index_playlistVideo_videoId ON playlistVideo(videoId);
