@@ -84,10 +84,6 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 	// заберем токен для работы с апи
 	token := GetTokenOnlyDb(tx, ctx, siteId)
 
-	if channelId.RawId == 0 {
-		channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
-	}
-
 	// при добавлении мы поддерживаем все варианты на Ui (ссылка на видео, на канал и тд)
 	if isAdd && strings.HasPrefix(channelId.Id, "@") || len(channelId.Id) == 11 {
 		// с ui пришли либо имя канала с @, либо id видео, найдем id канала
@@ -96,6 +92,10 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 			log.Println(er)
 		}
 		channelId.Id = chId
+	}
+
+	if channelId.RawId == 0 {
+		channelId = getChannelIdDb(tx, ctx, siteId, channelId.Id, channelId.isPlSync)
 	}
 
 	if channelId.RawId != 0 && isAdd {
