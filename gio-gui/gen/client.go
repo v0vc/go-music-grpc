@@ -191,7 +191,7 @@ func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
 	res, err := client.ReadArtistAlbums(context.Background(), &artist.ReadArtistAlbumRequest{
 		SiteId:  siteId,
 		NewOnly: true,
-	})
+	}, grpc.MaxCallRecvMsgSize(1024*1024*12))
 	if res == nil {
 		return make([]model.Message, 0)
 	}
@@ -216,7 +216,7 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Mes
 	res, err := client.ReadArtistAlbums(context.Background(), &artist.ReadArtistAlbumRequest{
 		SiteId:   siteId,
 		ArtistId: artistId,
-	})
+	}, grpc.MaxCallRecvMsgSize(1024*1024*12))
 	if res == nil {
 		return make([]model.Message, 0), nil
 	}
@@ -282,7 +282,7 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 	res, err := client.SyncArtist(context.Background(), &artist.SyncArtistRequest{
 		SiteId:   siteId,
 		ArtistId: artistId,
-	})
+	}, grpc.MaxCallRecvMsgSize(1024*1024*12))
 	if err != nil || res == nil {
 		return
 	}
