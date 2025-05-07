@@ -257,6 +257,9 @@ func (*server) SyncArtist(ctx context.Context, req *artist.SyncArtistRequest) (*
 	} else {
 		var resCount int
 		for _, ar := range artists {
+			if ar == nil || ar.Albums == nil {
+				continue
+			}
 			for range ar.Albums {
 				resCount++
 			}
