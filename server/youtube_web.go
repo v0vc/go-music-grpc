@@ -272,6 +272,11 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string, isPl bool
 	dl := ytdlp.New().
 		FormatSort("res,ext:mp4:m4a").
 		Format(quality).
+		NoPlaylist().
+		NoOverwrites().
+		Continue().
+		SponsorblockMark("all").
+		SponsorblockRemove("all").
 		Output(videoPath + string(os.PathSeparator) + "%(title)s.%(ext)s")
 
 	var link string
