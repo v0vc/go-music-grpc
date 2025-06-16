@@ -200,3 +200,24 @@ func (p *Page) Layout(gtx layout.Context, th *page.Theme, conf *page.Config) lay
 	p.th = th
 	return mainUi.Layout(gtx)
 }
+
+func (p *Page) HandleKeyboard(nm key.Name) {
+	switch nm {
+	case "A":
+		if singleInstance != nil {
+			go singleInstance.SelectAll(true)
+		}
+	case key.NameUpArrow:
+		// TODO
+	case key.NameDownArrow:
+		// TODO
+	case key.NamePageUp:
+		// TODO
+	case key.NamePageDown:
+		// TODO
+	case key.NameHome:
+		// TODO
+	case key.NameEnd:
+		// TODO
+	}
+}

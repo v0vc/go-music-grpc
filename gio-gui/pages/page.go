@@ -3,6 +3,9 @@ package page
 import (
 	"time"
 
+	"gioui.org/io/event"
+	"gioui.org/io/key"
+
 	"gioui.org/app"
 	"gioui.org/layout"
 	"gioui.org/x/component"
@@ -15,6 +18,7 @@ type Page interface {
 	Layout(gtx layout.Context, th *Theme, conf *Config) layout.Dimensions
 	NavItem() component.NavItem
 	ClickMainMenu(event component.AppBarEvent)
+	HandleKeyboard(key.Name)
 }
 
 type Config struct {
@@ -29,8 +33,8 @@ type Config struct {
 }
 
 type Router struct {
-	pages   map[interface{}]Page
-	current interface{}
+	pages   map[any]Page
+	current any
 	*component.ModalNavDrawer
 	NavAnim component.VisibilityAnimation
 	*component.AppBar
@@ -53,7 +57,7 @@ func NewRouter(w *app.Window) Router {
 		Duration: time.Millisecond * 250,
 	}
 	return Router{
-		pages:          make(map[interface{}]Page),
+		pages:          make(map[any]Page),
 		current:        nil,
 		ModalNavDrawer: modalNav,
 		NavAnim:        na,
@@ -65,11 +69,21 @@ func NewRouter(w *app.Window) Router {
 	}
 }
 
-func (r *Router) Register(tag interface{}, p Page) {
+var topLevelKeyFilters = []event.Filter{
+	key.Filter{Name: "A", Required: key.ModCtrl},
+	key.Filter{Name: key.NameUpArrow},
+	key.Filter{Name: key.NameDownArrow},
+	key.Filter{Name: key.NamePageUp},
+	key.Filter{Name: key.NamePageDown},
+	key.Filter{Name: key.NameHome},
+	key.Filter{Name: key.NameEnd},
+}
+
+func (r *Router) Register(tag any, p Page) {
 	r.pages[tag] = p
 	navItem := p.NavItem()
 	navItem.Tag = tag
-	if r.current == interface{}(nil) {
+	if r.current == any(nil) {
 		r.current = tag
 		r.Title = navItem.Name
 		r.SetActions(p.Actions(), p.Overflow())
@@ -78,7 +92,7 @@ func (r *Router) Register(tag interface{}, p Page) {
 	r.AddNavItem(navItem)
 }
 
-func (r *Router) SwitchTo(tag interface{}) {
+func (r *Router) SwitchTo(tag any) {
 	p, ok := r.pages[tag]
 	if !ok {
 		return
@@ -89,9 +103,18 @@ func (r *Router) SwitchTo(tag interface{}) {
 }
 
 func (r *Router) Layout(gtx layout.Context, th *Theme, conf *Config) layout.Dimensions {
-	for _, event := range r.Events(gtx) {
+	for {
+		ev, ok := gtx.Event(topLevelKeyFilters...)
+		if !ok {
+			break
+		}
+		if ke, yes := ev.(key.Event); yes {
+			r.handleKeyEvent(gtx, ke)
+		}
+	}
+	for _, ev := range r.Events(gtx) {
 		// switch event := event.(type) {
-		switch event.(type) {
+		switch ev.(type) {
 		case component.AppBarNavigationClicked:
 			if r.NonModalDrawer {
 				r.NavAnim.ToggleVisibility(gtx.Now)
@@ -104,7 +127,7 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, conf *Config) layout.Dime
 		case component.AppBarOverflowActionClicked:
 			// log.Printf("Overflow action selected: %v", event)
 			// r.pages[r.current].Overflow()
-			r.pages[r.current].ClickMainMenu(event)
+			r.pages[r.current].ClickMainMenu(ev)
 		}
 	}
 	if r.NavDestinationChanged() {
@@ -139,4 +162,11 @@ func (r *Router) Layout(gtx layout.Context, th *Theme, conf *Config) layout.Dime
 
 	r.ModalLayer.Layout(gtx, th.Theme)
 	return layout.Dimensions{Size: gtx.Constraints.Max}
+}
+
+func (r *Router) handleKeyEvent(gtx layout.Context, e key.Event) {
+	if e.State != key.Press {
+		return
+	}
+	r.pages[r.current].HandleKeyboard(e.Name)
 }
