@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"gioui.org/io/clipboard"
 	"gioui.org/io/key"
@@ -182,9 +183,11 @@ func (p *Page) NavItem() component.NavItem {
 	}
 }
 
-var singleInstance *ui.UI
-
-var lock = &sync.Mutex{}
+var (
+	singleInstance *ui.UI
+	lock           = &sync.Mutex{}
+	selectAll      = atomic.Bool{}
+)
 
 func getInstance(invalidator func(), th *page.Theme, conf *page.Config) *ui.UI {
 	if singleInstance == nil {
@@ -205,7 +208,9 @@ func (p *Page) HandleKeyboard(nm key.Name) {
 	switch nm {
 	case "A":
 		if singleInstance != nil {
-			go singleInstance.SelectAll(true)
+			val := !selectAll.Load()
+			go singleInstance.SelectAll(val)
+			selectAll.Store(val)
 		}
 	case key.NameUpArrow:
 		// TODO
