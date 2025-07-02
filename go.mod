@@ -3,8 +3,8 @@ module github.com/v0vc/go-music-grpc
 go 1.24
 
 require (
-	gioui.org v0.8.0
-	gioui.org/x v0.8.1
+	gioui.org v0.8.1-0.20250424183133-e18db649912a
+	gioui.org/x v0.8.2-0.20250115181849-c005f2ad1592
 	github.com/bogem/id3v2/v2 v2.1.4
 	github.com/disintegration/imaging v1.6.2
 	github.com/dustin/go-humanize v1.0.1

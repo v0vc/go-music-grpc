@@ -1,12 +1,12 @@
 eliasnaur.com/font v0.0.0-20230308162249-dd43949cb42d h1:ARo7NCVvN2NdhLlJE9xAbKweuI9L6UgfTbYb0YwPacY=
 eliasnaur.com/font v0.0.0-20230308162249-dd43949cb42d/go.mod h1:OYVuxibdk9OSLX8vAqydtRPP87PyTFcT9uH3MlEGBQA=
-gioui.org v0.8.0 h1:QV5p5JvsmSmGiIXVYOKn6d9YDliTfjtLlVf5J+BZ9Pg=
-gioui.org v0.8.0/go.mod h1:vEMmpxMOd/iwJhXvGVIzWEbxMWhnMQ9aByOGQdlQ8rc=
+gioui.org v0.8.1-0.20250424183133-e18db649912a h1:hqcxAFkm5lKJlYvi9hkUvK0s0XcN2xGP5cRGZfbUVKU=
+gioui.org v0.8.1-0.20250424183133-e18db649912a/go.mod h1:JnoLsqpYezue9ZRMG7E2hOXar1/oAE9ZFkiFfF4oULs=
 gioui.org/cpu v0.0.0-20210808092351-bfe733dd3334/go.mod h1:A8M0Cn5o+vY5LTMlnRoK3O5kG+rH0kWfJjeKd9QpBmQ=
 gioui.org/shader v1.0.8 h1:6ks0o/A+b0ne7RzEqRZK5f4Gboz2CfG+mVliciy6+qA=
 gioui.org/shader v1.0.8/go.mod h1:mWdiME581d/kV7/iEhLmUgUK5iZ09XR5XpduXzbePVM=
-gioui.org/x v0.8.1 h1:Q2wumEOfjz3XfRa3TEi6w7dq8+cxV8zsYK8xXQkrCRk=
-gioui.org/x v0.8.1/go.mod h1:v2g60aiZtIVR7lNFXZ123+U0kijJeOChODSuqr7MFSI=
+gioui.org/x v0.8.2-0.20250115181849-c005f2ad1592 h1:n7iW0im2lkdwiykN/WkQYDaJbRxxQ8ojag3AvyOcv/o=
+gioui.org/x v0.8.2-0.20250115181849-c005f2ad1592/go.mod h1:v2g60aiZtIVR7lNFXZ123+U0kijJeOChODSuqr7MFSI=
 github.com/ProtonMail/go-crypto v1.3.0 h1:ILq8+Sf5If5DCpHQp4PbZdS1J7HDFRXz/+xKBiRGFrw=
 github.com/ProtonMail/go-crypto v1.3.0/go.mod h1:9whxjD8Rbs29b4XWbB8irEcE8KHMqaR2e7GWU1R+/PE=
 github.com/bogem/id3v2/v2 v2.1.4 h1:CEwe+lS2p6dd9UZRlPc1zbFNIha2mb2qzT1cCEoNWoI=

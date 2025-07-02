@@ -39,8 +39,8 @@ tasks:
     - go mod tidy
 
   build:
-    - go build -ldflags="-s -w" ./server
-    - go build -ldflags="-H windowsgui -s -w" ./gio-gui
+    - go build -ldflags="-s -w -extldflags '-static'" ./server
+    - go build -ldflags="-H windowsgui -s -w -extldflags '-static'" ./gio-gui
 
   check:
     - govulncheck ./...
