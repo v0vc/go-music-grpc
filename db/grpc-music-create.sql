@@ -38,6 +38,7 @@ CREATE TABLE channel (
     title TEXT NOT NULL,
     syncState INTEGER DEFAULT 1 NOT NULL,
     thumbnail BLOB,
+    skipSync INTEGER DEFAULT 0 NOT NULL,
     UNIQUE(siteId,channelId)
 );
 CREATE TABLE playlist (

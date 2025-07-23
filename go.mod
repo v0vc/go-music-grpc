@@ -12,13 +12,13 @@ require (
 	github.com/go-flac/flacvorbis v0.2.0
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lrstanley/go-ytdlp v0.0.0-20250701000750-3af3d71bfe9b
+	github.com/lrstanley/go-ytdlp v1.1.1
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
-	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	golang.org/x/exp/shiny v0.0.0-20250620022241-b7579e27df2b
-	google.golang.org/grpc v1.73.0
+	golang.org/x/exp v0.0.0-20250718183923-645b1fa84792
+	golang.org/x/exp/shiny v0.0.0-20250718183923-645b1fa84792
+	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.6
 )
 
@@ -27,11 +27,12 @@ require (
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
-	golang.org/x/crypto v0.39.0 // indirect
-	golang.org/x/image v0.28.0 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sync v0.15.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.26.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
+	github.com/ulikunitz/xz v0.5.12 // indirect
+	golang.org/x/crypto v0.40.0 // indirect
+	golang.org/x/image v0.29.0 // indirect
+	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250721164621-a45f3dfb1074 // indirect
 )
