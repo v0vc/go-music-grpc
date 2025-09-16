@@ -275,6 +275,7 @@ func DownloadVideo(ctx context.Context, videoPath, id, quality string, isPl bool
 		NoPlaylist().
 		NoOverwrites().
 		Continue().
+		ForceIPv6().
 		SponsorblockMark("all").
 		SponsorblockRemove("all").
 		Output(videoPath + string(os.PathSeparator) + "%(title)s.%(ext)s")
