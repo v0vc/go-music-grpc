@@ -128,6 +128,11 @@ func createMessageMenu(ui *UI) component.MenuState {
 		return component.MenuState{
 			Options: []func(gtx layout.Context) layout.Dimensions{
 				func(gtx layout.Context) layout.Dimensions {
+					item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Link")
+					item.Icon = icon.CopyIcon
+					return item.Layout(gtx)
+				},
+				func(gtx layout.Context) layout.Dimensions {
 					item := component.MenuItem(ui.th.Theme, &ui.DownloadBtn, "Download")
 					item.Icon = icon.DownloadIcon
 					return item.Layout(gtx)
@@ -140,11 +145,6 @@ func createMessageMenu(ui *UI) component.MenuState {
 				func(gtx layout.Context) layout.Dimensions {
 					item := component.MenuItem(ui.th.Theme, &ui.DownloadLowBtn, "Download .mp3")
 					item.Icon = icon.AudioTrackIcon
-					return item.Layout(gtx)
-				},
-				func(gtx layout.Context) layout.Dimensions {
-					item := component.MenuItem(ui.th.Theme, &ui.CopyAlbBtn, "Copy Link")
-					item.Icon = icon.CopyIcon
 					return item.Layout(gtx)
 				},
 				func(gtx layout.Context) layout.Dimensions {
