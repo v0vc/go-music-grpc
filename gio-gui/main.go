@@ -17,6 +17,8 @@ import (
 )
 
 const (
+	defaultPort              = "50005"
+	defaultServer            = "localhost"
 	defaultLoadSize          = 30
 	defaultTheme             = "light"
 	defaultZvukQuality       = "mid"
@@ -42,7 +44,7 @@ func main() {
 }
 
 func parseConf() *page.Config {
-	conf := page.Config{Theme: defaultTheme, LoadSize: defaultLoadSize, ZvukQuality: defaultZvukQuality}
+	conf := page.Config{Theme: defaultTheme, LoadSize: defaultLoadSize, ZvukQuality: defaultZvukQuality, Server: defaultServer, Port: defaultPort}
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Println("no .env file, use default values")
@@ -57,6 +59,18 @@ func parseConf() *page.Config {
 			}
 		} else {
 			conf.LoadSize = defaultLoadSize
+		}
+		serv := os.Getenv("Server")
+		if serv != "" {
+			conf.Server = serv
+		} else {
+			conf.Server = defaultServer
+		}
+		port := os.Getenv("Port")
+		if serv != "" {
+			conf.Port = port
+		} else {
+			conf.Port = defaultPort
 		}
 		themeEnv := os.Getenv("Theme")
 		if themeEnv != "" {

@@ -140,11 +140,11 @@ func getAlbumTracks(ctx context.Context, albumId, token string) (*ReleaseInfo, e
 
 func setGraphqlHeaders(req *graphql.Request, token string) {
 	req.Header.Add(authHeader, token)
-	req.Header.Add(uaHeader, ua)
+	// req.Header.Add(uaHeader, ua)
 	req.Header.Add("origin", apiBase)
-	req.Header.Add("content-type", "application/json")
-	req.Header.Add("apollographql-client-version", "1.3")
-	req.Header.Add("apollographql-client-name", "SberZvuk")
+	// req.Header.Add("content-type", "application/json")
+	// req.Header.Add("apollographql-client-version", "1.3")
+	// req.Header.Add("apollographql-client-name", "SberZvuk")
 	req.Header.Add("accept-language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
 	req.Header.Add("accept", "*/*")
 }

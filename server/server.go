@@ -302,7 +302,7 @@ func (*server) ReadArtistAlbums(ctx context.Context, req *artist.ReadArtistAlbum
 	case 4:
 		// автор с ютуба
 		if req.GetNewOnly() {
-			albums, err = GetNewVideosFromDb(context.WithoutCancel(ctx), siteId)
+			albums, playlists, err = GetNewVideosFromDb(context.WithoutCancel(ctx))
 		} else {
 			albums, playlists, err = GetChannelVideosFromDb(context.WithoutCancel(ctx), siteId, artistId)
 		}

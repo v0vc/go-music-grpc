@@ -222,7 +222,7 @@ func (r *Rooms) SelectAndFill(siteId uint32, index int, albs []model.Message, pl
 
 	if albs == nil {
 		if channel.IsBase {
-			albs = channel.RowTracker.Generator.GetNewAlbums(siteId)
+			albs, pls = channel.RowTracker.Generator.GetNewAlbums(siteId)
 			count := len(albs)
 			if count > 0 {
 				channel.Count = strconv.Itoa(count)

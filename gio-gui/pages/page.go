@@ -22,6 +22,8 @@ type Page interface {
 }
 
 type Config struct {
+	// backend
+	Server, Port string
 	// theme to use {light,dark}.
 	Theme string
 	// loadSize specifies maximum number of items to load at a time.

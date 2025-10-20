@@ -100,7 +100,10 @@ func (us *Messages) List() (list []*Message) {
 }
 
 func (us *Messages) GetList() (list []Message) {
-	return us.list
+	if us != nil {
+		return us.list
+	}
+	return []Message{}
 }
 
 // Rooms structure manages a collection of rooms.

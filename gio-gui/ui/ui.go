@@ -89,6 +89,7 @@ type UI struct {
 	Conf              *page.Config
 	SiteId            uint32
 	RadioButtonsGroup widget.Enum
+	ServerPort        string
 }
 
 type Tabs struct {
@@ -233,7 +234,8 @@ func NewUI(invalidator func(), theme *page.Theme, conf *page.Config, siteId uint
 	ui.Conf = conf
 	ui.MessageMenu = createMessageMenu(&ui)
 	ui.ChannelMenu = createChannelMenu(&ui)
-	g := &gen.Generator{}
+	ui.ServerPort = conf.Server + ":" + conf.Port
+	g := &gen.Generator{ServerPort: ui.ServerPort}
 	if siteId != 1 {
 		tabs.tabs = append(tabs.tabs,
 			Tab{Title: "Videos"},
@@ -340,7 +342,7 @@ func (ui *UI) SelectAll(value bool) {
 }
 
 func (ui *UI) AddChannel(siteId uint32, url string) {
-	g := &gen.Generator{}
+	g := &gen.Generator{ServerPort: ui.ServerPort}
 	ch := ui.Rooms.GetBaseChannel()
 	if ch == nil {
 		return

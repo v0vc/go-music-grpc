@@ -42,12 +42,12 @@ func GetNoAvatarInstance() []byte {
 	return singleInstanceNoAvatar
 }
 
-func GetClientInstance() (artist.ArtistServiceClient, error) {
+func GetClientInstance(ServerPort string) (artist.ArtistServiceClient, error) {
 	if singleInstance == nil {
 		lock.Lock()
 		defer lock.Unlock()
 		log.Println("Creating single instance now.")
-		cc, err := grpc.NewClient("localhost:4041", grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cc, err := grpc.NewClient(ServerPort, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if cc != nil && err != nil {
 			er := cc.Close()
 			if er != nil {
@@ -67,7 +67,8 @@ type Generator struct {
 	// old is the serial counter for old messages.
 	old syncInt
 	// new is the serial counter for new messages.
-	new syncInt
+	new        syncInt
+	ServerPort string
 }
 
 func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
@@ -79,7 +80,7 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 		IsBase: true,
 	}
 
-	client, err := GetClientInstance()
+	client, err := GetClientInstance(g.ServerPort)
 	if err != nil {
 		baseRoom.Content = err.Error()
 		rooms.Add(baseRoom)
@@ -121,7 +122,7 @@ func (g *Generator) GetChannels(siteId uint32) (*model.Rooms, error) {
 }
 
 func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *model.Messages, *model.Messages, string, error) {
-	client, err := GetClientInstance()
+	client, err := GetClientInstance(g.ServerPort)
 	if client == nil {
 		return nil, nil, nil, "", err
 	}
@@ -171,7 +172,7 @@ func (g *Generator) AddChannel(siteId uint32, artistId string) (*model.Rooms, *m
 }
 
 func (g *Generator) DeleteArtist(siteId uint32, artistId string) int64 {
-	client, _ := GetClientInstance()
+	client, _ := GetClientInstance(g.ServerPort)
 	if client == nil {
 		return 0
 	}
@@ -183,21 +184,22 @@ func (g *Generator) DeleteArtist(siteId uint32, artistId string) int64 {
 	return res.GetRowsAffected()
 }
 
-func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
-	client, _ := GetClientInstance()
+func (g *Generator) GetNewAlbums(siteId uint32) ([]model.Message, []model.Message) {
+	client, _ := GetClientInstance(g.ServerPort)
 	if client == nil {
-		return nil
+		return nil, nil
 	}
 	res, err := client.ReadArtistAlbums(context.Background(), &artist.ReadArtistAlbumRequest{
 		SiteId:  siteId,
 		NewOnly: true,
 	}, grpc.MaxCallRecvMsgSize(1024*1024*12))
 	if res == nil {
-		return make([]model.Message, 0)
+		return make([]model.Message, 0), nil
 	}
 	albums := make([]model.Message, len(res.GetReleases()))
+	playlists := make([]model.Message, len(res.GetPlaylists()))
 	if err != nil {
-		return albums
+		return albums, nil
 	}
 
 	for i, alb := range res.GetReleases() {
@@ -205,18 +207,24 @@ func (g *Generator) GetNewAlbums(siteId uint32) []model.Message {
 		al := MapAlbum(alb, serial, false)
 		albums[i] = al
 	}
-	return albums
+	for i, pl := range res.GetPlaylists() {
+		serial := g.old.Increment()
+		playlists[i] = MapPlaylist(pl, serial)
+	}
+	return albums, playlists
 }
 
 func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Message, []model.Message) {
-	client, _ := GetClientInstance()
+	client, _ := GetClientInstance(g.ServerPort)
 	if client == nil {
 		return nil, nil
 	}
+
 	res, err := client.ReadArtistAlbums(context.Background(), &artist.ReadArtistAlbumRequest{
 		SiteId:   siteId,
 		ArtistId: artistId,
 	}, grpc.MaxCallRecvMsgSize(1024*1024*12))
+
 	if res == nil {
 		return make([]model.Message, 0), nil
 	}
@@ -241,7 +249,7 @@ func (g *Generator) GetArtistAlbums(siteId uint32, artistId string) ([]model.Mes
 }
 
 func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality string, isPl bool) map[string]string {
-	client, _ := GetClientInstance()
+	client, _ := GetClientInstance(g.ServerPort)
 	if client == nil {
 		return nil
 	}
@@ -258,7 +266,7 @@ func (g *Generator) DownloadAlbum(siteId uint32, albumId []string, trackQuality 
 }
 
 func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality string) map[string]string {
-	client, _ := GetClientInstance()
+	client, _ := GetClientInstance(g.ServerPort)
 	if client == nil {
 		return nil
 	}
@@ -274,7 +282,7 @@ func (g *Generator) DownloadArtist(siteId uint32, artistId string, trackQuality 
 }
 
 func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[string][]model.Message) {
-	client, _ := GetClientInstance()
+	client, _ := GetClientInstance(g.ServerPort)
 	if client == nil {
 		return
 	}
@@ -302,7 +310,7 @@ func (g *Generator) SyncArtist(siteId uint32, artistId string, arts chan map[str
 }
 
 func (g *Generator) ClearSync(siteId uint32) int64 {
-	client, _ := GetClientInstance()
+	client, _ := GetClientInstance(g.ServerPort)
 	if client == nil {
 		return -1
 	}

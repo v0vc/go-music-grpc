@@ -28,8 +28,10 @@ message Album {
   int32 viewCount = 8;
   bytes thumbnail = 9;
   int32 syncState = 10;
-  repeated string artistIds = 11;
-  float quality = 12;
+  int32 listState = 11;
+  int32 watchState = 12;
+  repeated string artistIds = 13;
+  float quality = 14;
 }
 
 message Playlist {

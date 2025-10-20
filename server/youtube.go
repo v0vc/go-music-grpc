@@ -163,6 +163,7 @@ func SyncArtistYou(ctx context.Context, siteId uint32, channelId ArtistRawId, is
 		}(stChPl)
 
 		allPl := GetPlaylists(ctx, channelId.Id, token)
+
 		allPl = append(allPl, &plItem{
 			id:        ch.Items[0].ContentDetails.RelatedPlaylists.Uploads,
 			title:     "Uploads",
@@ -452,7 +453,7 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string
 		}
 	}(db)
 
-	stRows, err := db.PrepareContext(ctx, "select v.vid_id, v.title, v.videoId, v.duration, v.timestamp, v.likeCount, v.viewCount, v.thumbnail, v.syncState, v.listState, ifnull(v.quality,0) as quality from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where pV.playlistId = (select pl_id from main.playlist join main.channelPlaylist cP on playlist.pl_id = cP.playlistId where cP.channelId = (select ch_id from main.channel where channelId = ? and siteId = ? limit 1) and playlistType = 0 limit 1) order by 9 desc, 5 desc;")
+	stRows, err := db.PrepareContext(ctx, "select v.vid_id, v.title, v.videoId, v.duration, v.timestamp, v.likeCount, v.viewCount, v.thumbnail, v.syncState, v.listState, v.watchState, ifnull(v.quality,0) as quality from main.video v join main.playlistVideo pV on v.vid_id = pV.videoId where pV.playlistId = (select pl_id from main.playlist join main.channelPlaylist cP on playlist.pl_id = cP.playlistId where cP.channelId = (select ch_id from main.channel where channelId = ? and siteId = ? limit 1) and playlistType = 0 limit 1) order by 9 desc, 5 desc;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -477,12 +478,9 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string
 	var albs []*artist.Album
 
 	for rows.Next() {
-		var (
-			alb        artist.Album
-			visibility int
-		)
+		var alb artist.Album
 
-		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.LikeCount, &alb.ViewCount, &alb.Thumbnail, &alb.SyncState, &visibility, &alb.Quality); err != nil {
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.LikeCount, &alb.ViewCount, &alb.Thumbnail, &alb.SyncState, &alb.ListState, &alb.WatchState, &alb.Quality); err != nil {
 			log.Println(err)
 		} else {
 			date, er := time.Parse(time.DateTime, alb.ReleaseDate)
@@ -490,13 +488,16 @@ func GetChannelVideosFromDb(ctx context.Context, siteId uint32, channelId string
 				log.Println(er)
 			} else {
 				alb.SubTitle = fmt.Sprintf("%s   %s   Views: %d   Likes: %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
-				if visibility == 1 {
+				if alb.GetListState() == 1 {
 					alb.SubTitle += "   ®"
 				}
+				if alb.GetWatchState() == 1 {
+					alb.SubTitle += "   •••"
+				}
+				alb.ReleaseType = 3
+				alb.ArtistIds = []string{channelId}
+				albs = append(albs, &alb)
 			}
-			alb.ReleaseType = 3
-			alb.ArtistIds = []string{channelId}
-			albs = append(albs, &alb)
 		}
 	}
 
@@ -605,7 +606,7 @@ func GetChannelVideosIdFromDb(ctx context.Context, siteId uint32, channelId stri
 	return albIds, err
 }
 
-func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, error) {
+func GetNewVideosFromDb(ctx context.Context) ([]*artist.Album, []*artist.Playlist, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?cache=shared&mode=ro", dbFile))
 	if err != nil {
 		log.Println(err)
@@ -617,7 +618,8 @@ func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, er
 		}
 	}(db)
 
-	stRows, err := db.PrepareContext(ctx, "select v.vid_id, v.title, v.videoId, v.duration, v.timestamp, v.likeCount, v.viewCount, v.thumbnail, v.syncState, v.listState, ifnull(v.quality,0), c.channelId from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where v.syncState = 1 and p.playlistType = 0 and c.siteId = ? order by 5 desc;")
+	// stRows, err := db.PrepareContext(ctx, "select v.vid_id, v.title, v.videoId, v.duration, v.timestamp, v.likeCount, v.viewCount, v.thumbnail, v.syncState, v.listState, ifnull(v.quality,0), c.channelId from main.video v inner join main.playlistVideo pV on v.vid_id = pV.videoId inner join main.playlist p on p.pl_id = pV.playlistId inner join main.channelPlaylist cP on p.pl_id = cP.playlistId inner join main.channel c on c.ch_id = cP.channelId where v.syncState = 1 and p.playlistType = 0 and c.siteId = ? order by 5 desc;")
+	stRows, err := db.PrepareContext(ctx, "select v.vid_id, v.title, v.videoId, v.duration, v.timestamp, v.likeCount, v.viewCount, v.thumbnail, v.syncState, v.listState, v.watchState, ifnull(v.quality,0) from main.video v where v.syncState = 1 or v.watchState = 1 order by 5 desc;")
 	if err != nil {
 		log.Println(err)
 	}
@@ -628,7 +630,7 @@ func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, er
 		}
 	}(stRows)
 
-	rows, err := stRows.QueryContext(ctx, siteId)
+	rows, err := stRows.QueryContext(ctx)
 	if err != nil {
 		log.Println(err)
 	}
@@ -641,32 +643,55 @@ func GetNewVideosFromDb(ctx context.Context, siteId uint32) ([]*artist.Album, er
 
 	var albs []*artist.Album
 
+	var vidIs []string
+
 	for rows.Next() {
 		var (
-			alb        artist.Album
-			parentId   string
-			visibility int
+			alb      artist.Album
+			parentId string
 		)
 
-		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.LikeCount, &alb.ViewCount, &alb.Thumbnail, &alb.SyncState, &visibility, &alb.Quality, &parentId); err != nil {
+		if err = rows.Scan(&alb.Id, &alb.Title, &alb.AlbumId, &alb.SubTitle, &alb.ReleaseDate, &alb.LikeCount, &alb.ViewCount, &alb.Thumbnail, &alb.SyncState, &alb.ListState, &alb.WatchState, &alb.Quality); err != nil {
 			log.Println(err)
 		} else {
 			date, er := time.Parse(time.DateTime, alb.ReleaseDate)
 			if er != nil {
 				log.Println(er)
 			} else {
+				if alb.GetSyncState() != 1 {
+					if alb.GetWatchState() == 1 {
+						vidIs = append(vidIs, alb.GetAlbumId())
+					}
+					continue
+				}
 				alb.SubTitle = fmt.Sprintf("%s   %s   Views: %d   Likes: %d", alb.GetSubTitle(), TimeAgo(date), alb.GetViewCount(), alb.GetLikeCount())
-				if visibility == 1 {
+				if alb.GetListState() == 1 {
 					alb.SubTitle += "   ®"
 				}
+				if alb.GetWatchState() == 1 {
+					alb.SubTitle += "   •••"
+				}
+				alb.ReleaseType = 3
+				alb.ArtistIds = []string{parentId}
+				albs = append(albs, &alb)
 			}
-			alb.ReleaseType = 3
-			alb.ArtistIds = []string{parentId}
-			albs = append(albs, &alb)
 		}
 	}
 
-	return albs, err
+	var pls []*artist.Playlist
+
+	if vidIs != nil {
+		pls = append(pls, &artist.Playlist{
+			Id:           0,
+			PlaylistId:   "0",
+			Title:        "Planned",
+			Thumbnail:    nil,
+			PlaylistType: 0,
+			VideoIds:     vidIs,
+		})
+	}
+
+	return albs, pls, err
 }
 
 func DeleteChannelDb(ctx context.Context, siteId uint32, artistId []string) (int64, error) {
