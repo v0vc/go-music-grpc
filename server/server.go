@@ -369,6 +369,45 @@ func (*server) DeleteArtist(ctx context.Context, req *artist.DeleteArtistRequest
 	return &artist.DeleteArtistResponse{RowsAffected: res}, err
 }
 
+func (*server) SetPlanned(ctx context.Context, req *artist.SetPlannedRequest) (*artist.SetPlannedResponse, error) {
+	siteId := req.GetSiteId()
+	vId := req.GetVideoId()
+	fmt.Printf("siteId: %v, set planned video %v started\n", siteId, vId)
+
+	var (
+		res int64
+		err error
+	)
+
+	wgSync.Add(1)
+	_ = pool.Submit(func() {
+		switch siteId {
+		// для музыки не актуально, но можно в будущем
+		case 2:
+			// автор со спотика
+		case 3:
+			// автор с дизера
+		case 4:
+			// автор с ютуба
+			res, err = SetPlannedDb(context.WithoutCancel(ctx), vId, req.GetState())
+		}
+		wgSync.Done()
+	})
+	wgSync.Wait()
+
+	if err != nil {
+		log.Printf("Set planned error: %v", err)
+		return nil, status.Errorf(
+			codes.Internal,
+			"Internal error",
+		)
+	} else {
+		fmt.Printf("siteId: %v, set planned video %v completed\n", siteId, vId)
+	}
+
+	return &artist.SetPlannedResponse{RowsAffected: res}, err
+}
+
 func (*server) ClearSync(ctx context.Context, req *artist.ClearSyncRequest) (*artist.ClearSyncResponse, error) {
 	siteId := req.GetSiteId()
 	fmt.Printf("siteId: %v, clear sync state started\n", siteId)

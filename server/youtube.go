@@ -694,6 +694,49 @@ func GetNewVideosFromDb(ctx context.Context) ([]*artist.Album, []*artist.Playlis
 	return albs, pls, err
 }
 
+func SetPlannedDb(ctx context.Context, videoId string, state uint32) (int64, error) {
+	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=false&cache=shared&mode=rw", dbFile))
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(db *sql.DB) {
+		err = db.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(db)
+
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		log.Println(err)
+	}
+
+	stPlanned, err := tx.PrepareContext(ctx, "update main.video set watchState = ? where video.videoId = ?;")
+	if err != nil {
+		log.Println(err)
+	}
+	defer func(stPlanned *sql.Stmt) {
+		er := stPlanned.Close()
+		if er != nil {
+			log.Println(er)
+		}
+	}(stPlanned)
+
+	var affectedRowCount int64
+	res, er := stPlanned.ExecContext(ctx, state, videoId)
+	if er != nil {
+		log.Println(er)
+	}
+	rowCount, er := res.RowsAffected()
+	if er != nil {
+		log.Println(er)
+	} else {
+		affectedRowCount = affectedRowCount + rowCount
+	}
+
+	return affectedRowCount, tx.Commit()
+}
+
 func DeleteChannelDb(ctx context.Context, siteId uint32, artistId []string) (int64, error) {
 	db, err := sql.Open(sqlite3, fmt.Sprintf("file:%v?_foreign_keys=true&cache=shared&mode=rw", dbFile))
 	if err != nil {

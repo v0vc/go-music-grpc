@@ -79,6 +79,7 @@ var topLevelKeyFilters = []event.Filter{
 	key.Filter{Name: key.NamePageDown},
 	key.Filter{Name: key.NameHome},
 	key.Filter{Name: key.NameEnd},
+	key.Filter{Name: "Q"},
 }
 
 func (r *Router) Register(tag any, p Page) {

@@ -14,7 +14,7 @@ import (
 // Message represents a chat message.
 type Message struct {
 	SerialID                      string
-	TypeId, Views, Likes          int32
+	TypeId, Views, Likes, State   int32
 	Quality                       float32
 	Title, Content, AlbumId, Type string
 	ParentId                      []string

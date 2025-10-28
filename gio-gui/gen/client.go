@@ -323,6 +323,22 @@ func (g *Generator) ClearSync(siteId uint32) int64 {
 	return res.GetRowsAffected()
 }
 
+func (g *Generator) SetPlanned(siteId uint32, id string, state uint32) int64 {
+	client, _ := GetClientInstance(g.ServerPort)
+	if client == nil {
+		return -1
+	}
+	res, err := client.SetPlanned(context.Background(), &artist.SetPlannedRequest{
+		SiteId:  siteId,
+		VideoId: id,
+		State:   state,
+	})
+	if err != nil {
+		return -1
+	}
+	return res.GetRowsAffected()
+}
+
 func MapPlaylist(pl *artist.Playlist, serial int) model.Message {
 	thumb := pl.GetThumbnail()
 	if thumb == nil {
@@ -357,6 +373,7 @@ func MapAlbum(alb *artist.Album, serial int, isRead bool) model.Message {
 		Views:    alb.GetViewCount(),
 		Likes:    alb.GetLikeCount(),
 		Quality:  alb.GetQuality(),
+		State:    alb.GetWatchState(),
 		SentAt:   at,
 		Avatar:   im,
 		Read:     isRead,

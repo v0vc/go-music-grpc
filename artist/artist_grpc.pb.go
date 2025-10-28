@@ -26,6 +26,7 @@ type ArtistServiceClient interface {
 	SyncArtist(ctx context.Context, in *SyncArtistRequest, opts ...grpc.CallOption) (*SyncArtistResponse, error)
 	ReadArtistAlbums(ctx context.Context, in *ReadArtistAlbumRequest, opts ...grpc.CallOption) (*ReadArtistAlbumResponse, error)
 	DeleteArtist(ctx context.Context, in *DeleteArtistRequest, opts ...grpc.CallOption) (*DeleteArtistResponse, error)
+	SetPlanned(ctx context.Context, in *SetPlannedRequest, opts ...grpc.CallOption) (*SetPlannedResponse, error)
 	ClearSync(ctx context.Context, in *ClearSyncRequest, opts ...grpc.CallOption) (*ClearSyncResponse, error)
 	DownloadAlbums(ctx context.Context, in *DownloadAlbumsRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
 	DownloadArtist(ctx context.Context, in *DownloadArtistRequest, opts ...grpc.CallOption) (*DownloadAlbumsResponse, error)
@@ -61,6 +62,15 @@ func (c *artistServiceClient) ReadArtistAlbums(ctx context.Context, in *ReadArti
 func (c *artistServiceClient) DeleteArtist(ctx context.Context, in *DeleteArtistRequest, opts ...grpc.CallOption) (*DeleteArtistResponse, error) {
 	out := new(DeleteArtistResponse)
 	err := c.cc.Invoke(ctx, "/artist.ArtistService/DeleteArtist", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *artistServiceClient) SetPlanned(ctx context.Context, in *SetPlannedRequest, opts ...grpc.CallOption) (*SetPlannedResponse, error) {
+	out := new(SetPlannedResponse)
+	err := c.cc.Invoke(ctx, "/artist.ArtistService/SetPlanned", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +120,7 @@ type ArtistServiceServer interface {
 	SyncArtist(context.Context, *SyncArtistRequest) (*SyncArtistResponse, error)
 	ReadArtistAlbums(context.Context, *ReadArtistAlbumRequest) (*ReadArtistAlbumResponse, error)
 	DeleteArtist(context.Context, *DeleteArtistRequest) (*DeleteArtistResponse, error)
+	SetPlanned(context.Context, *SetPlannedRequest) (*SetPlannedResponse, error)
 	ClearSync(context.Context, *ClearSyncRequest) (*ClearSyncResponse, error)
 	DownloadAlbums(context.Context, *DownloadAlbumsRequest) (*DownloadAlbumsResponse, error)
 	DownloadArtist(context.Context, *DownloadArtistRequest) (*DownloadAlbumsResponse, error)
@@ -129,6 +140,9 @@ func (UnimplementedArtistServiceServer) ReadArtistAlbums(context.Context, *ReadA
 }
 func (UnimplementedArtistServiceServer) DeleteArtist(context.Context, *DeleteArtistRequest) (*DeleteArtistResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteArtist not implemented")
+}
+func (UnimplementedArtistServiceServer) SetPlanned(context.Context, *SetPlannedRequest) (*SetPlannedResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetPlanned not implemented")
 }
 func (UnimplementedArtistServiceServer) ClearSync(context.Context, *ClearSyncRequest) (*ClearSyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClearSync not implemented")
@@ -205,6 +219,24 @@ func _ArtistService_DeleteArtist_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ArtistServiceServer).DeleteArtist(ctx, req.(*DeleteArtistRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArtistService_SetPlanned_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetPlannedRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArtistServiceServer).SetPlanned(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/artist.ArtistService/SetPlanned",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArtistServiceServer).SetPlanned(ctx, req.(*SetPlannedRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -299,6 +331,10 @@ var ArtistService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteArtist",
 			Handler:    _ArtistService_DeleteArtist_Handler,
+		},
+		{
+			MethodName: "SetPlanned",
+			Handler:    _ArtistService_SetPlanned_Handler,
 		},
 		{
 			MethodName: "ClearSync",

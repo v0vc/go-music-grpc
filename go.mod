@@ -12,12 +12,12 @@ require (
 	github.com/go-flac/flacvorbis v0.2.0
 	github.com/go-flac/go-flac v1.0.0
 	github.com/joho/godotenv v1.5.1
-	github.com/lrstanley/go-ytdlp v1.2.6
+	github.com/lrstanley/go-ytdlp v1.2.7
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
-	golang.org/x/exp v0.0.0-20251017212417-90e834f514db
-	golang.org/x/exp/shiny v0.0.0-20251017212417-90e834f514db
+	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
+	golang.org/x/exp/shiny v0.0.0-20251023183803-a4bb9ffd2546
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
 )
@@ -34,5 +34,5 @@ require (
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251020155222-88f65dc88635 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
 )

@@ -301,6 +301,36 @@ func (ui *UI) MassDownload(siteId uint32, resQuality string) {
 	}
 }
 
+func (ui *UI) SetPlanned(siteId uint32) {
+	curChannel := ui.Rooms.Active()
+	if curChannel != nil {
+		if tabs.selected == 0 {
+			// isOk := false
+			for _, data := range curChannel.RowTracker.Rows {
+				switch el := data.(type) {
+				case model.Message:
+					elemState, ok := curChannel.ListState.GetState(data.Serial()).(*Row)
+					if ok && elemState.Hovered() {
+						g := &gen.Generator{ServerPort: ui.ServerPort}
+						var state uint32
+						if el.State == 1 {
+							state = 0
+						} else {
+							state = 1
+						}
+						res := g.SetPlanned(siteId, el.AlbumId, state)
+						if res == 1 {
+							el.State = int32(state) // TODO
+						}
+						// тут как-то на ui отобразить что добавлено в запланированное "   •••"
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
 func (ui *UI) SelectAll(value bool) {
 	curChannel := ui.Rooms.Active()
 	if curChannel != nil {

@@ -212,6 +212,10 @@ func (p *Page) HandleKeyboard(nm key.Name) {
 			go singleInstance.SelectAll(val)
 			selectAll.Store(val)
 		}
+	case "Q":
+		if singleInstance != nil {
+			go singleInstance.SetPlanned(siteId)
+		}
 	case key.NameUpArrow:
 		// TODO
 	case key.NameDownArrow:
