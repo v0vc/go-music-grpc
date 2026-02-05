@@ -121,7 +121,7 @@ func getArtistIdAddDb(tx *sql.Tx, ctx context.Context, siteId uint32, artistId i
 	err = stmtArt.QueryRowContext(ctx, artistId, siteId).Scan(&artRawId, &userAdded, &thumbnail)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		log.Printf("no artist with id %v\n", artistId)
+		fmt.Printf("no artist with id %v\n", artistId)
 	case err != nil:
 		log.Println(err)
 	default:
