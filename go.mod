@@ -14,7 +14,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lrstanley/go-ytdlp v1.2.7
 	github.com/mattn/go-sqlite3 v1.14.33
-	github.com/panjf2000/ants/v2 v2.11.4
+	github.com/panjf2000/ants/v2 v2.11.5
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 	golang.org/x/exp/shiny v0.0.0-20260112195511-716be5621a96
@@ -32,7 +32,7 @@ require (
 	golang.org/x/image v0.35.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260203192932-546029d2fa20 // indirect
 )
