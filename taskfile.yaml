@@ -37,7 +37,10 @@ tasks:
     - go get golang.org/x/exp@latest
     - go get golang.org/x/exp/shiny@latest
     - go get google.golang.org/grpc@latest
-    - go get google.golang.org/protobuf@latest
+    - go get golang.org/x/net@latest
+    - go get google.golang.org/genproto/googleapis/rpc@latest
+    - go get github.com/ProtonMail/go-crypto@latest
+    - go get golang.org/x/crypto@latest
     - go mod tidy
 
   build:
