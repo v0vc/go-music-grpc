@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	defaultPort      = "4041"
+	defaultPort      = "50005"
 	defaultInterface = "0.0.0.0"
 	dbFile           = "./db.sqlite"
 	sqlite3          = "sqlite3"
