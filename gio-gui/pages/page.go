@@ -48,8 +48,7 @@ type Router struct {
 func NewRouter(w *app.Window) Router {
 	modal := component.NewModal()
 
-	nav := component.NewNav("grpc-music", "v0.0.1")
-	modalNav := component.ModalNavFrom(&nav, modal)
+	modalNav := component.ModalNavFrom(new(component.NewNav("grpc-music", "v0.0.1")), modal)
 
 	bar := component.NewAppBar(modal)
 	bar.NavigationIcon = icon.MenuIcon

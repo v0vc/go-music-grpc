@@ -430,7 +430,7 @@ func DeleteArtistsDb(ctx context.Context, siteId uint32, artistId []string, isUs
 				log.Println(er)
 				return 0, tx.Rollback()
 			} else {
-				log.Printf("deleted artist: %v, rows: %v \n", aid, aff)
+				fmt.Printf("deleted artist: %v, rows: %v \n", aid, aff)
 				deletedRowCount = deletedRowCount + aff
 			}
 		}

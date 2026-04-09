@@ -68,8 +68,7 @@ func writeFlacTags(decTrackPath string, tags map[string]string, imgData []byte) 
 		if er != nil {
 			log.Println("Tag picture error", er)
 		}
-		pictureMeta := picture.Marshal()
-		f.Meta = append(f.Meta, &pictureMeta)
+		f.Meta = append(f.Meta, new(picture.Marshal()))
 	}
 
 	return f.Save(decTrackPath)

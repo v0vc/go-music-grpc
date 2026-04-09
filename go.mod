@@ -1,6 +1,6 @@
 module github.com/v0vc/go-music-grpc
 
-go 1.26.1
+go 1.26.2
 
 require (
 	gioui.org v0.9.0
@@ -29,10 +29,10 @@ require (
 	github.com/go-text/typesetting v0.3.2 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
 	golang.org/x/crypto v0.49.0 // indirect
-	golang.org/x/image v0.37.0 // indirect
+	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
 )
