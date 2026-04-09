@@ -140,6 +140,23 @@ type AlbumInfo struct {
 	TrackPad    string
 }
 
+type ReleaseInfoJson struct {
+	PageProps struct {
+		HydrationData struct {
+			ArtistID            string `json:"artistId,omitempty"`
+			HeaderReleaseWidget struct {
+				Release struct {
+					ID     string `json:"id,omitempty"`
+					Tracks []struct {
+						ID    string `json:"id,omitempty"`
+						Title string `json:"title,omitempty"`
+					} `json:"tracks,omitempty"`
+				} `json:"release,omitempty"`
+			} `json:"headerReleaseWidget,omitempty"`
+		} `json:"hydrationData,omitempty"`
+	} `json:"pageProps,omitempty"`
+}
+
 func CreateTagsFromDb(albInfo *AlbumInfo) map[string]string {
 	trNum, _ := strconv.Atoi(albInfo.TrackNum)
 	mTrack := make(map[string]string)

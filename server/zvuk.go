@@ -245,21 +245,49 @@ func DownloadAlbum(ctx context.Context, siteId uint32, albIds []string, trackQua
 			log.Println("Can't get release info from api, skipped..")
 			continue
 		}
-		for trId, track := range item.Result.Tracks {
-			if trId != "" {
-				_, ok := mTracks[trId]
-				if !ok {
-					var alb AlbumInfo
-					alb.AlbumId = strconv.Itoa(track.ReleaseID)
-					alb.ArtistTitle = strings.Join(item.Result.Releases[alb.AlbumId].ArtistNames, ", ")
-					alb.AlbumTitle = item.Result.Releases[alb.AlbumId].Title
-					alb.AlbumYear = strconv.Itoa(item.Result.Releases[alb.AlbumId].Date)[:4]
-					alb.AlbumCover = item.Result.Releases[alb.AlbumId].Image.Src
-					alb.TrackNum = strconv.Itoa(track.Position)
-					alb.TrackTotal = strconv.Itoa(len(item.Result.Tracks))
-					alb.TrackTitle = track.Title
-					alb.TrackGenre = strings.Join(track.Genres, ", ")
-					mTracks[trId] = &alb
+		if len(item.Result.Tracks) > 0 {
+			for trId, track := range item.Result.Tracks {
+				if trId != "" {
+					_, ok := mTracks[trId]
+					if !ok {
+						var alb AlbumInfo
+						alb.AlbumId = strconv.Itoa(track.ReleaseID)
+						alb.ArtistTitle = strings.Join(item.Result.Releases[alb.AlbumId].ArtistNames, ", ")
+						alb.AlbumTitle = item.Result.Releases[alb.AlbumId].Title
+						alb.AlbumYear = strconv.Itoa(item.Result.Releases[alb.AlbumId].Date)[:4]
+						alb.AlbumCover = item.Result.Releases[alb.AlbumId].Image.Src
+						alb.TrackNum = strconv.Itoa(track.Position)
+						alb.TrackTotal = strconv.Itoa(len(item.Result.Tracks))
+						alb.TrackTitle = track.Title
+						alb.TrackGenre = strings.Join(track.Genres, ", ")
+						mTracks[trId] = &alb
+					}
+				}
+			}
+		} else {
+			if len(item.Result.Releases) == 1 {
+				totalCount := len(item.Result.Releases[albumId].TrackIds)
+				mAlbumTitles, er := getReleaseInfo(ctx, albumId, token)
+				for trId, track := range item.Result.Releases[albumId].TrackIds {
+					idTrk := strconv.Itoa(track)
+					_, ok := mTracks[idTrk]
+					if !ok {
+						var alb AlbumInfo
+						alb.AlbumId = albumId
+						alb.ArtistTitle = strings.Join(item.Result.Releases[albumId].ArtistNames, ", ")
+						alb.AlbumTitle = item.Result.Releases[albumId].Title
+						alb.AlbumYear = strconv.Itoa(item.Result.Releases[albumId].Date)[:4]
+						alb.AlbumCover = item.Result.Releases[albumId].Image.Src
+						alb.TrackNum = strconv.Itoa(trId + 1)
+						alb.TrackTotal = strconv.Itoa(totalCount)
+						if er == nil {
+							_, exist := mAlbumTitles[idTrk]
+							if exist {
+								alb.TrackTitle = mAlbumTitles[idTrk]
+							}
+						}
+						mTracks[idTrk] = &alb
+					}
 				}
 			}
 		}

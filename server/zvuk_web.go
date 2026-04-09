@@ -24,6 +24,7 @@ const (
 	apiBase               = "https://zvuk.com/"
 	apiRelease            = "api/tiny/releases"
 	apiStream             = "api/tiny/track/stream"
+	apiReleaseJson        = "desktop-data/_next/data/v6.3.0/release/"
 	trackTemplateAlbum    = "{{.trackPad}}-{{.title}}"
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.year}} - {{.album}}"
@@ -435,6 +436,58 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 		return "", err
 	}
 	return obj.Result.Stream, nil
+}
+
+func getReleaseInfo(ctx context.Context, releaseId, token string) (map[string]string, error) {
+	var do *http.Response
+	mAlbumTitles := make(map[string]string)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+apiReleaseJson+releaseId+".json", nil)
+	if err != nil {
+		return mAlbumTitles, err
+	}
+	client := &http.Client{Jar: jar, Transport: &Transport{auth: token}}
+	defer client.CloseIdleConnections()
+	for i := 0; i < 5; i++ {
+		do, err = client.Do(req)
+		if err != nil || do == nil {
+			return mAlbumTitles, err
+		}
+		if do.StatusCode == http.StatusTeapot && i != 4 {
+			err = do.Body.Close()
+			if err != nil {
+				return mAlbumTitles, err
+			}
+			log.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
+
+			continue
+		}
+
+		if do.StatusCode != http.StatusOK {
+			return mAlbumTitles, fmt.Errorf("status code:  %d", do.StatusCode)
+		}
+
+		break
+	}
+	if do == nil {
+		return mAlbumTitles, err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(do.Body)
+
+	var obj *ReleaseInfoJson
+	err = json.NewDecoder(do.Body).Decode(&obj)
+	if err != nil || obj == nil {
+		return mAlbumTitles, err
+	}
+	for _, v := range obj.PageProps.HydrationData.HeaderReleaseWidget.Release.Tracks {
+		mAlbumTitles[v.ID] = v.Title
+	}
+	return mAlbumTitles, nil
 }
 
 func getCurrentTrackQuality(streamUrl string, qualityMap *map[string]TrackQuality) *TrackQuality {
