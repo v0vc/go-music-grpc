@@ -24,7 +24,7 @@ const (
 	apiBase               = "https://zvuk.com/"
 	apiRelease            = "api/tiny/releases"
 	apiStream             = "api/tiny/track/stream"
-	apiReleaseJson        = "desktop-data/_next/data/v6.3.0/release/"
+	apiReleaseJson        = "desktop-data/_next/data/v6.3.5/release/"
 	trackTemplateAlbum    = "{{.trackPad}}-{{.title}}"
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.year}} - {{.album}}"
@@ -281,13 +281,21 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 	if !exist {
 		albName := ParseTemplate(mTrack, albTemplate)
 		if len(albName) > 120 {
-			log.Println("Album folder was chopped as it exceeds 120 characters.")
+			fmt.Println("Album folder was chopped as it exceeds 120 characters.")
 			albName = albName[:120]
 		}
 		if trTotal == 1 {
 			absAlbName = filepath.Join(ZvukDir, strings.ReplaceAll(albName, ":", "_"))
 		} else {
+			if len(albInfo.ArtistTitle) > 120 {
+				fmt.Println("Artist folder was chopped as it exceeds 120 characters.")
+				albInfo.ArtistTitle = albInfo.ArtistTitle[:120]
+			}
 			absAlbName = filepath.Join(ZvukDir, strings.ReplaceAll(albInfo.ArtistTitle, ":", "_"), strings.ReplaceAll(albName, ":", "_"))
+		}
+		if len(absAlbName) > 255 {
+			fmt.Println("Folder was chopped as max 255 characters.")
+			absAlbName = absAlbName[:255]
 		}
 
 		err = os.MkdirAll(absAlbName, 0o755)

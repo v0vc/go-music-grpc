@@ -16,8 +16,8 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/panjf2000/ants/v2 v2.12.0
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
-	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
-	golang.org/x/exp/shiny v0.0.0-20260312153236-7ab1446f8b90
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
+	golang.org/x/exp/shiny v0.0.0-20260410095643-746e56fc9e2f
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -28,11 +28,11 @@ require (
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/go-text/typesetting v0.3.2 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
-	golang.org/x/image v0.38.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/image v0.39.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260406210006-6f92a3bedf2d // indirect
+	golang.org/x/text v0.36.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect
 )
