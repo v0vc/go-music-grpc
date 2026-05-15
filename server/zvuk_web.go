@@ -24,7 +24,7 @@ const (
 	apiBase               = "https://zvuk.com/"
 	apiRelease            = "api/tiny/releases"
 	apiStream             = "api/tiny/track/stream"
-	apiReleaseJson        = "desktop-data/_next/data/v6.3.5/release/"
+	apiReleaseJson        = "desktop-data/_next/data/v7.0.8/release/"
 	trackTemplateAlbum    = "{{.trackPad}}-{{.title}}"
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.year}} - {{.album}}"
@@ -300,14 +300,14 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 
 		err = os.MkdirAll(absAlbName, 0o755)
 		if err != nil {
-			log.Println(trackName+" can't create folder.", err)
+			fmt.Println(trackName+" can't create folder.", err)
 			return
 		}
 
 		coverPath = filepath.Join(absAlbName, "cover.jpg")
 		err = downloadAlbumCover(ctx, albInfo.AlbumCover, coverPath)
 		if err != nil {
-			log.Println(trackName+" can't download cover.", err)
+			fmt.Println(trackName+" can't download cover.", err)
 			coverPath = ""
 		}
 		mAlbum[albInfo.AlbumId] = absAlbName
@@ -328,21 +328,21 @@ func downloadFiles(ctx context.Context, trackId, token, trackQuality string, alb
 	fmt.Printf("Downloading track %s of %s: %s - %s\n", albInfo.TrackNum, albInfo.TrackTotal, albInfo.TrackTitle, curQuality.Specs)
 	resDown, err := downloadTrack(ctx, trackPath, cdnUrl)
 	if err != nil {
-		log.Println(trackName+" can't download.", err)
+		fmt.Println(trackName+" can't download.", err)
 		return
 	}
 	mDownloaded[trackId] = resDown
 
 	err = WriteTags(trackPath, coverPath, curQuality.IsFlac, mTrack)
 	if err != nil {
-		log.Println(trackName+" can't write tags.", err)
+		fmt.Println(trackName+" can't write tags.", err)
 		return
 	}
 
 	if trTotal == 1 && coverPath != "" {
 		err = os.Remove(coverPath)
 		if err != nil {
-			log.Println(trackName+" can't delete cover.", err)
+			fmt.Println(trackName+" can't delete cover.", err)
 		}
 	}
 }
@@ -379,7 +379,7 @@ func downloadTrack(ctx context.Context, trackPath, url string) (string, error) {
 		}
 	}(do.Body)
 	if do.StatusCode != http.StatusOK && do.StatusCode != http.StatusPartialContent {
-		log.Println(do.Status)
+		fmt.Println(do.Status)
 		return "", err
 	}
 	totalBytes := do.ContentLength
@@ -416,7 +416,7 @@ func getTrackStreamUrl(ctx context.Context, trackId, trackQuality, token string)
 			if err != nil {
 				return "", err
 			}
-			log.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
+			fmt.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
 
 			continue
 		}
@@ -465,7 +465,7 @@ func getReleaseInfo(ctx context.Context, releaseId, token string) (map[string]st
 			if err != nil {
 				return mAlbumTitles, err
 			}
-			log.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
+			fmt.Printf("Got a HTTP 418, %d attempt(s) remaining.\n", 4-i)
 
 			continue
 		}
