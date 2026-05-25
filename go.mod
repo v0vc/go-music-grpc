@@ -3,8 +3,8 @@ module github.com/v0vc/go-music-grpc
 go 1.26.2
 
 require (
-	gioui.org v0.9.0
-	gioui.org/x v0.9.0
+	gioui.org v0.10.0
+	gioui.org/x v0.10.0
 	github.com/bogem/id3v2/v2 v2.1.4
 	github.com/disintegration/imaging v1.6.2
 	github.com/dustin/go-humanize v1.0.1
@@ -14,7 +14,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lrstanley/go-ytdlp v1.3.5
 	github.com/mattn/go-sqlite3 v1.14.44
-	github.com/panjf2000/ants/v2 v2.12.0
+	github.com/panjf2000/ants/v2 v2.12.1
 	github.com/v0vc/graphql v0.0.0-20241114091507-588336900d5e
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 	golang.org/x/exp/shiny v0.0.0-20260508232706-74f9aab9d74a
@@ -26,13 +26,13 @@ require (
 	gioui.org/shader v1.0.8 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
-	github.com/go-text/typesetting v0.3.2 // indirect
+	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/ulikunitz/xz v0.5.15 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
-	golang.org/x/image v0.40.0 // indirect
-	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/image v0.41.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260523011958-0a33c5d7ca68 // indirect
 )
