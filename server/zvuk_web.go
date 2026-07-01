@@ -24,7 +24,7 @@ const (
 	apiBase               = "https://zvuk.com/"
 	apiRelease            = "api/tiny/releases"
 	apiStream             = "api/tiny/track/stream"
-	apiReleaseJson        = "desktop-data/_next/data/v7.0.8/release/"
+	apiReleaseJson        = "desktop-data/_next/data/v7.4.3/release/"
 	trackTemplateAlbum    = "{{.trackPad}}-{{.title}}"
 	trackTemplatePlaylist = "{{.artist}} - {{.title}}"
 	albumTemplate         = "{{.year}} - {{.album}}"
